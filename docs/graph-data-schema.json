@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Gurpreet-pixel-hue/DamnSon/blob/main/docs/graph-data-schema.json",
   "title": "CivicTaskGraph",
-  "description": "Contract for one civic procedure (e.g. 'register a cloud kitchen in Mumbai') as a dependency graph of steps. It stores reference data only. User progress/status, step order, parallel layers, 3D/2D positions, fee totals and total duration are DERIVED at runtime and must never be stored here. JSON Schema cannot express graph integrity, so lib/graph/analyzeGraph.ts additionally rejects duplicate ids, edges to unknown steps, self-loops, duplicate from->to pairs, cycles, ranges where min > max, and verified steps without an official source. Mirrored in code by lib/graph/schema.ts (zod); change both together.",
+  "description": "Contract for one civic procedure (e.g. 'register a cloud kitchen in Mumbai') as a dependency graph of steps. It stores reference data only. User progress/status, step order, parallel layers, 3D/2D positions, fee totals and total duration are DERIVED at runtime and must never be stored here. JSON Schema cannot express graph integrity, so lib/graph/analyzeGraph.ts additionally rejects duplicate ids, edges to unknown steps, self-loops, duplicate from->to pairs, cycles, ranges where min > max, verified steps without an official source, conditional steps pointing at unknown questions, and optional steps used as prerequisites. Mirrored in code by lib/graph/schema.ts (zod); change both together.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,24 +14,32 @@
     "category",
     "keywords",
     "eligibility",
+    "questions",
     "nodes",
     "edges",
     "meta"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1,
-      "description": "Bump on any breaking change to this contract."
+      "const": 2,
+      "description": "Bump on any breaking change to this contract. v2 added `questions` and `requirement.appliesWhen`."
     },
-    "taskId": { "$ref": "#/$defs/id" },
+    "taskId": {
+      "$ref": "#/$defs/id"
+    },
     "title": {
       "type": "string",
       "minLength": 3,
       "maxLength": 120,
       "description": "Citizen-facing name, e.g. 'Register a cloud kitchen'."
     },
-    "summary": { "type": "string", "maxLength": 600 },
-    "jurisdiction": { "$ref": "#/$defs/jurisdiction" },
+    "summary": {
+      "type": "string",
+      "maxLength": 600
+    },
+    "jurisdiction": {
+      "$ref": "#/$defs/jurisdiction"
+    },
     "category": {
       "enum": [
         "business_and_trade",
@@ -48,27 +56,49 @@
       "type": "array",
       "maxItems": 30,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 2, "maxLength": 60 },
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 60
+      },
       "description": "Alternative phrasings for search and autocomplete, e.g. 'food delivery kitchen licence'."
     },
     "eligibility": {
       "type": "array",
       "maxItems": 20,
-      "items": { "type": "string", "minLength": 3, "maxLength": 300 },
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 300
+      },
       "description": "Who can apply / preconditions for the whole procedure."
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "$ref": "#/$defs/question"
+      },
+      "description": "Yes/no questions that decide which conditional steps apply to this user."
     },
     "nodes": {
       "type": "array",
       "minItems": 1,
       "maxItems": 40,
-      "items": { "$ref": "#/$defs/step" }
+      "items": {
+        "$ref": "#/$defs/step"
+      }
     },
     "edges": {
       "type": "array",
       "maxItems": 120,
-      "items": { "$ref": "#/$defs/edge" }
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
     },
-    "meta": { "$ref": "#/$defs/meta" }
+    "meta": {
+      "$ref": "#/$defs/meta"
+    }
   },
   "$defs": {
     "id": {
@@ -78,28 +108,51 @@
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
       "description": "Lowercase kebab-case slug, e.g. 'fssai-registration'."
     },
-    "isoDate": { "type": "string", "format": "date" },
+    "isoDate": {
+      "type": "string",
+      "format": "date"
+    },
     "httpsUrl": {
       "type": "string",
       "format": "uri",
       "pattern": "^https://",
       "maxLength": 2048
     },
-    "note": { "type": "string", "maxLength": 300 },
+    "note": {
+      "type": "string",
+      "maxLength": 300
+    },
     "jurisdiction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["country", "state", "city"],
+      "required": [
+        "country",
+        "state",
+        "city"
+      ],
       "properties": {
-        "country": { "const": "IN" },
-        "state": { "type": "string", "minLength": 2, "maxLength": 60 },
-        "city": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "country": {
+          "const": "IN"
+        },
+        "state": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "city": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
         "localBody": {
           "type": "string",
           "maxLength": 120,
           "description": "e.g. 'Municipal Corporation of Greater Mumbai (MCGM/BMC)'."
         },
-        "ward": { "type": "string", "maxLength": 60 }
+        "ward": {
+          "type": "string",
+          "maxLength": 60
+        }
       }
     },
     "step": {
@@ -121,17 +174,34 @@
         "review"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string", "minLength": 3, "maxLength": 80 },
-        "description": { "type": "string", "maxLength": 600 },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 600
+        },
         "department": {
           "type": "string",
           "minLength": 2,
           "maxLength": 120,
           "description": "Issuing authority, e.g. 'Food Safety and Standards Authority of India (FSSAI)'."
         },
-        "requirement": { "$ref": "#/$defs/requirement" },
-        "mode": { "enum": ["online", "in_person", "hybrid"] },
+        "requirement": {
+          "$ref": "#/$defs/requirement"
+        },
+        "mode": {
+          "enum": [
+            "online",
+            "in_person",
+            "hybrid"
+          ]
+        },
         "officeType": {
           "enum": [
             "online_portal",
@@ -149,26 +219,40 @@
           ],
           "description": "Kind of place where the step happens; drives the 3D/2D visual archetype."
         },
-        "office": { "$ref": "#/$defs/office" },
+        "office": {
+          "$ref": "#/$defs/office"
+        },
         "forms": {
           "type": "array",
           "maxItems": 20,
-          "items": { "$ref": "#/$defs/form" }
+          "items": {
+            "$ref": "#/$defs/form"
+          }
         },
         "documents": {
           "type": "array",
           "maxItems": 40,
-          "items": { "$ref": "#/$defs/document" }
+          "items": {
+            "$ref": "#/$defs/document"
+          }
         },
-        "fee": { "$ref": "#/$defs/fee" },
-        "processingTime": { "$ref": "#/$defs/duration" },
+        "fee": {
+          "$ref": "#/$defs/fee"
+        },
+        "processingTime": {
+          "$ref": "#/$defs/duration"
+        },
         "sources": {
           "type": "array",
           "maxItems": 10,
-          "items": { "$ref": "#/$defs/source" },
+          "items": {
+            "$ref": "#/$defs/source"
+          },
           "description": "Pages backing this step. A step whose review.status is 'verified' must have at least one official source (enforced by analyzeGraph)."
         },
-        "review": { "$ref": "#/$defs/review" }
+        "review": {
+          "$ref": "#/$defs/review"
+        }
       }
     },
     "requirement": {
@@ -177,30 +261,65 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "mandatory" } }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "condition"],
+          "required": [
+            "kind"
+          ],
           "properties": {
-            "kind": { "const": "conditional" },
-            "condition": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 300,
-              "description": "When the step applies, e.g. 'Kitchen area above the fire-safety threshold'."
+            "kind": {
+              "const": "mandatory"
             }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind",
+            "condition",
+            "appliesWhen"
+          ],
           "properties": {
-            "kind": { "const": "optional" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "conditional"
+            },
+            "condition": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 300,
+              "description": "When the step applies, e.g. 'Kitchen area above the fire-safety threshold'."
+            },
+            "appliesWhen": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "questionId",
+                "answer"
+              ],
+              "properties": {
+                "questionId": {
+                  "$ref": "#/$defs/id"
+                },
+                "answer": {
+                  "type": "boolean"
+                }
+              },
+              "description": "The step applies when the user's answer to questionId equals answer."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "optional"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         }
       ]
@@ -208,89 +327,184 @@
     "office": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
-        "address": { "type": "string", "maxLength": 300 },
-        "ward": { "type": "string", "maxLength": 60 },
-        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
-        "lng": { "type": "number", "minimum": -180, "maximum": 180 },
-        "hours": { "type": "string", "maxLength": 120 }
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "ward": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "hours": {
+          "type": "string",
+          "maxLength": 120
+        }
       }
     },
     "form": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
         "code": {
           "type": "string",
           "maxLength": 40,
           "description": "Official form number, e.g. 'Form A'."
         },
-        "url": { "$ref": "#/$defs/httpsUrl" }
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        }
       }
     },
     "document": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
         "acceptedFormats": {
           "type": "array",
           "maxItems": 10,
-          "items": { "type": "string", "minLength": 2, "maxLength": 40 },
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
           "description": "e.g. 'PDF', 'JPG', 'self-attested copy'."
         },
-        "maxSizeKB": { "type": "integer", "minimum": 1, "maximum": 102400 },
-        "note": { "$ref": "#/$defs/note" }
+        "maxSizeKB": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 102400
+        },
+        "note": {
+          "$ref": "#/$defs/note"
+        }
       }
     },
-    "recurrence": { "enum": ["one_time", "annual"] },
+    "recurrence": {
+      "enum": [
+        "one_time",
+        "annual"
+      ]
+    },
     "fee": {
       "description": "Discriminated by `kind`. Totals are computed from fixed and range fees; variable/unknown fees are surfaced separately, never guessed.",
       "oneOf": [
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "properties": {
-            "kind": { "const": "free" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "free"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "amountINR", "recurrence"],
+          "required": [
+            "kind",
+            "amountINR",
+            "recurrence"
+          ],
           "properties": {
-            "kind": { "const": "fixed" },
-            "amountINR": { "type": "number", "minimum": 0 },
-            "recurrence": { "$ref": "#/$defs/recurrence" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "fixed"
+            },
+            "amountINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "recurrence": {
+              "$ref": "#/$defs/recurrence"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "minINR", "maxINR", "recurrence"],
+          "required": [
+            "kind",
+            "minINR",
+            "maxINR",
+            "recurrence"
+          ],
           "properties": {
-            "kind": { "const": "range" },
-            "minINR": { "type": "number", "minimum": 0 },
-            "maxINR": { "type": "number", "minimum": 0 },
-            "recurrence": { "$ref": "#/$defs/recurrence" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "range"
+            },
+            "minINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "maxINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "recurrence": {
+              "$ref": "#/$defs/recurrence"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "note"],
+          "required": [
+            "kind",
+            "note"
+          ],
           "properties": {
-            "kind": { "const": "variable" },
-            "recurrence": { "$ref": "#/$defs/recurrence" },
+            "kind": {
+              "const": "variable"
+            },
+            "recurrence": {
+              "$ref": "#/$defs/recurrence"
+            },
             "note": {
               "type": "string",
               "minLength": 3,
@@ -302,10 +516,16 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "properties": {
-            "kind": { "const": "unknown" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "unknown"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         }
       ]
@@ -316,22 +536,50 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "minDays", "maxDays", "dayType"],
+          "required": [
+            "kind",
+            "minDays",
+            "maxDays",
+            "dayType"
+          ],
           "properties": {
-            "kind": { "const": "estimate" },
-            "minDays": { "type": "integer", "minimum": 0, "maximum": 365 },
-            "maxDays": { "type": "integer", "minimum": 0, "maximum": 365 },
-            "dayType": { "enum": ["working", "calendar"] },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "estimate"
+            },
+            "minDays": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 365
+            },
+            "maxDays": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 365
+            },
+            "dayType": {
+              "enum": [
+                "working",
+                "calendar"
+              ]
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "properties": {
-            "kind": { "const": "unknown" },
-            "note": { "$ref": "#/$defs/note" }
+            "kind": {
+              "const": "unknown"
+            },
+            "note": {
+              "$ref": "#/$defs/note"
+            }
           }
         }
       ]
@@ -339,10 +587,21 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "title", "kind", "retrievedOn"],
+      "required": [
+        "url",
+        "title",
+        "kind",
+        "retrievedOn"
+      ],
       "properties": {
-        "url": { "$ref": "#/$defs/httpsUrl" },
-        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
         "kind": {
           "enum": [
             "portal",
@@ -354,7 +613,9 @@
             "other"
           ]
         },
-        "retrievedOn": { "$ref": "#/$defs/isoDate" }
+        "retrievedOn": {
+          "$ref": "#/$defs/isoDate"
+        }
       },
       "description": "Whether a URL counts as official is decided in code (lib/graph/officialSources.ts: *.gov.in, *.nic.in and vetted exceptions), never stored in data."
     },
@@ -364,28 +625,50 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status"],
+          "required": [
+            "status"
+          ],
           "properties": {
-            "status": { "const": "unverified" },
-            "note": { "type": "string", "maxLength": 500 }
+            "status": {
+              "const": "unverified"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 500
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "verifiedOn"],
+          "required": [
+            "status",
+            "verifiedOn"
+          ],
           "properties": {
-            "status": { "const": "verified" },
-            "verifiedOn": { "$ref": "#/$defs/isoDate" },
-            "note": { "type": "string", "maxLength": 500 }
+            "status": {
+              "const": "verified"
+            },
+            "verifiedOn": {
+              "$ref": "#/$defs/isoDate"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 500
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "note"],
+          "required": [
+            "status",
+            "note"
+          ],
           "properties": {
-            "status": { "const": "flagged" },
+            "status": {
+              "const": "flagged"
+            },
             "note": {
               "type": "string",
               "minLength": 3,
@@ -399,14 +682,22 @@
     "edge": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "from", "to"],
+      "required": [
+        "id",
+        "from",
+        "to"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
         "from": {
           "$ref": "#/$defs/id",
           "description": "Prerequisite step id; it must be completed before `to` can start."
         },
-        "to": { "$ref": "#/$defs/id" },
+        "to": {
+          "$ref": "#/$defs/id"
+        },
         "note": {
           "type": "string",
           "maxLength": 200,
@@ -417,14 +708,52 @@
     "meta": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["origin", "revision", "updatedAt"],
+      "required": [
+        "origin",
+        "revision",
+        "updatedAt"
+      ],
       "properties": {
         "origin": {
-          "enum": ["curated", "extracted", "ai_generated"],
+          "enum": [
+            "curated",
+            "extracted",
+            "ai_generated"
+          ],
           "description": "curated = hand-entered by an admin; extracted = pipeline from official pages; ai_generated = produced on demand without curation."
         },
-        "revision": { "type": "integer", "minimum": 1 },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 160,
+          "description": "Asked verbatim, e.g. 'Is your kitchen area above 50 sq m?'"
+        },
+        "help": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Why it matters / where to find the answer."
+        }
       }
     }
   }
