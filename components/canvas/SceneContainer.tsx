@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
+import { LabelLayer } from "./labels/LabelLayer";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
 
@@ -12,31 +13,15 @@ interface SceneContainerProps {
   metro: MetroVM;
 }
 
-// React 19 + @react-three/drei 10.x compatibility:
-// Drei <Html> invokes currentRoot.unmount() inside layout effect cleanup, which triggers
-// React 19's sync-unmount console.error. We suppress only this specific upstream warning.
-if (typeof window !== "undefined") {
-  const origError = console.error;
-  console.error = function (...args: unknown[]) {
-    const msg = typeof args[0] === "string" ? args[0] : "";
-    if (
-      msg.includes(
-        "Attempted to synchronously unmount a root while React was already rendering"
-      )
-    ) {
-      return;
-    }
-    origError.apply(console, args);
-  };
-}
-
 function checkWebGLSupport(): boolean {
   if (typeof window === "undefined") return true;
 
   // Development-only test hook: ?nowebgl=1
-  const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get("nowebgl") === "1") {
-    return false;
+  if (process.env.NODE_ENV === "development") {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("nowebgl") === "1") {
+      return false;
+    }
   }
 
   try {
@@ -55,6 +40,15 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
   const supported = useMemo(() => checkWebGLSupport(), []);
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
+  const labelSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const isDebug = useMemo(() => {
+    return (
+      process.env.NODE_ENV === "development" &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("debug") === "1"
+    );
+  }, []);
 
   useEffect(() => {
     if (!supported) {
@@ -79,10 +73,12 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
         gl={{
           antialias: true,
           powerPreference: "high-performance",
-          preserveDrawingBuffer: true,
+          preserveDrawingBuffer: isDebug,
         }}
         onCreated={({ gl }) => {
-          gl.info.autoReset = false;
+          if (isDebug) {
+            gl.info.autoReset = false;
+          }
           gl.domElement.addEventListener("webglcontextlost", (event) => {
             event.preventDefault();
             setViewMode("2d");
@@ -94,9 +90,11 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       >
         <MetroScene
           metro={metro}
+          slotsRef={labelSlotsRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
         />
       </Canvas>
+      <LabelLayer metro={metro} slotsRef={labelSlotsRef} />
     </div>
   );
 }

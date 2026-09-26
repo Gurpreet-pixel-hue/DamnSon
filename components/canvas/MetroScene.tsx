@@ -4,12 +4,13 @@ import { useState, useRef } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import * as THREE from "three";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { Ground } from "./Ground";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
 import { Pulses } from "./Pulses";
-import { StationLabels } from "./StationLabels";
+import { LabelProjector } from "./labels/LabelProjector";
 import { CameraRig } from "./CameraRig";
 import { useSceneKeyboard } from "./useSceneKeyboard";
 
@@ -66,11 +67,9 @@ function DebugCollector() {
     if (sceneDrawsRef.current === 0 || time - lastTraverseRef.current >= 0.5) {
       let count = 0;
       scene.traverse((obj) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const o = obj as any;
         if (
-          o.visible &&
-          (o.isMesh || o.isInstancedMesh || o.isLine || o.isLineSegments)
+          obj.visible &&
+          (obj instanceof THREE.Mesh || obj instanceof THREE.Line)
         ) {
           count++;
         }
@@ -93,14 +92,20 @@ function DebugCollector() {
 
 interface MetroSceneProps {
   metro: MetroVM;
+  slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
   onDprChange?: (dpr: number) => void;
 }
 
-export function MetroScene({ metro, onDprChange }: MetroSceneProps) {
+export function MetroScene({ metro, slotsRef, onDprChange }: MetroSceneProps) {
   const [bloomEnabled, setBloomEnabled] = useState(true);
 
   // Hook keyboard navigation
   useSceneKeyboard(metro);
+
+  const isDebug =
+    process.env.NODE_ENV === "development" &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debug") === "1";
 
   const handleDecline = () => {
     setBloomEnabled(false);
@@ -115,13 +120,13 @@ export function MetroScene({ metro, onDprChange }: MetroSceneProps) {
   return (
     <>
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
-      <DebugCollector />
+      {isDebug && <DebugCollector />}
 
       <Ground />
       <Stations stations={metro.stations} />
       <Tracks metro={metro} />
       <Pulses metro={metro} />
-      <StationLabels metro={metro} />
+      {slotsRef && <LabelProjector metro={metro} slotsRef={slotsRef} />}
       <CameraRig metro={metro} />
 
       <EffectComposer>

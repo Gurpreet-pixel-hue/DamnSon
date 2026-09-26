@@ -19,13 +19,28 @@ export async function loadGraphForPage(
       );
       if (fs.existsSync(stressPath)) {
         const raw = JSON.parse(fs.readFileSync(stressPath, "utf8"));
-        const parsed = civicTaskGraphSchema.parse(raw);
-        const analysis = analyzeGraph(parsed);
-        if (analysis.ok) {
-          return parsed;
+        const parseResult = civicTaskGraphSchema.safeParse(raw);
+        if (!parseResult.success) {
+          console.error(
+            "[loadGraph] stress fixture zod validation failed:",
+            parseResult.error.issues
+          );
+        } else {
+          const analysis = analyzeGraph(parseResult.data);
+          if (analysis.ok) {
+            return parseResult.data;
+          } else {
+            console.error(
+              "[loadGraph] stress fixture analyzeGraph failed:",
+              analysis.issues.map((i) => i.code)
+            );
+          }
         }
+      } else {
+        console.error(`[loadGraph] stress fixture not found at ${stressPath}`);
       }
-    } catch {
+    } catch (err) {
+      console.error("[loadGraph] error loading stress fixture:", err);
       // Fall through to repository if stress fixture fails
     }
   }

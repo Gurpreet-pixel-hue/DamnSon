@@ -113,7 +113,10 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
   }, [initialGraph]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (
+      process.env.NODE_ENV === "development" &&
+      typeof window !== "undefined"
+    ) {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("nowebgl") === "1") {
         useViewStore.getState().setViewMode("2d");
@@ -190,9 +193,9 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
       </main>
 
       {/* Floating HUD Side Elements */}
-      <aside className="pointer-events-none absolute bottom-4 right-4 z-20">
+      <aside className="pointer-events-none absolute bottom-4 right-6 z-20">
         <div className="pointer-events-auto">
-          <ProgressTracker />
+          <ProgressTracker metro={metro} />
         </div>
       </aside>
 
