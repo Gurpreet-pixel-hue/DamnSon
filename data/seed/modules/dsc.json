@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "dsc",
+  "version": 1,
+  "title": "Digital signature certificates (DSC)",
+  "summary": "Each director obtains a digital signature certificate from a Certifying Authority licensed by the CCA, to sign the SPICe+ filing.",
+  "authority": {
+    "slug": "cca",
+    "name": "Controller of Certifying Authorities",
+    "tier": "central",
+    "officialUrl": "https://cca.gov.in/"
+  },
+  "eligibility": [
+    {
+      "text": "In case number of subscribers and/or directors to eMoA and eAoA is up to twenty and all such subscribers and/or directors have DIN/PAN, it shall be mandatory for each one of them to obtain a DSC.",
+      "sourceRef": "mca-faqs"
+    }
+  ],
+  "sources": [
+    {
+      "id": "cca-dsc",
+      "url": "https://cca.gov.in/digital_signature.html",
+      "title": "How to get Digital Signature Certificate | CCA",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "cca"
+    },
+    {
+      "id": "cca-licensed",
+      "url": "https://cca.gov.in/licensed_ca.html",
+      "title": "Licensed CAs | CCA",
+      "kind": "other",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "cca"
+    },
+    {
+      "id": "mca-faqs",
+      "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+      "title": "FAQs on Incorporation and Allied Matters",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    },
+    {
+      "id": "cca-faq",
+      "url": "https://cca.gov.in/faq.html",
+      "title": "FAQ | CCA",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "cca"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "non_government",
+      "id": "obtain",
+      "title": "Get a digital signature certificate",
+      "description": "Approach any one of the Certifying Authorities licensed by the CCA (list on cca.gov.in). The DSC must then be registered on the MCA portal against the director's DIN or PAN.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "department": "Licensed Certifying Authority",
+      "mode": "online",
+      "officeType": "other",
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "digital-signature-certificate",
+          "name": "Digital signature certificate (DSC)"
+        }
+      ],
+      "fee": {
+        "kind": "variable",
+        "note": "Set by each licensed Certifying Authority: the price of the certificate may vary from CA to CA.",
+        "sourceRef": "cca-faq"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "repeat": {
+        "fact": "company.founders_count",
+        "label": "Director",
+        "max": 10
+      },
+      "sourceIds": [
+        "cca-dsc",
+        "cca-licensed",
+        "cca-faq",
+        "mca-faqs"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "obtain"
+  ],
+  "exitSteps": [
+    "obtain"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T12:00:00+05:30"
+  }
+}

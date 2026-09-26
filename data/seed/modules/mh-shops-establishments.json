@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "mh-shops-establishments",
+  "version": 1,
+  "title": "Shops and Establishments (Maharashtra)",
+  "summary": "Under the Maharashtra Shops and Establishments Act, 2017 and Rules, 2018: fewer than ten workers file an online intimation (Form F); ten or more apply for registration (Form A). Then display the notice of working hours (Form M).",
+  "authority": {
+    "slug": "mh-labour",
+    "name": "Labour Department, Government of Maharashtra",
+    "tier": "state",
+    "officialUrl": "https://labour.maharashtra.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "mh-se-rules",
+      "url": "https://mahakamgar.maharashtra.gov.in/Site/Upload/PDF/Regulation_of_Employment_Conditions_of_Service_Rules_2018.pdf",
+      "title": "Maharashtra Shops and Establishments (Regulation of Employment and Conditions of Service) Rules, 2018",
+      "kind": "act_or_rule",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mh-labour"
+    },
+    {
+      "id": "mh-labour-rts",
+      "url": "https://labour.maharashtra.gov.in/en/RTS/rts-services",
+      "title": "RTS Services | IELMD",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mh-labour"
+    },
+    {
+      "id": "mh-labour-services",
+      "url": "https://labour.maharashtra.gov.in/en/services",
+      "title": "Services | IELMD",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mh-labour"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "intimation",
+      "title": "File an online intimation (Form F)",
+      "description": "An establishment engaging less than ten workers submits an online intimation of commencement of business in Form F; a receipt is issued online in Form G.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "Fewer than 10 workers",
+        "rule": {
+          "fact": "employees.count",
+          "op": "lt",
+          "value": 10,
+          "sourceRef": "mh-se-rules"
+        }
+      },
+      "authoritySlug": "mh-labour",
+      "department": "Labour Commissionerate (Facilitator)",
+      "mode": "online",
+      "officeType": "labour_department",
+      "forms": [
+        {
+          "name": "Intimation of commencement of business",
+          "code": "Form F"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "aadhaar-responsible-person",
+          "name": "Aadhaar card of the employer (for a company: of the responsible person)"
+        },
+        {
+          "documentTypeId": "establishment-photo",
+          "name": "Photo of the establishment showing the interior and the Marathi name board"
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "se-intimation-receipt",
+          "name": "Receipt of intimation (Form G)"
+        }
+      ],
+      "fee": {
+        "kind": "variable",
+        "note": "No fee is prescribed under the Act and rules; the employer pays electronic transaction or service charges fixed by the Government.",
+        "sourceRef": "mh-se-rules"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mh-se-rules"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    },
+    {
+      "kind": "government",
+      "id": "registration",
+      "title": "Apply for registration (Form A)",
+      "description": "An establishment engaging ten or more workers applies online in Form A; the Facilitator scrutinises it and issues a digitally signed registration certificate in Form B.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "10 or more workers",
+        "rule": {
+          "fact": "employees.count",
+          "op": "gte",
+          "value": 10,
+          "sourceRef": "mh-se-rules"
+        }
+      },
+      "authoritySlug": "mh-labour",
+      "department": "Labour Commissionerate (Facilitator)",
+      "mode": "online",
+      "officeType": "labour_department",
+      "forms": [
+        {
+          "name": "Application for registration of establishment",
+          "code": "Form A"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "aadhaar-responsible-person",
+          "name": "Aadhaar card of the employer (for a company: of the responsible person)"
+        },
+        {
+          "documentTypeId": "establishment-photo",
+          "name": "Photo of the establishment showing the interior and the Marathi name board"
+        },
+        {
+          "documentTypeId": "other-mandatory-licences",
+          "name": "Licences or registrations mandatory under any other law before starting the business"
+        },
+        {
+          "documentTypeId": "premises-proof",
+          "name": "Premises proof",
+          "note": "Owned: sale deed, property tax receipt, electricity bill or society maintenance receipt. Rented/leased: lease or leave and licence agreement plus one owner's document."
+        },
+        {
+          "documentTypeId": "relative-noc",
+          "name": "NOC from the family member or relative (if they own, lease or rent the premises)"
+        },
+        {
+          "documentTypeId": "housing-society-noc",
+          "name": "NOC from the housing society (if in a residential society)"
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "se-registration-certificate",
+          "name": "Registration certificate (Form B)"
+        }
+      ],
+      "fee": {
+        "kind": "variable",
+        "note": "No fee is prescribed under the Act and rules; the employer pays electronic transaction or service charges fixed by the Government.",
+        "sourceRef": "mh-se-rules"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 1,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mh-labour-rts",
+          "wording": "RTS list: \"1 Days\" (working or calendar not stated). Rules 2018, rule 5(1): certificate \"within working seven days\"."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mh-se-rules",
+        "mh-labour-rts",
+        "mh-labour-services"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    },
+    {
+      "kind": "government",
+      "id": "display-notice",
+      "title": "Display the notice of working hours (Form M)",
+      "description": "Every employer displays, on its website and on a notice board at a conspicuous place of the premises, the hours of work, rest interval and weekly holiday in Form M.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mh-labour",
+      "department": "Employer (Labour Department rules)",
+      "mode": "in_person",
+      "officeType": "other",
+      "forms": [
+        {
+          "name": "Notice of hours of work, rest interval, weekly holiday",
+          "code": "Form M"
+        }
+      ],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "free",
+        "note": "No fee is prescribed under the Act and rules.",
+        "sourceRef": "mh-se-rules"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mh-se-rules"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-intimation-display",
+      "from": "intimation",
+      "to": "display-notice",
+      "kind": "requires"
+    },
+    {
+      "id": "e-registration-display",
+      "from": "registration",
+      "to": "display-notice",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": [
+    "intimation",
+    "registration"
+  ],
+  "exitSteps": [
+    "display-notice"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T12:00:00+05:30"
+  }
+}
