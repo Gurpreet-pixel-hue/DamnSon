@@ -1,0 +1,36 @@
+# Review ownership, mirroring PRD §13.2. Last matching rule wins, so the broad lines come first
+# and the more specific ones below them.
+#
+# A handle that does not exist silently disables its rule, so the lines for Jai and Pruthviraj stay
+# commented out until their GitHub handles are confirmed. Uncomment them then.
+
+# Frontend — Gurpreet
+/app/                   @Gurpreet-pixel-hue
+/components/            @Gurpreet-pixel-hue
+/lib/graph/             @Gurpreet-pixel-hue
+/lib/store/             @Gurpreet-pixel-hue
+/docs/frontend-spec.md  @Gurpreet-pixel-hue
+
+# Platform and API — Divvye (listed after /app/ so /app/api/ wins there)
+/app/api/               @divvyesk
+/lib/server/            @divvyesk
+/prisma/                @divvyesk
+/scripts/               @divvyesk
+/proxy.ts               @divvyesk
+/prisma.config.ts       @divvyesk
+/.github/               @divvyesk
+
+# AI service — Jai
+# /services/intelligence/         @<jai-handle>
+# /prisma/migrations/*_knowledge/ @<jai-handle>
+
+# Data and verification — Pruthviraj
+# /data/seed/       @<pruthviraj-handle>
+# /data/sources/    @<pruthviraj-handle>
+# /data/gazetteer/  @<pruthviraj-handle>
+# /data/eval/       @<pruthviraj-handle>
+
+# Shared contract: one frontend and one backend reviewer, by PR to main (§14)
+/lib/contract/   @Gurpreet-pixel-hue @divvyesk
+/docs/contract/  @Gurpreet-pixel-hue @divvyesk
+/docs/prd/       @Gurpreet-pixel-hue @divvyesk
