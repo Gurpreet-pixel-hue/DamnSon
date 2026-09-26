@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ex-recognition",
+  "version": 1,
+  "title": "Example startup recognition",
+  "summary": "Synthetic test module: optional, needs the certificate of incorporation.",
+  "authority": { "slug": "example-authority", "name": "Example Authority", "tier": "central", "officialUrl": "https://www.india.gov.in/" },
+  "eligibility": [],
+  "sources": [ { "id": "ex-portal", "url": "https://www.india.gov.in/", "title": "National Portal of India", "kind": "portal", "retrievedOn": "2026-09-26" } ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "apply",
+      "title": "Apply for recognition",
+      "description": "Apply on the portal.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "example-authority",
+      "department": "Example Department",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [ { "documentTypeId": "certificate-of-incorporation", "name": "Certificate of Incorporation" } ],
+      "outputs": [],
+      "fee": { "kind": "unknown", "note": "Not stated in the reviewed sources" },
+      "timeline": { "officialSla": { "kind": "sla", "duration": { "minDays": 0, "maxDays": 2, "dayType": "working" }, "sourceRef": "ex-portal" }, "conditional": [] },
+      "sourceIds": ["ex-portal"],
+      "review": { "status": "unverified" }
+    }
+  ],
+  "edges": [],
+  "entrySteps": ["apply"],
+  "exitSteps": ["apply"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}
