@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "epfo",
+  "version": 1,
+  "title": "EPF registration (EPFO)",
+  "summary": "Registration of the establishment with EPFO. Under the Code on Social Security, 2020, EPF applies to every establishment in which twenty or more employees are employed.",
+  "authority": {
+    "slug": "epfo",
+    "name": "Employees' Provident Fund Organisation",
+    "tier": "central",
+    "officialUrl": "https://www.epfo.gov.in/"
+  },
+  "eligibility": [
+    {
+      "text": "Every establishment in which twenty or more employees are employed.",
+      "rule": {
+        "fact": "employees.count",
+        "op": "gte",
+        "value": 20,
+        "sourceRef": "code-ss"
+      },
+      "sourceRef": "code-ss"
+    }
+  ],
+  "sources": [
+    {
+      "id": "code-ss",
+      "url": "https://www.labour.gov.in/static/uploads/2025/07/b0620548445580767b5c0d18c95c26f7.pdf",
+      "title": "The Code on Social Security, 2020",
+      "kind": "act_or_rule",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mole"
+    },
+    {
+      "id": "epfo-employer-docs",
+      "url": "https://www.epfo.gov.in/employer-documents/",
+      "title": "Employer Documents",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "epfo"
+    },
+    {
+      "id": "epfo-faq",
+      "url": "https://www.epfo.gov.in/faq-epfo",
+      "title": "FAQ",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "epfo"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "register",
+      "title": "Register the establishment with EPFO",
+      "description": "Register the establishment as an employer with EPFO (employer services on epfo.gov.in, including the Shram Suvidha Portal).",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "epfo",
+      "department": "Employees' Provident Fund Organisation",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "epfo-registration-number",
+          "name": "EPFO establishment code"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "No registration fee stated in the reviewed sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "code-ss",
+        "epfo-employer-docs",
+        "epfo-faq"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "register"
+  ],
+  "exitSteps": [
+    "register"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T18:00:00+05:30"
+  }
+}

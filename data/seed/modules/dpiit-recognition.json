@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "dpiit-recognition",
+  "version": 1,
+  "title": "DPIIT startup recognition",
+  "summary": "Recognition as a startup by DPIIT, applied for on the National Single Window System (NSWS) after incorporation.",
+  "authority": {
+    "slug": "dpiit",
+    "name": "Department for Promotion of Industry and Internal Trade",
+    "tier": "central",
+    "officialUrl": "https://www.startupindia.gov.in/"
+  },
+  "eligibility": [
+    {
+      "text": "Incorporated as a Private Limited Company or registered as a Partnership Firm, LLP or Cooperative Society.",
+      "sourceRef": "startupindia-recognition"
+    },
+    {
+      "text": "Turnover less than INR 200 Crores (INR 300 Crores for DeepTech startups) in any of the previous financial years.",
+      "sourceRef": "startupindia-recognition"
+    },
+    {
+      "text": "A startup for up to 10 years (20 years for DeepTech) from the date of incorporation, working towards innovation or improvement of products, services or processes.",
+      "sourceRef": "startupindia-recognition"
+    }
+  ],
+  "sources": [
+    {
+      "id": "startupindia-recognition",
+      "url": "https://www.startupindia.gov.in/content/sih/en/startupgov/startup_recognition_page.html",
+      "title": "DPIIT Startup Recognition & Tax Exemption",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "dpiit"
+    },
+    {
+      "id": "nsws-startup-guide",
+      "url": "https://www.startupindia.gov.in/content/dam/invest-india/NSWS%20Startup%20Application%20Guide.pdf",
+      "title": "Startup DPIIT Recognition Application on National Single Window System",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "dpiit"
+    },
+    {
+      "id": "nsws-home",
+      "url": "https://www.nsws.gov.in/",
+      "title": "India's National Single Window System for Business Approvals | NSWS",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "nsws"
+    },
+    {
+      "id": "startupindia-faq",
+      "url": "https://www.startupindia.gov.in/content/sih/en/about_us/faqs.html",
+      "title": "FAQ | Startup India",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "dpiit"
+    },
+    {
+      "id": "nsws-dpiit-userguide",
+      "url": "https://www.startupindia.gov.in/content/dam/invest-india/recognition/userguide.pdf",
+      "title": "Startup DPIIT Recognition Application on National Single Window System: A Guide",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "dpiit"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "apply",
+      "title": "Apply for DPIIT startup recognition",
+      "description": "Create an account on NSWS, add the approval 'Registration as a Startup' to the NSWS dashboard, fill the application form and apply.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "dpiit",
+      "department": "DPIIT / Startup India (via NSWS)",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": {
+        "name": "National Single Window System",
+        "url": "https://www.nsws.gov.in/"
+      },
+      "forms": [
+        {
+          "name": "Registration as a Startup (NSWS)"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "company-pan",
+          "name": "PAN of the entity (validated on NSWS)"
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "dpiit-recognition-certificate",
+          "name": "DPIIT Certificate of Recognition (also on DigiLocker)"
+        }
+      ],
+      "fee": {
+        "kind": "free",
+        "note": "The Ministry of Commerce and Industry does not charge any fee for the DPIIT Certificate of Recognition.",
+        "sourceRef": "startupindia-recognition"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 2,
+            "dayType": "working"
+          },
+          "sourceRef": "startupindia-faq",
+          "wording": "The certificate of recognition is issued typically within 2 working days upon successful submission of the application."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "startupindia-recognition",
+        "startupindia-faq",
+        "nsws-dpiit-userguide",
+        "nsws-startup-guide",
+        "nsws-home"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "apply"
+  ],
+  "exitSteps": [
+    "apply"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T18:00:00+05:30"
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "mh-professional-tax",
+  "version": 1,
+  "title": "Professional Tax (Maharashtra)",
+  "summary": "Enrolment (PTEC) for the business and registration (PTRC) for an employer that pays salaries, on the MAHAGST portal. For new companies this is done through SPICe+ (MCA FAQ 38).",
+  "authority": {
+    "slug": "mahagst",
+    "name": "Department of Goods and Services Tax, Government of Maharashtra",
+    "tier": "state",
+    "officialUrl": "https://www.mahagst.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "mahagst-ptec",
+      "url": "https://www.mahagst.gov.in/public/uploads/mvatservices/1760511840Procedure%20for_Enrolment%20Certificate%20PTEC%20under%20the%20Maharashtra%20State%20Tax%20on%20Professions%20Trades%20Callings%20and%20Employments%20Act%201975%20(2)%20(1).pdf",
+      "title": "Enrolment Certificate (PTEC) under The Maharashtra State Tax on Professions, Trades, Callings and Employments Act, 1975",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mahagst"
+    },
+    {
+      "id": "mahagst-ptrc",
+      "url": "https://mahagst.gov.in/public/uploads/mvatservices/1760602838Procedure%20for_Certificate%20of%20Registration%20PTRC%20under%20the%20Maharashtra%20State%20Tax%20on%20Professions%20Trades%20Callings%20and%20Employments%20Act%201975%20(2)%20(1).pdf",
+      "title": "Certificate of Registration (PTRC) under The Maharashtra State Tax on Professions, Trades, Callings and Employments Act, 1975",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mahagst"
+    },
+    {
+      "id": "mahagst-tc-01t-2026",
+      "url": "https://www.mahagst.gov.in/public/uploads/whatisnew/1773477619Relaxation%20in%20Registration%20and%20filing%20of%20returns%20under%20Maharashtra%20Tax%20on%20Trade,%20Callings%20and%20Proffesion%20Act-reg.pdf",
+      "title": "Trade Circular No. 01T of 2026",
+      "kind": "circular",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mahagst"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "ptec",
+      "title": "Get the PT Enrolment Certificate (PTEC)",
+      "description": "PTEC lets the business pay Professional Tax for the entity and its professionals or owners. Create a profile on mahagst.gov.in, then New Registration under the PT Act (PTEC), Form II. Auto-approved; documents are not mandatory.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mahagst",
+      "department": "GST Department, Government of Maharashtra",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [
+        {
+          "name": "Application for a Certificate of Enrolment",
+          "code": "Form II"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "company-pan",
+          "name": "PAN (details from the Income Tax website accepted)"
+        },
+        {
+          "documentTypeId": "electricity-bill",
+          "name": "Latest electricity bill (proof of place of business and residence)"
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "ptec-certificate",
+          "name": "PT Enrolment Certificate (PTEC)"
+        }
+      ],
+      "fee": {
+        "kind": "free",
+        "note": "No registration fee for applying under the Profession Tax Act.",
+        "sourceRef": "mahagst-ptec"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 1,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mahagst-ptec",
+          "wording": "Notified Timeline: 1 day (auto approval; RC generated within a day)."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mahagst-ptec",
+        "mahagst-tc-01t-2026"
+      ],
+      "review": {
+        "status": "unverified",
+        "note": "Registration confirmed live on 2026-09-27: the MAHAGST new registration form accepted a PAN and validated the OTP. Trade Circular 01T of 2026 had disabled it in March 2026."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "ptrc",
+      "title": "Get the PT Registration Certificate (PTRC)",
+      "description": "PTRC lets an employer deduct Professional Tax from employees' salary or wages and deposit it. New Registration under the PT Act (PTRC), Form I (Employers Registration Form). Auto-approved.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "The employer pays salary or wages to employees"
+      },
+      "authoritySlug": "mahagst",
+      "department": "GST Department, Government of Maharashtra",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [
+        {
+          "name": "Employers Registration Form",
+          "code": "Form I"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "company-pan",
+          "name": "PAN (details from the Income Tax website accepted)"
+        },
+        {
+          "documentTypeId": "electricity-bill",
+          "name": "Latest electricity bill (proof of place of business and residence)"
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "ptrc-certificate",
+          "name": "PT Registration Certificate (PTRC)"
+        }
+      ],
+      "fee": {
+        "kind": "free",
+        "note": "No registration fee for applying under the Profession Tax Act.",
+        "sourceRef": "mahagst-ptrc"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 1,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mahagst-ptrc",
+          "wording": "Notified Timeline: 1 day (auto approval; RC generated within a day)."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mahagst-ptrc",
+        "mahagst-tc-01t-2026"
+      ],
+      "review": {
+        "status": "unverified",
+        "note": "Registration confirmed live on 2026-09-27: the MAHAGST new registration form accepted a PAN and validated the OTP. Trade Circular 01T of 2026 had disabled it in March 2026."
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "ptec",
+    "ptrc"
+  ],
+  "exitSteps": [
+    "ptec",
+    "ptrc"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T18:00:00+05:30"
+  }
+}

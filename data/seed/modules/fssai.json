@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "fssai",
+  "version": 1,
+  "title": "FSSAI registration or licence (food businesses)",
+  "summary": "Food businesses need FSSAI registration or a licence on FoSCoS. For restaurants and food services the kind depends on annual turnover.",
+  "authority": {
+    "slug": "fssai",
+    "name": "Food Safety and Standards Authority of India",
+    "tier": "central",
+    "officialUrl": "https://www.fssai.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "fssai-eligibility",
+      "url": "https://foscos.fssai.gov.in/assets/docs/Revised_31thMarch2026KindofBusinessEligibility.pdf",
+      "title": "Kind of Business Criteria License/Registration Fee Per Annum [Updated on 01.04.2026]",
+      "kind": "fee_schedule",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "fssai"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "registration",
+      "title": "FSSAI registration",
+      "description": "Food services / restaurants with annual turnover up to Rs. 1.5 Cr need FSSAI registration.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "Annual turnover up to Rs. 1.5 Cr"
+      },
+      "authoritySlug": "fssai",
+      "department": "FSSAI (FoSCoS)",
+      "mode": "online",
+      "officeType": "health_department",
+      "applicationPortal": {
+        "name": "FoSCoS",
+        "url": "https://foscos.fssai.gov.in/"
+      },
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "fssai-registration",
+          "name": "FSSAI registration"
+        }
+      ],
+      "fee": {
+        "kind": "fixed",
+        "amountINR": 100,
+        "recurrence": "annual",
+        "sourceRef": "fssai-eligibility",
+        "note": "Fee per annum for food services (restaurants)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "fssai-eligibility"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    },
+    {
+      "kind": "government",
+      "id": "state-licence",
+      "title": "FSSAI state licence",
+      "description": "Food services / restaurants with annual turnover more than Rs. 1.5 Cr to 50 Cr need a State License.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "Annual turnover more than Rs. 1.5 Cr to 50 Cr"
+      },
+      "authoritySlug": "fssai",
+      "department": "FSSAI (FoSCoS)",
+      "mode": "online",
+      "officeType": "health_department",
+      "applicationPortal": {
+        "name": "FoSCoS",
+        "url": "https://foscos.fssai.gov.in/"
+      },
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "fssai-state-licence",
+          "name": "FSSAI state licence"
+        }
+      ],
+      "fee": {
+        "kind": "fixed",
+        "amountINR": 5000,
+        "recurrence": "annual",
+        "sourceRef": "fssai-eligibility",
+        "note": "Fee per annum for food services (restaurants)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "fssai-eligibility"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    },
+    {
+      "kind": "government",
+      "id": "central-licence",
+      "title": "FSSAI central licence",
+      "description": "Food services / restaurants with annual turnover more than Rs. 50 Cr need a Central License.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "Annual turnover more than Rs. 50 Cr"
+      },
+      "authoritySlug": "fssai",
+      "department": "FSSAI (FoSCoS)",
+      "mode": "online",
+      "officeType": "health_department",
+      "applicationPortal": {
+        "name": "FoSCoS",
+        "url": "https://foscos.fssai.gov.in/"
+      },
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "fssai-central-licence",
+          "name": "FSSAI central licence"
+        }
+      ],
+      "fee": {
+        "kind": "fixed",
+        "amountINR": 7500,
+        "recurrence": "annual",
+        "sourceRef": "fssai-eligibility",
+        "note": "Fee per annum for food services (restaurants)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "fssai-eligibility"
+      ],
+      "review": {
+        "status": "unverified"
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "registration",
+    "state-licence",
+    "central-licence"
+  ],
+  "exitSteps": [
+    "registration",
+    "state-licence",
+    "central-licence"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T18:00:00+05:30"
+  }
+}
