@@ -11,7 +11,11 @@ export type GraphIssueCode =
   | "INVERTED_RANGE"
   | "VERIFIED_WITHOUT_OFFICIAL_SOURCE"
   | "NO_OFFICIAL_SOURCE"
-  | "UNOFFICIAL_SOURCE";
+  | "UNOFFICIAL_SOURCE"
+  | "DUPLICATE_QUESTION_ID"
+  | "UNKNOWN_QUESTION_REF"
+  | "OPTIONAL_PREREQUISITE"
+  | "UNUSED_QUESTION";
 
 export interface GraphIssue {
   severity: "error" | "warning";
@@ -30,6 +34,21 @@ export interface GraphAnalysis {
 
 export function analyzeGraph(graph: CivicTaskGraph): GraphAnalysis {
   const issues: GraphIssue[] = [];
+  const questionMap = new Map<string, CivicTaskGraph["questions"][number]>();
+  const usedQuestionIds = new Set<string>();
+
+  for (const q of graph.questions) {
+    if (questionMap.has(q.id)) {
+      issues.push({
+        severity: "error",
+        code: "DUPLICATE_QUESTION_ID",
+        message: `Duplicate question id: ${q.id}`,
+      });
+    } else {
+      questionMap.set(q.id, q);
+    }
+  }
+
   const nodeMap = new Map<string, CivicTaskGraph["nodes"][number]>();
   const nodeOrderMap = new Map<string, number>();
 
@@ -73,6 +92,17 @@ export function analyzeGraph(graph: CivicTaskGraph): GraphAnalysis {
         edgeIds: [e.id],
       });
       continue;
+    }
+
+    const fromNode = nodeMap.get(e.from);
+    if (fromNode && fromNode.requirement.kind === "optional") {
+      issues.push({
+        severity: "error",
+        code: "OPTIONAL_PREREQUISITE",
+        message: `Edge ${e.id} has an optional prerequisite step: ${e.from}`,
+        nodeIds: [e.from],
+        edgeIds: [e.id],
+      });
     }
 
     if (e.from === e.to) {
@@ -150,6 +180,30 @@ export function analyzeGraph(graph: CivicTaskGraph): GraphAnalysis {
           nodeIds: [n.id],
         });
       }
+    }
+
+    if (n.requirement.kind === "conditional") {
+      const qid = n.requirement.appliesWhen.questionId;
+      if (!questionMap.has(qid)) {
+        issues.push({
+          severity: "error",
+          code: "UNKNOWN_QUESTION_REF",
+          message: `Step ${n.id} references unknown question: ${qid}`,
+          nodeIds: [n.id],
+        });
+      } else {
+        usedQuestionIds.add(qid);
+      }
+    }
+  }
+
+  for (const q of graph.questions) {
+    if (!usedQuestionIds.has(q.id)) {
+      issues.push({
+        severity: "warning",
+        code: "UNUSED_QUESTION",
+        message: `Question ${q.id} is not used by any conditional step`,
+      });
     }
   }
 

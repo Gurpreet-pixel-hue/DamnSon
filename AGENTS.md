@@ -5,7 +5,8 @@ A citizen describes a civic task in plain language (e.g. "register a cloud kitch
 Read before planning anything these cover:
 - `docs/ps.md`: problem statement and requirements
 - `docs/techstack.md`: pinned versions, architecture, performance budget, backend plan
-- `docs/structure.md`: where files go, milestones
+- `docs/structure.md`: where files go
+- `docs/frontend-spec.md`: the "Civic Metro" UI: journey, derived data, exact 3D/2D/HUD parameters, milestones
 - `docs/graph-data-schema.json`: the graph data contract (example: `docs/examples/example-graph.json`)
 
 ## Working agreement
@@ -13,6 +14,7 @@ Read before planning anything these cover:
 - Git: never commit to `main` directly (it only receives reviewed merges). Work on the branch named in the task. Never force-push, rewrite pushed history, merge or open PRs unless asked. Use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 - Never commit secrets. `.env*` stays untracked; only `.env.example` may be committed.
 - Don't edit `node_modules`, and don't disable lint rules, type checks or tests to get green.
+- Evidence in reports (command output, versions, test counts) is pasted verbatim from the actual run. Never paraphrase, reconstruct or summarise it as if it were output.
 
 ## Commands
 - `npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck` · `npm run test` · `npm run verify` (all four gates)
@@ -30,7 +32,7 @@ Read before planning anything these cover:
 - State: `useTaskStore` holds task and progress (persisted); `useViewStore` holds view and interaction state (not persisted). Never put per-frame values such as camera position or animation time in React or zustand state.
 - Graph data must pass `civicTaskGraphSchema` (zod) and `analyzeGraph()` before it is rendered or saved. User status, step order, layers, positions and totals are derived and never stored.
 - Official links: `https` only. "Official" means `isOfficialUrl()` (`.gov.in`, `.nic.in`, vetted exceptions), never a `.gov` check. Missing data renders an explicit "not verified" state; never invent fees, forms, timelines or URLs.
-- No mock data in production code paths. Fixtures live in `data/fixtures` and only tests import them.
+- No mock data in production code paths. Fixtures live in `data/fixtures`. Tests import them, and in development the app may load `data/fixtures/demo` only when `DATA_SOURCE=fixtures` is set in `.env.local`; a production build refuses that setting.
 - Accessibility: every 3D interaction has a 2D/keyboard equivalent, and motion respects `prefers-reduced-motion`.
 
 <!-- BEGIN:nextjs-agent-rules -->

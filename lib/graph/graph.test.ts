@@ -20,7 +20,7 @@ function loadFixture(relPath: string) {
 }
 
 describe("Graph contract & analyzer test suite", () => {
-  describe("1. Conformance: Ajv2020 and zod parity across all fixture files (18 tests)", () => {
+  describe("1. Conformance: Ajv2020 and zod parity across all fixture files (24 tests)", () => {
     const validDir = path.resolve(process.cwd(), "data/fixtures/valid");
     const invalidSchemaDir = path.resolve(
       process.cwd(),
@@ -44,29 +44,29 @@ describe("Graph contract & analyzer test suite", () => {
       .filter((f) => f.endsWith(".json"))
       .sort();
 
-    for (const file of validFiles) {
-      it(`valid fixture conforms to schema: ${file}`, () => {
-        const data = loadFixture(`data/fixtures/valid/${file}`);
-        expect(validateAjv(data)).toBe(true);
-        expect(civicTaskGraphSchema.safeParse(data).success).toBe(true);
-      });
-    }
+    it.each(validFiles)("valid fixture conforms to schema: %s", (file) => {
+      const data = loadFixture(`data/fixtures/valid/${file}`);
+      expect(validateAjv(data)).toBe(true);
+      expect(civicTaskGraphSchema.safeParse(data).success).toBe(true);
+    });
 
-    for (const file of invalidSchemaFiles) {
-      it(`invalid-schema fixture is rejected by both: ${file}`, () => {
+    it.each(invalidSchemaFiles)(
+      "invalid-schema fixture is rejected by both: %s",
+      (file) => {
         const data = loadFixture(`data/fixtures/invalid-schema/${file}`);
         expect(validateAjv(data)).toBe(false);
         expect(civicTaskGraphSchema.safeParse(data).success).toBe(false);
-      });
-    }
+      }
+    );
 
-    for (const file of invalidGraphFiles) {
-      it(`invalid-graph fixture is schema-valid in both: ${file}`, () => {
+    it.each(invalidGraphFiles)(
+      "invalid-graph fixture is schema-valid in both: %s",
+      (file) => {
         const data = loadFixture(`data/fixtures/invalid-graph/${file}`);
         expect(validateAjv(data)).toBe(true);
         expect(civicTaskGraphSchema.safeParse(data).success).toBe(true);
-      });
-    }
+      }
+    );
   });
 
   describe("2. The example graph analysis (1 test)", () => {
@@ -104,7 +104,7 @@ describe("Graph contract & analyzer test suite", () => {
     });
   });
 
-  describe("3. Invalid graph fixtures integrity checks (9 tests)", () => {
+  describe("3. Invalid graph fixtures integrity checks (12 tests) and warnings", () => {
     const expectations: Record<string, GraphIssueCode> = {
       "cycle.json": "CYCLE",
       "unknown-ref.json": "UNKNOWN_NODE_REF",
@@ -116,6 +116,9 @@ describe("Graph contract & analyzer test suite", () => {
       "duration-range-inverted.json": "INVERTED_RANGE",
       "verified-without-official-source.json":
         "VERIFIED_WITHOUT_OFFICIAL_SOURCE",
+      "unknown-question-ref.json": "UNKNOWN_QUESTION_REF",
+      "duplicate-question-id.json": "DUPLICATE_QUESTION_ID",
+      "optional-prerequisite.json": "OPTIONAL_PREREQUISITE",
     };
 
     for (const [filename, expectedCode] of Object.entries(expectations)) {
@@ -133,6 +136,23 @@ describe("Graph contract & analyzer test suite", () => {
         expect(hasExpectedCode).toBe(true);
       });
     }
+
+    it("detects UNUSED_QUESTION warning when a question is unreferenced", () => {
+      const example = loadFixture("data/fixtures/valid/example-graph.json");
+      const cloned = JSON.parse(JSON.stringify(example));
+      cloned.questions.push({
+        id: "unused-extra-question",
+        text: "Is this question unreferenced?",
+      });
+      const parsed = civicTaskGraphSchema.parse(cloned);
+      const analysis = analyzeGraph(parsed);
+      expect(analysis.ok).toBe(true);
+      const unusedWarning = analysis.issues.find(
+        (issue) =>
+          issue.code === "UNUSED_QUESTION" && issue.severity === "warning"
+      );
+      expect(unusedWarning).toBeDefined();
+    });
   });
 
   describe("4. isOfficialUrl tests (8 tests)", () => {

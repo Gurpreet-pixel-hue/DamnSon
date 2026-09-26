@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "taskId": "example-diamond",
   "title": "Example procedure (synthetic test data)",
   "summary": "Synthetic four-step procedure used only by tests and docs: one start step, two parallel steps, one final step.",
@@ -16,6 +16,13 @@
   ],
   "eligibility": [
     "Applicant is the owner or tenant of the premises"
+  ],
+  "questions": [
+    {
+      "id": "large-premises",
+      "text": "Is your premises area above the notified fire-safety threshold?",
+      "help": "Synthetic example question."
+    }
   ],
   "nodes": [
     {
@@ -111,7 +118,11 @@
       "department": "Example Fire Services",
       "requirement": {
         "kind": "conditional",
-        "condition": "Premises area above the notified threshold"
+        "condition": "Premises area above the notified threshold",
+        "appliesWhen": {
+          "questionId": "large-premises",
+          "answer": true
+        }
       },
       "mode": "hybrid",
       "officeType": "fire_services",
@@ -192,5 +203,5 @@
     "revision": 1,
     "updatedAt": "2026-09-26T10:00:00Z"
   },
-  "totalEstimatedFees": 3200
+  "totalFeeINR": 500
 }

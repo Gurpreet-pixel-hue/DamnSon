@@ -118,6 +118,12 @@ export const reviewSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
+export const questionSchema = z.strictObject({
+  id: idSchema,
+  text: z.string().min(5).max(160),
+  help: z.string().max(300).optional(),
+});
+
 export const requirementSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("mandatory"),
@@ -125,6 +131,10 @@ export const requirementSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("conditional"),
     condition: z.string().min(3).max(300),
+    appliesWhen: z.strictObject({
+      questionId: idSchema,
+      answer: z.boolean(),
+    }),
   }),
   z.strictObject({
     kind: z.literal("optional"),
@@ -187,7 +197,7 @@ export const categorySchema = z.enum([
 ]);
 
 export const civicTaskGraphSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   taskId: idSchema,
   title: z.string().min(3).max(120),
   summary: z.string().max(600),
@@ -200,12 +210,14 @@ export const civicTaskGraphSchema = z.strictObject({
       message: "keywords must be unique",
     }),
   eligibility: z.array(z.string().min(3).max(300)).max(20),
+  questions: z.array(questionSchema).max(10),
   nodes: z.array(stepSchema).min(1).max(40),
   edges: z.array(edgeSchema).max(120),
   meta: metaSchema,
 });
 
 export type CivicTaskGraph = z.infer<typeof civicTaskGraphSchema>;
+export type Question = z.infer<typeof questionSchema>;
 export type Step = z.infer<typeof stepSchema>;
 export type Edge = z.infer<typeof edgeSchema>;
 export type Fee = z.infer<typeof feeSchema>;
