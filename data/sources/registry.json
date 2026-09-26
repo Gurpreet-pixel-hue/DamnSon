@@ -265,6 +265,17 @@
     "language": "en"
   },
   {
+    "url": "https://cca.gov.in/faq.html",
+    "title": "FAQ | CCA",
+    "kind": "faq",
+    "authoritySlug": "cca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dsc"
+    ],
+    "language": "en"
+  },
+  {
     "url": "https://labour.maharashtra.gov.in/en/services",
     "title": "Services | IELMD",
     "kind": "portal",
