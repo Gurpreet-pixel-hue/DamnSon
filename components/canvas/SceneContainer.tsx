@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
@@ -9,6 +10,24 @@ import { PALETTE } from "./palette";
 
 interface SceneContainerProps {
   metro: MetroVM;
+}
+
+// React 19 + @react-three/drei 10.x compatibility:
+// Drei <Html> invokes currentRoot.unmount() inside layout effect cleanup, which triggers
+// React 19's sync-unmount console.error. We suppress only this specific upstream warning.
+if (typeof window !== "undefined") {
+  const origError = console.error;
+  console.error = function (...args: unknown[]) {
+    const msg = typeof args[0] === "string" ? args[0] : "";
+    if (
+      msg.includes(
+        "Attempted to synchronously unmount a root while React was already rendering"
+      )
+    ) {
+      return;
+    }
+    origError.apply(console, args);
+  };
 }
 
 function checkWebGLSupport(): boolean {
@@ -34,46 +53,42 @@ function checkWebGLSupport(): boolean {
 export default function SceneContainer({ metro }: SceneContainerProps) {
   const [dpr, setDpr] = useState<number | [number, number]>([1, 2]);
   const supported = useMemo(() => checkWebGLSupport(), []);
-  const [webglError, setWebglError] = useState<string | null>(() =>
-    !supported ? "WebGL is unavailable. Switched to 2D flowchart view." : null
-  );
   const setViewMode = useViewStore((s) => s.setViewMode);
+  const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
 
   useEffect(() => {
     if (!supported) {
       setViewMode("2d");
+      setWebglFallbackReason(
+        "WebGL is unavailable or disabled. Switched to 2D flowchart view."
+      );
     }
-  }, [supported, setViewMode]);
+  }, [supported, setViewMode, setWebglFallbackReason]);
 
-  if (!supported || webglError) {
-    return (
-      <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-950 p-6 text-center">
-        <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300 shadow-xl">
-          {webglError ?? "WebGL is unavailable. Switched to 2D view."}
-        </div>
-      </div>
-    );
+  if (!supported) {
+    return null;
   }
 
   return (
     <div className="relative h-full w-full">
       <Canvas
         dpr={dpr}
-        shadows
+        shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [20, 22, 25], fov: 45 }}
         style={{ background: PALETTE.background }}
         gl={{
           antialias: true,
           powerPreference: "high-performance",
+          preserveDrawingBuffer: true,
         }}
         onCreated={({ gl }) => {
           gl.info.autoReset = false;
           gl.domElement.addEventListener("webglcontextlost", (event) => {
             event.preventDefault();
-            setWebglError(
-              "WebGL context was lost. Switching to 2D flowchart view."
-            );
             setViewMode("2d");
+            setWebglFallbackReason(
+              "WebGL context was lost. Switched to 2D flowchart view."
+            );
           });
         }}
       >

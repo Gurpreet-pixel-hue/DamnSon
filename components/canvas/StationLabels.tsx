@@ -10,6 +10,8 @@ interface StationLabelsProps {
   metro: MetroVM;
 }
 
+const SLOTS = [0, 1, 2, 3, 4, 5] as const;
+
 export function StationLabels({ metro }: StationLabelsProps) {
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const focusedStepId = useViewStore((s) => s.focusedStepId);
@@ -49,7 +51,23 @@ export function StationLabels({ metro }: StationLabelsProps) {
 
   return (
     <group>
-      {activeStations.map((station) => {
+      {SLOTS.map((idx) => {
+        const station = activeStations[idx];
+        if (!station) {
+          return (
+            <Html
+              key={`label-slot-${idx}`}
+              position={[0, -9999, 0]}
+              center
+              distanceFactor={18}
+              className="pointer-events-none select-none"
+              style={{ display: "none" }}
+            >
+              <div />
+            </Html>
+          );
+        }
+
         const [x, y, z] = station.position3D;
         const isHovered = station.id === hoveredStepId;
         const isFocused = station.id === focusedStepId;
@@ -67,7 +85,7 @@ export function StationLabels({ metro }: StationLabelsProps) {
 
         return (
           <Html
-            key={station.id}
+            key={`label-slot-${idx}`}
             position={[x, y + 1.8, z]}
             center
             distanceFactor={18}

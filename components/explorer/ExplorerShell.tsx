@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { CivicTaskGraph } from "@/lib/graph/schema";
 import { resolvePath } from "@/lib/graph/resolvePath";
 import { fromV2 } from "@/lib/graph/viewModel";
@@ -45,12 +45,26 @@ interface ExplorerShellProps {
   initialGraph?: CivicTaskGraph | null;
 }
 
+function subscribeDebugParam(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function getDebugSnapshot(): boolean {
+  return new URLSearchParams(window.location.search).get("debug") === "1";
+}
+
+function getDebugServerSnapshot(): boolean {
+  return false;
+}
+
 function DebugOverlay() {
   const [metrics, setMetrics] = useState<SceneDebugMetrics>(currentDebugMetrics);
-  const [showDebug] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("debug") === "1";
-  });
+  const showDebug = useSyncExternalStore(
+    subscribeDebugParam,
+    getDebugSnapshot,
+    getDebugServerSnapshot
+  );
 
   useEffect(() => {
     if (!showDebug) return;
@@ -84,8 +98,12 @@ function DebugOverlay() {
   );
 }
 
+const EMPTY_ANSWERS: Record<string, boolean> = {};
+const EMPTY_COMPLETED: string[] = [];
+
 export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
   const viewMode = useViewStore((s) => s.viewMode);
+  const webglFallbackReason = useViewStore((s) => s.webglFallbackReason);
 
   useEffect(() => {
     void useTaskStore.persist.rehydrate();
@@ -94,13 +112,27 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
     }
   }, [initialGraph]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("nowebgl") === "1") {
+        useViewStore.getState().setViewMode("2d");
+        useViewStore
+          .getState()
+          .setWebglFallbackReason(
+            "WebGL is unavailable or disabled. Switched to 2D flowchart view."
+          );
+      }
+    }
+  }, []);
+
+  const answersByTask = useTaskStore((s) => s.answersByTask);
+  const completedByTask = useTaskStore((s) => s.completedByTask);
+
   const taskId = initialGraph?.taskId ?? "";
-  const answers = useTaskStore((s) =>
-    taskId ? s.answersByTask[taskId] ?? {} : {}
-  );
-  const completedList = useTaskStore((s) =>
-    taskId ? s.completedByTask[taskId] ?? [] : []
-  );
+  const answers = (taskId ? answersByTask[taskId] : undefined) ?? EMPTY_ANSWERS;
+  const completedList =
+    (taskId ? completedByTask[taskId] : undefined) ?? EMPTY_COMPLETED;
   const completed = useMemo(() => new Set(completedList), [completedList]);
 
   const metro = useMemo(() => {
@@ -120,6 +152,17 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
           <ViewModeToggle />
         </div>
       </header>
+
+      {/* Fallback Notice Banner */}
+      {webglFallbackReason && (
+        <div
+          data-testid="webgl-fallback-notice"
+          className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-zinc-950/90 px-4 py-2 text-xs font-medium text-amber-300 shadow-2xl backdrop-blur-md"
+        >
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          <span>{webglFallbackReason}</span>
+        </div>
+      )}
 
       {/* Main View Area */}
       <main

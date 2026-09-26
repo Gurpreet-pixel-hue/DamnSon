@@ -33,36 +33,39 @@ export function subscribeDebugMetrics(cb: (m: SceneDebugMetrics) => void): () =>
 }
 
 function DebugCollector() {
-  const { gl, scene } = useThree();
+  const { scene } = useThree();
   const lastTraverseRef = useRef(0);
   const frameCountRef = useRef(0);
   const lastFpsTimeRef = useRef(0);
   const fpsRef = useRef(60);
   const sceneDrawsRef = useRef(0);
+  const lastCallsRef = useRef(0);
 
   // Priority -1 ensures this runs before rendering passes
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
 
     // 1. Read previous frame's total calls from gl.info, then reset
-    const calls = gl.info.render.calls;
-    gl.info.reset();
+    const calls = state.gl.info.render.calls;
+    if (calls > 0) {
+      lastCallsRef.current = calls;
+    }
+    state.gl.info.reset();
 
     // 2. Calculate FPS
     frameCountRef.current++;
     if (time - lastFpsTimeRef.current >= 0.5) {
       fpsRef.current = Math.round(
-        (frameCountRef.current / (time - lastFpsTimeRef.current))
+        frameCountRef.current / (time - lastFpsTimeRef.current)
       );
       frameCountRef.current = 0;
       lastFpsTimeRef.current = time;
     }
 
-    // 3. Count scene draws once per second
-    if (time - lastTraverseRef.current >= 1.0) {
+    // 3. Count scene draws (immediately on first frame, then every 0.5s)
+    if (sceneDrawsRef.current === 0 || time - lastTraverseRef.current >= 0.5) {
       let count = 0;
       scene.traverse((obj) => {
-        // Visible meshes, instanced meshes, and line segments in the scene
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const o = obj as any;
         if (
@@ -78,7 +81,7 @@ function DebugCollector() {
       // Broadcast metrics
       currentDebugMetrics = {
         sceneDraws: sceneDrawsRef.current,
-        frameCalls: calls,
+        frameCalls: lastCallsRef.current,
         fps: fpsRef.current,
       };
       listeners.forEach((cb) => cb(currentDebugMetrics));

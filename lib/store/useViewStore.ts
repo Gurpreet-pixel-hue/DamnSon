@@ -7,11 +7,13 @@ interface ViewState {
   focusedStepId: string | null;
   hoveredStepId: string | null;
   criticalPathOn: boolean;
+  webglFallbackReason: string | null;
   setViewMode: (mode: ViewMode) => void;
   setFocusedStepId: (id: string | null) => void;
   setHoveredStepId: (id: string | null) => void;
   toggleCriticalPath: () => void;
   setCriticalPathOn: (on: boolean) => void;
+  setWebglFallbackReason: (reason: string | null) => void;
 }
 
 export const useViewStore = create<ViewState>((set) => ({
@@ -19,10 +21,12 @@ export const useViewStore = create<ViewState>((set) => ({
   focusedStepId: null,
   hoveredStepId: null,
   criticalPathOn: false,
+  webglFallbackReason: null,
   setViewMode: (viewMode) => set({ viewMode }),
   setFocusedStepId: (focusedStepId) => set({ focusedStepId }),
   setHoveredStepId: (hoveredStepId) => set({ hoveredStepId }),
   toggleCriticalPath: () =>
     set((state) => ({ criticalPathOn: !state.criticalPathOn })),
   setCriticalPathOn: (criticalPathOn) => set({ criticalPathOn }),
+  setWebglFallbackReason: (webglFallbackReason) => set({ webglFallbackReason }),
 }));
