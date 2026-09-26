@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 3,
+  "taskId": "example-startup",
+  "revision": 1,
+  "title": "Example: start a company (synthetic test data)",
+  "summary": "Synthetic template used only by tests and docs. Covers every composition feature.",
+  "jurisdiction": { "country": "IN", "state": "Maharashtra", "city": "Mumbai", "localBody": "Example local body" },
+  "category": "business_and_trade",
+  "keywords": ["example", "test fixture"],
+  "sources": [ { "id": "ex-threshold", "url": "https://www.india.gov.in/", "title": "Example threshold source", "kind": "act_or_rule", "retrievedOn": "2026-09-26" } ],
+  "questions": [
+    { "fact": "business.sector", "text": "What does your business do?", "options": [ { "value": "it_saas", "label": "Software / SaaS" }, { "value": "food_service", "label": "Food service" } ] },
+    { "fact": "business.serves_food", "text": "Will you make, serve or sell food?" },
+    { "fact": "company.founders_count", "text": "How many founders or directors?" },
+    { "fact": "employees.count", "text": "How many employees will you have?" },
+    { "fact": "intent.dpiit", "text": "Do you want startup recognition?" }
+  ],
+  "modules": [
+    { "moduleId": "ex-directors", "version": 1, "requirement": "mandatory", "activation": null, "reason": "Every director completes KYC" },
+    { "moduleId": "ex-incorporation", "version": 1, "requirement": "mandatory", "activation": null, "reason": "The company must be incorporated" },
+    { "moduleId": "ex-banking", "version": 1, "requirement": "mandatory", "activation": null, "reason": "The company needs a bank account" },
+    { "moduleId": "ex-tax", "version": 1, "requirement": "conditional", "activation": { "fact": "employees.count", "op": "gte", "value": 20, "sourceRef": "ex-threshold" }, "reason": "Applies at 20 or more employees" },
+    { "moduleId": "ex-food", "version": 1, "requirement": "conditional", "activation": { "any": [ { "fact": "business.sector", "op": "eq", "value": "food_service" }, { "fact": "business.serves_food", "op": "eq", "value": true } ] }, "reason": "Food businesses need food registration" },
+    { "moduleId": "ex-recognition", "version": 1, "requirement": "optional", "activation": { "fact": "intent.dpiit", "op": "eq", "value": true }, "reason": "Optional startup benefits" },
+    { "moduleId": "ex-local", "version": 1, "requirement": "mandatory", "activation": null, "reason": "Every establishment in the state" }
+  ],
+  "links": [
+    { "id": "l-kyc-file", "fromModule": "ex-directors", "toModule": "ex-incorporation", "kind": "requires" },
+    { "id": "l-inc-bank", "fromModule": "ex-incorporation", "toModule": "ex-banking", "kind": "requires", "via": "certificate-of-incorporation" },
+    { "id": "l-inc-tax", "fromModule": "ex-incorporation", "toModule": "ex-tax", "kind": "requires" },
+    { "id": "l-inc-food", "fromModule": "ex-incorporation", "toModule": "ex-food", "kind": "requires" },
+    { "id": "l-inc-rec", "fromModule": "ex-incorporation", "toModule": "ex-recognition", "kind": "requires", "via": "certificate-of-incorporation", "note": "Recognition needs the certificate of incorporation" },
+    { "id": "l-bank-rec", "fromModule": "ex-banking", "toModule": "ex-recognition", "kind": "recommended_after" },
+    { "id": "l-inc-local", "fromModule": "ex-incorporation", "toModule": "ex-local", "kind": "requires" }
+  ],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}

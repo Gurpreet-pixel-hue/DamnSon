@@ -1,0 +1,1585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 3
+    },
+    "moduleId": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 120
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 600
+    },
+    "authority": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "central",
+            "state",
+            "municipal",
+            "other"
+          ]
+        },
+        "officialUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https:\\/\\/"
+        }
+      },
+      "required": [
+        "slug",
+        "name",
+        "tier",
+        "officialUrl"
+      ],
+      "additionalProperties": false
+    },
+    "eligibility": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "rule": {
+            "$ref": "#/$defs/Rule"
+          },
+          "sourceRef": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "sources": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Source"
+      }
+    },
+    "steps": {
+      "minItems": 1,
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Step"
+      }
+    },
+    "edges": {
+      "maxItems": 60,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Edge"
+      }
+    },
+    "entrySteps": {
+      "minItems": 1,
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 64,
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      }
+    },
+    "exitSteps": {
+      "minItems": 1,
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 64,
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": [
+            "curated",
+            "extracted",
+            "ai_generated"
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "origin",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "moduleId",
+    "version",
+    "title",
+    "summary",
+    "authority",
+    "eligibility",
+    "sources",
+    "steps",
+    "edges",
+    "entrySteps",
+    "exitSteps",
+    "meta"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Rule": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "minItems": 1,
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Rule"
+              }
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "any": {
+              "minItems": 1,
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Rule"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/Rule"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "enum": [
+                "location.state",
+                "location.city",
+                "business.entity_type",
+                "business.sector",
+                "business.serves_food",
+                "business.imports_or_exports",
+                "company.founders_count",
+                "employees.count",
+                "premises.type",
+                "premises.built_up_area_sqm",
+                "intent.gst_now",
+                "intent.udyam",
+                "intent.dpiit",
+                "intent.trademark",
+                "applicant.type"
+              ]
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "eq",
+                "neq",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "in",
+                "exists"
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                {
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "valueText": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          },
+          "required": [
+            "fact",
+            "op"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "url": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https:\\/\\/"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "portal",
+            "form",
+            "guideline",
+            "fee_schedule",
+            "act_or_rule",
+            "faq",
+            "circular",
+            "other"
+          ]
+        },
+        "retrievedOn": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        },
+        "lastCheckedOn": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        },
+        "authoritySlug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "title",
+        "kind",
+        "retrievedOn"
+      ],
+      "additionalProperties": false
+    },
+    "Step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "government"
+            },
+            "authoritySlug": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 80
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 600
+            },
+            "requirement": {
+              "$ref": "#/$defs/Requirement"
+            },
+            "department": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "online",
+                "in_person",
+                "hybrid"
+              ]
+            },
+            "officeType": {
+              "type": "string",
+              "enum": [
+                "online_portal",
+                "municipal_hq",
+                "ward_office",
+                "fire_services",
+                "health_department",
+                "revenue_office",
+                "labour_department",
+                "police",
+                "pollution_control_board",
+                "utility_provider",
+                "court_or_notary",
+                "other"
+              ]
+            },
+            "office": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 160
+                },
+                "address": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "ward": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "hours": {
+                  "type": "string",
+                  "maxLength": 120
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "applicationPortal": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 120
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^https:\\/\\/"
+                }
+              },
+              "required": [
+                "name",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "forms": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "documents": {
+              "maxItems": 40,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "documentTypeId": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "perPerson": {
+                    "type": "object",
+                    "properties": {
+                      "fact": {
+                        "type": "string",
+                        "enum": [
+                          "location.state",
+                          "location.city",
+                          "business.entity_type",
+                          "business.sector",
+                          "business.serves_food",
+                          "business.imports_or_exports",
+                          "company.founders_count",
+                          "employees.count",
+                          "premises.type",
+                          "premises.built_up_area_sqm",
+                          "intent.gst_now",
+                          "intent.udyam",
+                          "intent.dpiit",
+                          "intent.trademark",
+                          "applicant.type"
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 40
+                      }
+                    },
+                    "required": [
+                      "fact",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "acceptedFormats": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 40
+                    }
+                  },
+                  "maxSizeKB": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 102400
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "documentTypeId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "outputs": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "documentTypeId": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "documentTypeId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "fee": {
+              "$ref": "#/$defs/Fee"
+            },
+            "timeline": {
+              "$ref": "#/$defs/Timeline"
+            },
+            "repeat": {
+              "type": "object",
+              "properties": {
+                "fact": {
+                  "type": "string",
+                  "enum": [
+                    "location.state",
+                    "location.city",
+                    "business.entity_type",
+                    "business.sector",
+                    "business.serves_food",
+                    "business.imports_or_exports",
+                    "company.founders_count",
+                    "employees.count",
+                    "premises.type",
+                    "premises.built_up_area_sqm",
+                    "intent.gst_now",
+                    "intent.udyam",
+                    "intent.dpiit",
+                    "intent.trademark",
+                    "applicant.type"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 40
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "fact",
+                "label",
+                "max"
+              ],
+              "additionalProperties": false
+            },
+            "sourceIds": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              }
+            },
+            "review": {
+              "$ref": "#/$defs/Review"
+            }
+          },
+          "required": [
+            "kind",
+            "authoritySlug",
+            "id",
+            "title",
+            "description",
+            "requirement",
+            "department",
+            "mode",
+            "officeType",
+            "forms",
+            "documents",
+            "outputs",
+            "fee",
+            "timeline",
+            "sourceIds",
+            "review"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "non_government"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 80
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 600
+            },
+            "requirement": {
+              "$ref": "#/$defs/Requirement"
+            },
+            "department": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "online",
+                "in_person",
+                "hybrid"
+              ]
+            },
+            "officeType": {
+              "type": "string",
+              "enum": [
+                "online_portal",
+                "municipal_hq",
+                "ward_office",
+                "fire_services",
+                "health_department",
+                "revenue_office",
+                "labour_department",
+                "police",
+                "pollution_control_board",
+                "utility_provider",
+                "court_or_notary",
+                "other"
+              ]
+            },
+            "office": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 160
+                },
+                "address": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "ward": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "hours": {
+                  "type": "string",
+                  "maxLength": 120
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "applicationPortal": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 120
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^https:\\/\\/"
+                }
+              },
+              "required": [
+                "name",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "forms": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "documents": {
+              "maxItems": 40,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "documentTypeId": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "perPerson": {
+                    "type": "object",
+                    "properties": {
+                      "fact": {
+                        "type": "string",
+                        "enum": [
+                          "location.state",
+                          "location.city",
+                          "business.entity_type",
+                          "business.sector",
+                          "business.serves_food",
+                          "business.imports_or_exports",
+                          "company.founders_count",
+                          "employees.count",
+                          "premises.type",
+                          "premises.built_up_area_sqm",
+                          "intent.gst_now",
+                          "intent.udyam",
+                          "intent.dpiit",
+                          "intent.trademark",
+                          "applicant.type"
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 40
+                      }
+                    },
+                    "required": [
+                      "fact",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "acceptedFormats": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 40
+                    }
+                  },
+                  "maxSizeKB": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 102400
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "documentTypeId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "outputs": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "documentTypeId": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "documentTypeId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "fee": {
+              "$ref": "#/$defs/Fee"
+            },
+            "timeline": {
+              "$ref": "#/$defs/Timeline"
+            },
+            "repeat": {
+              "type": "object",
+              "properties": {
+                "fact": {
+                  "type": "string",
+                  "enum": [
+                    "location.state",
+                    "location.city",
+                    "business.entity_type",
+                    "business.sector",
+                    "business.serves_food",
+                    "business.imports_or_exports",
+                    "company.founders_count",
+                    "employees.count",
+                    "premises.type",
+                    "premises.built_up_area_sqm",
+                    "intent.gst_now",
+                    "intent.udyam",
+                    "intent.dpiit",
+                    "intent.trademark",
+                    "applicant.type"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 40
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "fact",
+                "label",
+                "max"
+              ],
+              "additionalProperties": false
+            },
+            "sourceIds": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              }
+            },
+            "review": {
+              "$ref": "#/$defs/Review"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "title",
+            "description",
+            "requirement",
+            "department",
+            "mode",
+            "officeType",
+            "forms",
+            "documents",
+            "outputs",
+            "fee",
+            "timeline",
+            "sourceIds",
+            "review"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "milestone"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 80
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 600
+            },
+            "requirement": {
+              "$ref": "#/$defs/Requirement"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "title",
+            "description",
+            "requirement"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Requirement": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "mandatory"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "conditional"
+            },
+            "condition": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 300
+            },
+            "rule": {
+              "$ref": "#/$defs/Rule"
+            }
+          },
+          "required": [
+            "kind",
+            "condition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "optional"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Fee": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "free"
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "kind",
+            "sourceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fixed"
+            },
+            "amountINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "recurrence": {
+              "type": "string",
+              "enum": [
+                "one_time",
+                "annual"
+              ]
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "kind",
+            "amountINR",
+            "recurrence",
+            "sourceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "range"
+            },
+            "minINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "maxINR": {
+              "type": "number",
+              "minimum": 0
+            },
+            "recurrence": {
+              "type": "string",
+              "enum": [
+                "one_time",
+                "annual"
+              ]
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "kind",
+            "minINR",
+            "maxINR",
+            "recurrence",
+            "sourceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "variable"
+            },
+            "note": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 300
+            },
+            "recurrence": {
+              "type": "string",
+              "enum": [
+                "one_time",
+                "annual"
+              ]
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          },
+          "required": [
+            "kind",
+            "note"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "unknown"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Timeline": {
+      "type": "object",
+      "properties": {
+        "officialSla": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "sla"
+                },
+                "duration": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "sourceRef": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "wording": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "kind",
+                "duration",
+                "sourceRef"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "no_fixed_sla"
+                },
+                "note": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 300
+                },
+                "sourceRef": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                }
+              },
+              "required": [
+                "kind",
+                "note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unknown"
+                },
+                "note": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "conditional": {
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "rule": {
+                "$ref": "#/$defs/Rule"
+              },
+              "duration": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "range"
+                      },
+                      "minDays": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 730
+                      },
+                      "maxDays": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 730
+                      },
+                      "dayType": {
+                        "type": "string",
+                        "enum": [
+                          "working",
+                          "calendar"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "minDays",
+                      "maxDays",
+                      "dayType"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "open_ended"
+                      },
+                      "note": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "note"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "sourceRef": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              }
+            },
+            "required": [
+              "condition",
+              "duration",
+              "sourceRef"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "officialSla",
+        "conditional"
+      ],
+      "additionalProperties": false
+    },
+    "Duration": {
+      "type": "object",
+      "properties": {
+        "minDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 730
+        },
+        "maxDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 730
+        },
+        "dayType": {
+          "type": "string",
+          "enum": [
+            "working",
+            "calendar"
+          ]
+        }
+      },
+      "required": [
+        "minDays",
+        "maxDays",
+        "dayType"
+      ],
+      "additionalProperties": false
+    },
+    "Review": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "unverified"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "verified"
+            },
+            "verifiedOn": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "status",
+            "verifiedOn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "flagged"
+            },
+            "note": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "status",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Edge": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "from": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "requires",
+            "recommended_after"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "via": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "title": "ApprovalModule (contract v3)"
+}

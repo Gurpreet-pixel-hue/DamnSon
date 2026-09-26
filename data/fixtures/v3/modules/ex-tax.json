@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ex-tax",
+  "version": 1,
+  "title": "Example employer registration",
+  "summary": "Synthetic test module: applies above an employee threshold.",
+  "authority": { "slug": "example-authority", "name": "Example Authority", "tier": "central", "officialUrl": "https://www.india.gov.in/" },
+  "eligibility": [],
+  "sources": [ { "id": "ex-portal", "url": "https://www.india.gov.in/", "title": "National Portal of India", "kind": "portal", "retrievedOn": "2026-09-26" } ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "register",
+      "title": "Register as an employer",
+      "description": "Employer registration.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "example-authority",
+      "department": "Example Department",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "fixed", "amountINR": 100, "recurrence": "annual", "sourceRef": "ex-portal" },
+      "timeline": { "officialSla": { "kind": "sla", "duration": { "minDays": 1, "maxDays": 3, "dayType": "working" }, "sourceRef": "ex-portal" }, "conditional": [] },
+      "sourceIds": ["ex-portal"],
+      "review": { "status": "unverified" }
+    }
+  ],
+  "edges": [],
+  "entrySteps": ["register"],
+  "exitSteps": ["register"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}

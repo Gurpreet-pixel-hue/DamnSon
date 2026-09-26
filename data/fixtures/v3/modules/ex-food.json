@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ex-food",
+  "version": 1,
+  "title": "Example food registration",
+  "summary": "Synthetic test module: food businesses only.",
+  "authority": { "slug": "example-food-authority", "name": "Example Food Authority", "tier": "central", "officialUrl": "https://www.india.gov.in/" },
+  "eligibility": [],
+  "sources": [ { "id": "ex-portal", "url": "https://www.india.gov.in/", "title": "National Portal of India", "kind": "portal", "retrievedOn": "2026-09-26" } ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "apply",
+      "title": "Apply for food registration",
+      "description": "Register the food business.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "example-food-authority",
+      "department": "Example Food Department",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "variable", "note": "Depends on the licence category" },
+      "timeline": {
+        "officialSla": { "kind": "sla", "duration": { "minDays": 5, "maxDays": 7, "dayType": "calendar" }, "sourceRef": "ex-portal" },
+        "conditional": [ { "condition": "An inspection is ordered", "duration": { "kind": "open_ended", "note": "Inspection date set by the authority" }, "sourceRef": "ex-portal" } ]
+      },
+      "sourceIds": ["ex-portal"],
+      "review": { "status": "flagged", "note": "Timeline needs re-checking" }
+    }
+  ],
+  "edges": [],
+  "entrySteps": ["apply"],
+  "exitSteps": ["apply"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}
