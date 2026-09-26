@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { graphRepository } from "@/lib/data/graphRepository";
+import { searchTasks } from "@/lib/data/search";
 
 const searchPathSchema = z.strictObject({
   query: z.string().trim().min(3).max(300),
@@ -25,5 +27,8 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ error: "not_implemented" }, { status: 501 });
+  const tasks = await graphRepository.listTasks();
+  const results = searchTasks(tasks, result.data.query);
+
+  return NextResponse.json({ results });
 }

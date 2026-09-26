@@ -222,3 +222,4 @@ export type Step = z.infer<typeof stepSchema>;
 export type Edge = z.infer<typeof edgeSchema>;
 export type Fee = z.infer<typeof feeSchema>;
 export type Duration = z.infer<typeof durationSchema>;
+export type Category = z.infer<typeof categorySchema>;
