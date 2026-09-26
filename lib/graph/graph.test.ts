@@ -20,7 +20,7 @@ function loadFixture(relPath: string) {
 }
 
 describe("Graph contract & analyzer test suite", () => {
-  describe("1. Conformance: Ajv2020 and zod parity across all fixtures", () => {
+  describe("1. Conformance: Ajv2020 and zod parity across all fixture files (18 tests)", () => {
     const validDir = path.resolve(process.cwd(), "data/fixtures/valid");
     const invalidSchemaDir = path.resolve(
       process.cwd(),
@@ -33,75 +33,61 @@ describe("Graph contract & analyzer test suite", () => {
 
     const validFiles = fs
       .readdirSync(validDir)
-      .filter((f) => f.endsWith(".json"));
+      .filter((f) => f.endsWith(".json"))
+      .sort();
     const invalidSchemaFiles = fs
       .readdirSync(invalidSchemaDir)
-      .filter((f) => f.endsWith(".json"));
+      .filter((f) => f.endsWith(".json"))
+      .sort();
     const invalidGraphFiles = fs
       .readdirSync(invalidGraphDir)
-      .filter((f) => f.endsWith(".json"));
+      .filter((f) => f.endsWith(".json"))
+      .sort();
 
-    it("accepts all valid fixtures in both Ajv and zod", () => {
-      for (const file of validFiles) {
+    for (const file of validFiles) {
+      it(`valid fixture conforms to schema: ${file}`, () => {
         const data = loadFixture(`data/fixtures/valid/${file}`);
-        const ajvOk = validateAjv(data);
-        const zodResult = civicTaskGraphSchema.safeParse(data);
+        expect(validateAjv(data)).toBe(true);
+        expect(civicTaskGraphSchema.safeParse(data).success).toBe(true);
+      });
+    }
 
-        expect(ajvOk).toBe(true);
-        expect(zodResult.success).toBe(true);
-      }
-    });
-
-    it("rejects all invalid-schema fixtures in both Ajv and zod", () => {
-      for (const file of invalidSchemaFiles) {
+    for (const file of invalidSchemaFiles) {
+      it(`invalid-schema fixture is rejected by both: ${file}`, () => {
         const data = loadFixture(`data/fixtures/invalid-schema/${file}`);
-        const ajvOk = validateAjv(data);
-        const zodResult = civicTaskGraphSchema.safeParse(data);
+        expect(validateAjv(data)).toBe(false);
+        expect(civicTaskGraphSchema.safeParse(data).success).toBe(false);
+      });
+    }
 
-        expect(ajvOk).toBe(false);
-        expect(zodResult.success).toBe(false);
-      }
-    });
-
-    it("accepts all invalid-graph fixtures in both Ajv and zod (schema valid)", () => {
-      for (const file of invalidGraphFiles) {
+    for (const file of invalidGraphFiles) {
+      it(`invalid-graph fixture is schema-valid in both: ${file}`, () => {
         const data = loadFixture(`data/fixtures/invalid-graph/${file}`);
-        const ajvOk = validateAjv(data);
-        const zodResult = civicTaskGraphSchema.safeParse(data);
-
-        expect(ajvOk).toBe(true);
-        expect(zodResult.success).toBe(true);
-      }
-    });
+        expect(validateAjv(data)).toBe(true);
+        expect(civicTaskGraphSchema.safeParse(data).success).toBe(true);
+      });
+    }
   });
 
-  describe("2. The example graph analysis", () => {
-    const example = loadFixture("data/fixtures/valid/example-graph.json");
-    const parsed = civicTaskGraphSchema.parse(example);
-    const analysis = analyzeGraph(parsed);
+  describe("2. The example graph analysis (1 test)", () => {
+    it("analyzes example graph correctly (ok, order, layers, warnings)", () => {
+      const example = loadFixture("data/fixtures/valid/example-graph.json");
+      const parsed = civicTaskGraphSchema.parse(example);
+      const analysis = analyzeGraph(parsed);
 
-    it("is valid and returns ok = true", () => {
       expect(analysis.ok).toBe(true);
-    });
-
-    it("returns deterministic topological order", () => {
       expect(analysis.order).toEqual([
         "apply-online",
         "site-inspection",
         "fire-clearance",
         "licence-issued",
       ]);
-    });
-
-    it("computes correct parallel layers", () => {
       expect(analysis.layers).toEqual([
         ["apply-online"],
         ["site-inspection", "fire-clearance"],
         ["licence-issued"],
       ]);
-    });
 
-    it("includes NO_OFFICIAL_SOURCE for site-inspection and UNOFFICIAL_SOURCE for fire-clearance", () => {
       const siteInspectionWarning = analysis.issues.find(
         (issue) =>
           issue.code === "NO_OFFICIAL_SOURCE" &&
@@ -118,7 +104,7 @@ describe("Graph contract & analyzer test suite", () => {
     });
   });
 
-  describe("3. Invalid graph fixtures integrity checks", () => {
+  describe("3. Invalid graph fixtures integrity checks (9 tests)", () => {
     const expectations: Record<string, GraphIssueCode> = {
       "cycle.json": "CYCLE",
       "unknown-ref.json": "UNKNOWN_NODE_REF",
@@ -149,7 +135,7 @@ describe("Graph contract & analyzer test suite", () => {
     }
   });
 
-  describe("4. isOfficialUrl tests", () => {
+  describe("4. isOfficialUrl tests (8 tests)", () => {
     const testCases: Array<[string, boolean]> = [
       ["https://portal.mcgm.gov.in/", true],
       ["https://foscos.fssai.gov.in/", true],
@@ -161,10 +147,8 @@ describe("Graph contract & analyzer test suite", () => {
       ["not a url", false],
     ];
 
-    for (const [url, expected] of testCases) {
-      it(`evaluates ${url} -> ${expected}`, () => {
-        expect(isOfficialUrl(url)).toBe(expected);
-      });
-    }
+    it.each(testCases)("evaluates %s -> %s", (url, expected) => {
+      expect(isOfficialUrl(url)).toBe(expected);
+    });
   });
 });

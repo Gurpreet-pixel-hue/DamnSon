@@ -53,7 +53,11 @@ export function ExplorerShell() {
       </header>
 
       {/* Main View Area */}
-      <main className="h-full w-full">
+      <main
+        data-testid="view-root"
+        data-view={viewMode}
+        className="h-full w-full"
+      >
         {viewMode === "3d" ? <SceneContainer /> : <FlowchartView />}
       </main>
 
