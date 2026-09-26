@@ -81,6 +81,19 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Civic Metro spec tokens */
+  --cw-background: #09090b;
+  --cw-surface: #18181b;
+  --cw-border: #27272a;
+  --cw-text: #fafafa;
+  --cw-text-muted: #a1a1aa;
+  --cw-available: #22d3ee;
+  --cw-done: #34d399;
+  --cw-locked: #52525b;
+  --cw-undecided: #fbbf24;
+  --cw-error: #f87171;
+  --cw-critical: #67e8f9;
 }
 
 .dark {
