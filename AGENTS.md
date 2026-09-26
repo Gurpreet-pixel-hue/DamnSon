@@ -1,39 +1,34 @@
-# DamnSon — Municipal Bureaucracy Path Visualizer (PSWB 02)
+# CivicWeave (DamnSon): Municipal Bureaucracy Path Visualizer (PSWB 02)
 
-A citizen describes a civic task in plain language (e.g. "register a cloud kitchen in Bandra"). The app shows the procedure as an interactive dependency graph (3D spatial view plus 2D flowchart) with official links, fees, timelines and progress tracking, and an admin dashboard verifies the data.
+The single source of truth is docs/prd/CivicWeave-PRD.md (v1.1). Read "What changed in 1.1",
+§13 (engineering rules and folder ownership) and the sections for your task before planning.
+docs/frontend-spec.md holds the Civic Metro visual parameters.
 
-Read before planning anything these cover:
-- `docs/ps.md`: problem statement and requirements
-- `docs/techstack.md`: pinned versions, architecture, performance budget, backend plan
-- `docs/structure.md`: where files go
-- `docs/frontend-spec.md`: the "Civic Metro" UI: journey, derived data, exact 3D/2D/HUD parameters, milestones
-- `docs/graph-data-schema.json`: the graph data contract (example: `docs/examples/example-graph.json`)
-
-## Working agreement
-- Plan first and wait for approval on multi-file work. Stay inside the task's scope; list anything else as a follow-up.
-- Git: never commit to `main` directly (it only receives reviewed merges). Work on the branch named in the task. Never force-push, rewrite pushed history, merge or open PRs unless asked. Use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
-- Never commit secrets. `.env*` stays untracked; only `.env.example` may be committed.
-- Don't edit `node_modules`, and don't disable lint rules, type checks or tests to get green.
-- Evidence in reports (command output, versions, test counts) is pasted verbatim from the actual run. Never paraphrase, reconstruct or summarise it as if it were output.
-
-## Commands
-- `npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck` · `npm run test` · `npm run verify` (all four gates)
-- Done means: `npm run verify` passes, and for UI work the dev server was checked in the browser with no console errors (screenshots in the report). The only known harmless console warning is `THREE.Clock: This module has been deprecated`.
-
-## Dependencies
-- Versions are pinned exactly in `package.json`. Adding or upgrading a package must be justified in the plan.
-- Hard limits: `three` stays 0.186.x, React stays below 19.4, TypeScript stays 5.x, ESLint stays 9.x (reasons in `docs/techstack.md`).
-- Never use `--force` or `--legacy-peer-deps`. On ERESOLVE, stop and report.
-
-## Code rules
-- TypeScript strict with `noUncheckedIndexedAccess`. No `any`, no `@ts-ignore`, no casts that hide type errors. Parse unknown data with zod.
-- Server components by default. Anything touching three/R3F, React Flow, `window` or `localStorage` is a client component, and WebGL/React Flow views are loaded with `next/dynamic(..., { ssr: false })` from a client component.
-- Folders: `components/ui` holds generated shadcn primitives only. HUD goes in `components/hud`, 3D in `components/canvas`, 2D in `components/graph-2d`, admin UI in `components/admin`. `lib/graph` is pure TypeScript (no React) and `lib/store` holds zustand stores.
-- State: `useTaskStore` holds task and progress (persisted); `useViewStore` holds view and interaction state (not persisted). Never put per-frame values such as camera position or animation time in React or zustand state.
-- Graph data must pass `civicTaskGraphSchema` (zod) and `analyzeGraph()` before it is rendered or saved. User status, step order, layers, positions and totals are derived and never stored.
-- Official links: `https` only. "Official" means `isOfficialUrl()` (`.gov.in`, `.nic.in`, vetted exceptions), never a `.gov` check. Missing data renders an explicit "not verified" state; never invent fees, forms, timelines or URLs.
-- No mock data in production code paths. Fixtures live in `data/fixtures`. Tests import them, and in development the app may load `data/fixtures/demo` only when `DATA_SOURCE=fixtures` is set in `.env.local`; a production build refuses that setting.
-- Accessibility: every 3D interaction has a 2D/keyboard equivalent, and motion respects `prefers-reduced-motion`.
+- If a request conflicts with the PRD, stop and ask: name the PRD section and offer
+  (a) follow the PRD, (b) change the PRD first, (c) a compliant alternative. Never deviate silently.
+- Build P0 before P1 and P1 before P2 (PRD §2.2). Later items are not built.
+- Never invent fees, forms, timelines, thresholds, addresses or URLs. Show "not verified" instead.
+- Stay in your lane's folders (PRD §13.2). lib/contract and docs/contract change only by PR to main,
+  reviewed by one frontend and one backend person.
+- Git: long-lived branches are main, frontend, backend. Never commit to main directly. No force-push.
+  Conventional Commits. Cite PRD sections. Evidence in reports is pasted verbatim from real runs.
+- Never commit secrets (.env* untracked, only .env.example). The Supabase secret key is never deployed.
+- Versions are pinned exactly (PRD §13.4): three 0.186.x, React < 19.4, TypeScript 5.x, ESLint 9.x,
+  Prisma 7.10.x. Never --force or --legacy-peer-deps; on ERESOLVE stop and report.
+- TypeScript strict + noUncheckedIndexedAccess; no any, no @ts-ignore, no hiding casts; zod at boundaries.
+- Server components by default; three/R3F, React Flow, window, storage = client components loaded with
+  next/dynamic(..., { ssr: false }). lib/server files start with import "server-only".
+- Folders: components/ui = shadcn only; hud, canvas (3D), graph-2d, admin; lib/contract shared contract;
+  lib/graph UI derivations (pure TS); lib/store zustand; lib/server backend; services/intelligence Python.
+- Graph data passes zod + the matching analyze*() before render, save or publish. Status, order, layers,
+  positions and totals are derived, never stored. Official = isOfficialUrl() (.gov.in/.nic.in/vetted).
+- Real data only in data/seed; fixtures in data/fixtures are test-only. No personal data to LLMs.
+- Python: 3.12, mypy --strict, ruff; LLM calls only via llm/router.py; prompts only in prompts/.
+- Every 3D interaction has a 2D/keyboard equivalent; respect prefers-reduced-motion.
+- Done = npm run verify (and make lint typecheck test) green + browser check with no console errors
+  (only the THREE.Clock deprecation warning is allowed) + screenshots for UI work.
+- Next.js 16 differs from older versions (proxy.ts, Turbopack, next typegen): read
+  node_modules/next/dist/docs/ before framework code.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

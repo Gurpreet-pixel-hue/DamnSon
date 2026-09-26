@@ -1,3 +1,5 @@
+> Superseded where it differs by docs/prd/CivicWeave-PRD.md (v1.1). docs/frontend-spec.md stays normative for Civic Metro parameters.
+
 # Tech Stack & Implementation Rules
 
 v2, verified 2026-09-26. The whole set below was installed together and passed lint, typecheck, unit tests, a production build and a headless WebGL render.

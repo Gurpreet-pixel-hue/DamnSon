@@ -1,3 +1,5 @@
+> Superseded where it differs by docs/prd/CivicWeave-PRD.md (v1.1). docs/frontend-spec.md stays normative for Civic Metro parameters.
+
 # Repository Structure
 
 `[M0]` = created by the scaffold prompt. `[M1]`–`[M5]` = created in that milestone. Paths are relative to the repo root (there is no `src/`).
