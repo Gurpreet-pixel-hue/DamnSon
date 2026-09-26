@@ -84,4 +84,43 @@ describe("useTaskStore", () => {
     ]);
     expect(store.getState().answersByTask).toEqual({});
   });
+
+  it("handles corrupted storage by rehydrating broken fields to empty objects without throwing", async () => {
+    const memory = new MemoryStorage();
+    memory.setItem(
+      "damnson-progress-v1",
+      JSON.stringify({
+        state: {
+          completedByTask: "x",
+          answersByTask: { t: { q: "yes" } },
+        },
+        version: 1,
+      })
+    );
+
+    const store = createTaskStore(memory);
+    await store.persist.rehydrate();
+    expect(store.getState().completedByTask).toEqual({});
+    expect(store.getState().answersByTask).toEqual({});
+  });
+
+  it("round-trips valid persisted storage cleanly", async () => {
+    const memory = new MemoryStorage();
+    const validData = {
+      completedByTask: { "task-1": ["s1", "s2"] },
+      answersByTask: { "task-1": { q1: true, q2: false } },
+    };
+    memory.setItem(
+      "damnson-progress-v1",
+      JSON.stringify({
+        state: validData,
+        version: 1,
+      })
+    );
+
+    const store = createTaskStore(memory);
+    await store.persist.rehydrate();
+    expect(store.getState().completedByTask).toEqual(validData.completedByTask);
+    expect(store.getState().answersByTask).toEqual(validData.answersByTask);
+  });
 });

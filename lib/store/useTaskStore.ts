@@ -4,6 +4,12 @@ import {
   createJSONStorage,
   type StateStorage,
 } from "zustand/middleware";
+import { z } from "zod";
+
+const persistedProgressSchema = z.object({
+  completedByTask: z.record(z.string(), z.array(z.string())).catch({}),
+  answersByTask: z.record(z.string(), z.record(z.string(), z.boolean())).catch({}),
+});
 
 export interface TaskState {
   activeTaskId: string | null;
@@ -77,18 +83,12 @@ export function createTaskStore(customStorage?: StateStorage) {
           completedByTask: state.completedByTask,
           answersByTask: state.answersByTask,
         }),
+        merge: (persisted, current) => ({
+          ...current,
+          ...persistedProgressSchema.parse(persisted ?? {}),
+        }),
         migrate: (persistedState: unknown) => {
-          const state = (persistedState ?? {}) as Record<string, unknown>;
-          return {
-            completedByTask: (state.completedByTask ?? {}) as Record<
-              string,
-              string[]
-            >,
-            answersByTask: (state.answersByTask ?? {}) as Record<
-              string,
-              Record<string, boolean>
-            >,
-          };
+          return persistedProgressSchema.parse(persistedState ?? {});
         },
         skipHydration: true,
       }

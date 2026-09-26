@@ -13,7 +13,8 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.12.0",
+    "npm": ">=11"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

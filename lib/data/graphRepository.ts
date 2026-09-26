@@ -63,7 +63,10 @@ export function createGraphRepository(
 
       let fileNames: string[] = [];
       try {
-        fileNames = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
+        fileNames = fs
+          .readdirSync(dir)
+          .filter((f) => f.endsWith(".json"))
+          .sort((a, b) => a.localeCompare(b));
       } catch (err) {
         console.error(`Error reading directory ${dir}:`, err);
         continue;
@@ -135,7 +138,11 @@ export function createGraphRepository(
   return {
     async listTasks(): Promise<TaskSummary[]> {
       const { summaries } = await loadAll();
-      return summaries;
+      return [...summaries].sort((a, b) => {
+        const titleCmp = a.title.localeCompare(b.title);
+        if (titleCmp !== 0) return titleCmp;
+        return a.taskId.localeCompare(b.taskId);
+      });
     },
 
     async getGraph(taskId: string): Promise<CivicTaskGraph | null> {

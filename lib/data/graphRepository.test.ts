@@ -93,4 +93,57 @@ describe("graphRepository", () => {
     consoleErrorSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  it("reads files in sorted order so a.json wins over b.json for duplicate taskId", async () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "damnson-repo-order-test-")
+    );
+    const seedDir = path.join(tempDir, "seed");
+    const demoDir = path.join(tempDir, "demo");
+    fs.mkdirSync(seedDir);
+    fs.mkdirSync(demoDir);
+
+    const baseGraph = JSON.parse(
+      fs.readFileSync("data/fixtures/valid/example-graph.json", "utf8")
+    );
+
+    const graphB = JSON.parse(JSON.stringify(baseGraph));
+    graphB.taskId = "shared-task-id";
+    graphB.title = "B Title";
+
+    const graphA = JSON.parse(JSON.stringify(baseGraph));
+    graphA.taskId = "shared-task-id";
+    graphA.title = "A Title";
+
+    // Create b.json first, then a.json
+    fs.writeFileSync(path.join(seedDir, "b.json"), JSON.stringify(graphB));
+    fs.writeFileSync(path.join(seedDir, "a.json"), JSON.stringify(graphA));
+
+    const errorCalls: string[] = [];
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation((...args) => {
+        errorCalls.push(args.join(" "));
+      });
+
+    const repo = createGraphRepository({
+      seedDir,
+      demoDir,
+      nodeEnv: "development",
+    });
+
+    const tasks = await repo.listTasks();
+    expect(tasks.length).toBe(1);
+    expect(tasks[0]?.title).toBe("A Title");
+
+    const loaded = await repo.getGraph("shared-task-id");
+    expect(loaded?.title).toBe("A Title");
+
+    // console.error must name b.json
+    const reportedB = errorCalls.some((call) => call.includes("b.json"));
+    expect(reportedB).toBe(true);
+
+    consoleErrorSpy.mockRestore();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
 });
