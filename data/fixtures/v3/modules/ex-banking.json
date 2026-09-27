@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ex-banking",
+  "version": 1,
+  "title": "Example bank account",
+  "summary": "Synthetic test module: a non-government step.",
+  "authority": { "slug": "example-authority", "name": "Example Authority", "tier": "other", "officialUrl": "https://www.india.gov.in/" },
+  "eligibility": [],
+  "sources": [],
+  "steps": [
+    {
+      "kind": "non_government",
+      "id": "open-account",
+      "title": "Open a current account",
+      "description": "Open a bank account in the company's name.",
+      "requirement": { "kind": "mandatory" },
+      "department": "Any scheduled bank",
+      "mode": "hybrid",
+      "officeType": "other",
+      "forms": [],
+      "documents": [ { "documentTypeId": "certificate-of-incorporation", "name": "Certificate of Incorporation" } ],
+      "outputs": [],
+      "fee": { "kind": "unknown" },
+      "timeline": { "officialSla": { "kind": "unknown" }, "conditional": [] },
+      "sourceIds": [],
+      "review": { "status": "unverified" }
+    }
+  ],
+  "edges": [],
+  "entrySteps": ["open-account"],
+  "exitSteps": ["open-account"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}

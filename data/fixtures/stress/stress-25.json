@@ -1,0 +1,1083 @@
+{
+  "schemaVersion": 2,
+  "taskId": "stress-25-synthetic",
+  "title": "[Synthetic] Stress 25 Steps Procedure",
+  "summary": "Synthetic stress benchmark graph with 25 steps, 40 edges across 7 layers covering all office archetypes.",
+  "jurisdiction": {
+    "country": "IN",
+    "state": "Maharashtra",
+    "city": "Mumbai"
+  },
+  "category": "other",
+  "keywords": [
+    "synthetic",
+    "stress",
+    "benchmark",
+    "visualizer",
+    "graph",
+    "performance"
+  ],
+  "eligibility": [
+    "Applicable to all synthetic performance benchmarks"
+  ],
+  "questions": [],
+  "nodes": [
+    {
+      "id": "step-00",
+      "title": "[Synthetic] Procedure Step 1",
+      "description": "Synthetic stress step 1 description.",
+      "department": "Example Authority online_portal",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-01",
+      "title": "[Synthetic] Procedure Step 2",
+      "description": "Synthetic stress step 2 description.",
+      "department": "Example Authority municipal_hq",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "municipal_hq",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-02",
+      "title": "[Synthetic] Procedure Step 3",
+      "description": "Synthetic stress step 3 description.",
+      "department": "Example Authority ward_office",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-03",
+      "title": "[Synthetic] Procedure Step 4",
+      "description": "Synthetic stress step 4 description.",
+      "department": "Example Authority fire_services",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "fire_services",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-04",
+      "title": "[Synthetic] Procedure Step 5",
+      "description": "Synthetic stress step 5 description.",
+      "department": "Example Authority health_department",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "health_department",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-05",
+      "title": "[Synthetic] Procedure Step 6",
+      "description": "Synthetic stress step 6 description.",
+      "department": "Example Authority revenue_office",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "revenue_office",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-06",
+      "title": "[Synthetic] Procedure Step 7",
+      "description": "Synthetic stress step 7 description.",
+      "department": "Example Authority labour_department",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "labour_department",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-07",
+      "title": "[Synthetic] Procedure Step 8",
+      "description": "Synthetic stress step 8 description.",
+      "department": "Example Authority police",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "police",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-08",
+      "title": "[Synthetic] Procedure Step 9",
+      "description": "Synthetic stress step 9 description.",
+      "department": "Example Authority pollution_control_board",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "pollution_control_board",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-09",
+      "title": "[Synthetic] Procedure Step 10",
+      "description": "Synthetic stress step 10 description.",
+      "department": "Example Authority utility_provider",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-10",
+      "title": "[Synthetic] Procedure Step 11",
+      "description": "Synthetic stress step 11 description.",
+      "department": "Example Authority court_or_notary",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "court_or_notary",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-11",
+      "title": "[Synthetic] Procedure Step 12",
+      "description": "Synthetic stress step 12 description.",
+      "department": "Example Authority other",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "other",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-12",
+      "title": "[Synthetic] Procedure Step 13",
+      "description": "Synthetic stress step 13 description.",
+      "department": "Example Authority online_portal",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-13",
+      "title": "[Synthetic] Procedure Step 14",
+      "description": "Synthetic stress step 14 description.",
+      "department": "Example Authority municipal_hq",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "municipal_hq",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-14",
+      "title": "[Synthetic] Procedure Step 15",
+      "description": "Synthetic stress step 15 description.",
+      "department": "Example Authority ward_office",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-15",
+      "title": "[Synthetic] Procedure Step 16",
+      "description": "Synthetic stress step 16 description.",
+      "department": "Example Authority fire_services",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "fire_services",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-16",
+      "title": "[Synthetic] Procedure Step 17",
+      "description": "Synthetic stress step 17 description.",
+      "department": "Example Authority health_department",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "health_department",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-17",
+      "title": "[Synthetic] Procedure Step 18",
+      "description": "Synthetic stress step 18 description.",
+      "department": "Example Authority revenue_office",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "revenue_office",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-18",
+      "title": "[Synthetic] Procedure Step 19",
+      "description": "Synthetic stress step 19 description.",
+      "department": "Example Authority labour_department",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "labour_department",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-19",
+      "title": "[Synthetic] Procedure Step 20",
+      "description": "Synthetic stress step 20 description.",
+      "department": "Example Authority police",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "police",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-20",
+      "title": "[Synthetic] Procedure Step 21",
+      "description": "Synthetic stress step 21 description.",
+      "department": "Example Authority pollution_control_board",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "pollution_control_board",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-21",
+      "title": "[Synthetic] Procedure Step 22",
+      "description": "Synthetic stress step 22 description.",
+      "department": "Example Authority utility_provider",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-22",
+      "title": "[Synthetic] Procedure Step 23",
+      "description": "Synthetic stress step 23 description.",
+      "department": "Example Authority court_or_notary",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "in_person",
+      "officeType": "court_or_notary",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-23",
+      "title": "[Synthetic] Procedure Step 24",
+      "description": "Synthetic stress step 24 description.",
+      "department": "Example Authority other",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "hybrid",
+      "officeType": "other",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    },
+    {
+      "id": "step-24",
+      "title": "[Synthetic] Procedure Step 25",
+      "description": "Synthetic stress step 25 description.",
+      "department": "Example Authority online_portal",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "fee": {
+        "kind": "free"
+      },
+      "processingTime": {
+        "kind": "estimate",
+        "minDays": 1,
+        "maxDays": 2,
+        "dayType": "working"
+      },
+      "sources": [
+        {
+          "url": "https://www.india.gov.in/",
+          "title": "National Portal",
+          "kind": "portal",
+          "retrievedOn": "2026-09-26"
+        }
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-26"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-000",
+      "from": "step-00",
+      "to": "step-03"
+    },
+    {
+      "id": "edge-001",
+      "from": "step-00",
+      "to": "step-04"
+    },
+    {
+      "id": "edge-002",
+      "from": "step-01",
+      "to": "step-04"
+    },
+    {
+      "id": "edge-003",
+      "from": "step-01",
+      "to": "step-05"
+    },
+    {
+      "id": "edge-004",
+      "from": "step-02",
+      "to": "step-05"
+    },
+    {
+      "id": "edge-005",
+      "from": "step-02",
+      "to": "step-06"
+    },
+    {
+      "id": "edge-006",
+      "from": "step-01",
+      "to": "step-03"
+    },
+    {
+      "id": "edge-007",
+      "from": "step-03",
+      "to": "step-07"
+    },
+    {
+      "id": "edge-008",
+      "from": "step-03",
+      "to": "step-08"
+    },
+    {
+      "id": "edge-009",
+      "from": "step-04",
+      "to": "step-08"
+    },
+    {
+      "id": "edge-010",
+      "from": "step-04",
+      "to": "step-09"
+    },
+    {
+      "id": "edge-011",
+      "from": "step-05",
+      "to": "step-09"
+    },
+    {
+      "id": "edge-012",
+      "from": "step-05",
+      "to": "step-10"
+    },
+    {
+      "id": "edge-013",
+      "from": "step-06",
+      "to": "step-10"
+    },
+    {
+      "id": "edge-014",
+      "from": "step-06",
+      "to": "step-11"
+    },
+    {
+      "id": "edge-015",
+      "from": "step-07",
+      "to": "step-12"
+    },
+    {
+      "id": "edge-016",
+      "from": "step-08",
+      "to": "step-12"
+    },
+    {
+      "id": "edge-017",
+      "from": "step-08",
+      "to": "step-13"
+    },
+    {
+      "id": "edge-018",
+      "from": "step-09",
+      "to": "step-13"
+    },
+    {
+      "id": "edge-019",
+      "from": "step-09",
+      "to": "step-14"
+    },
+    {
+      "id": "edge-020",
+      "from": "step-10",
+      "to": "step-14"
+    },
+    {
+      "id": "edge-021",
+      "from": "step-10",
+      "to": "step-15"
+    },
+    {
+      "id": "edge-022",
+      "from": "step-11",
+      "to": "step-15"
+    },
+    {
+      "id": "edge-023",
+      "from": "step-11",
+      "to": "step-16"
+    },
+    {
+      "id": "edge-024",
+      "from": "step-12",
+      "to": "step-17"
+    },
+    {
+      "id": "edge-025",
+      "from": "step-13",
+      "to": "step-17"
+    },
+    {
+      "id": "edge-026",
+      "from": "step-13",
+      "to": "step-18"
+    },
+    {
+      "id": "edge-027",
+      "from": "step-14",
+      "to": "step-18"
+    },
+    {
+      "id": "edge-028",
+      "from": "step-15",
+      "to": "step-19"
+    },
+    {
+      "id": "edge-029",
+      "from": "step-16",
+      "to": "step-19"
+    },
+    {
+      "id": "edge-030",
+      "from": "step-16",
+      "to": "step-20"
+    },
+    {
+      "id": "edge-031",
+      "from": "step-17",
+      "to": "step-21"
+    },
+    {
+      "id": "edge-032",
+      "from": "step-18",
+      "to": "step-21"
+    },
+    {
+      "id": "edge-033",
+      "from": "step-18",
+      "to": "step-22"
+    },
+    {
+      "id": "edge-034",
+      "from": "step-19",
+      "to": "step-22"
+    },
+    {
+      "id": "edge-035",
+      "from": "step-19",
+      "to": "step-23"
+    },
+    {
+      "id": "edge-036",
+      "from": "step-20",
+      "to": "step-23"
+    },
+    {
+      "id": "edge-037",
+      "from": "step-21",
+      "to": "step-24"
+    },
+    {
+      "id": "edge-038",
+      "from": "step-22",
+      "to": "step-24"
+    },
+    {
+      "id": "edge-039",
+      "from": "step-23",
+      "to": "step-24"
+    }
+  ],
+  "meta": {
+    "origin": "curated",
+    "revision": 1,
+    "updatedAt": "2026-09-26T12:00:00Z"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "location.state": {
+    "type": "string",
+    "label": "State",
+    "maxLength": 60
+  },
+  "location.city": {
+    "type": "string",
+    "label": "City",
+    "maxLength": 60
+  },
+  "business.entity_type": {
+    "type": "enum",
+    "label": "Business entity",
+    "values": [
+      "private_limited",
+      "llp",
+      "opc",
+      "partnership",
+      "proprietorship"
+    ]
+  },
+  "business.sector": {
+    "type": "enum",
+    "label": "Business sector",
+    "values": [
+      "it_saas",
+      "food_service",
+      "retail",
+      "manufacturing",
+      "services",
+      "other"
+    ]
+  },
+  "business.serves_food": {
+    "type": "boolean",
+    "label": "Makes, serves or sells food"
+  },
+  "business.imports_or_exports": {
+    "type": "boolean",
+    "label": "Imports or exports goods or services"
+  },
+  "company.founders_count": {
+    "type": "integer",
+    "label": "Founders / directors",
+    "min": 1,
+    "max": 10
+  },
+  "employees.count": {
+    "type": "integer",
+    "label": "Employees",
+    "min": 0,
+    "max": 100000
+  },
+  "premises.type": {
+    "type": "enum",
+    "label": "Premises",
+    "values": [
+      "rented",
+      "owned",
+      "home",
+      "coworking"
+    ]
+  },
+  "premises.built_up_area_sqm": {
+    "type": "number",
+    "label": "Built-up area (sq m)",
+    "min": 0,
+    "max": 1000000
+  },
+  "intent.gst_now": {
+    "type": "boolean",
+    "label": "Register for GST now"
+  },
+  "intent.udyam": {
+    "type": "boolean",
+    "label": "Wants Udyam (MSME) registration"
+  },
+  "intent.dpiit": {
+    "type": "boolean",
+    "label": "Wants DPIIT startup recognition"
+  },
+  "intent.trademark": {
+    "type": "boolean",
+    "label": "Wants to register a trademark"
+  },
+  "applicant.type": {
+    "type": "enum",
+    "label": "Applicant",
+    "values": [
+      "owner",
+      "tenant",
+      "legal_heir",
+      "buyer",
+      "company"
+    ]
+  }
+}

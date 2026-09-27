@@ -1,3 +1,5 @@
+> Superseded where it differs by docs/prd/CivicWeave-PRD.md (v1.1). docs/frontend-spec.md stays normative for Civic Metro parameters.
+
 # Tech Stack & Implementation Rules
 
 v2, verified 2026-09-26. The whole set below was installed together and passed lint, typecheck, unit tests, a production build and a headless WebGL render.
@@ -49,7 +51,7 @@ Upgrade one package at a time with `npm run verify` green, and never use `--forc
    - Dependencies are curves with animated dash offsets; when there are more than 20, batch them into one geometry.
    - Use drei `<Html>` labels only for the focused or hovered step and small badges.
    - Camera moves use drei `<CameraControls>` smooth transitions, and are instant under `prefers-reduced-motion`.
-   - The visual metaphor (city blocks or an alternative) is chosen in the frontend-ideas session before Milestone 2.
+   - The visual metaphor is **Civic Metro**. Exact parameters (geometry, colours, motion, camera, draw-call budget) are in `frontend-spec.md`, which wins over this summary if they differ.
 2. **Performance budget**
    - 60 fps on a MacBook Air-class laptop.
    - ≤ 50 draw calls with 25 steps on screen.
