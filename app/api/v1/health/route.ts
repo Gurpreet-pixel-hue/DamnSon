@@ -3,6 +3,7 @@ import { z } from "zod";
 import { version } from "@/package.json";
 import { healthResponseSchema } from "@/lib/contract/api";
 import { getPrisma } from "@/lib/server/db/client";
+import { intelligenceHealth } from "@/lib/server/intelligence";
 import { jsonOk, requestId } from "@/lib/server/http";
 
 const dataSourceSchema = z.enum(["files", "db", "fixtures"]);
@@ -34,23 +35,23 @@ async function checkDb(dataSource: "files" | "db" | "fixtures"): Promise<"up" | 
   }
 }
 
-/**
- * GET /api/v1/health — liveness, which data source is in use, and dependency status (§10.1).
- * The intelligence check arrives with PL-6.
- */
+/** GET /api/v1/health — liveness, which data source is in use, and dependency status (§10.1). */
 export async function GET(request: NextRequest): Promise<Response> {
   const id = requestId(request);
   // A misconfigured DATA_SOURCE shows up as ok: false rather than a crash, so the check stays useful.
   const parsed = dataSourceSchema.safeParse(process.env["DATA_SOURCE"] ?? "files");
   const dataSource = parsed.success ? parsed.data : "files";
-  const db = await checkDb(dataSource);
+  // Probed together so a slow dependency does not add to a slow one.
+  const [db, intelligence] = await Promise.all([checkDb(dataSource), intelligenceHealth()]);
 
   const body = healthResponseSchema.parse({
     ok: parsed.success && db !== "down",
     version,
     dataSource,
     db,
-    intelligence: "skipped",
+    // The AI service being down is a degraded state, not an unhealthy one: search falls back to
+    // lexical ranking and everything else keeps working (§6.6).
+    intelligence,
   });
   return jsonOk(body, { requestId: id, headers: { "cache-control": "no-store" } });
 }
