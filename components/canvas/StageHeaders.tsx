@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import type { MetroVM } from "@/lib/graph/viewModel";
-import { computeBoardBounds } from "./city/planCity";
 
 export const MAX_HEADER_SLOTS = 16;
 
@@ -16,17 +15,17 @@ export interface StageHeaderItem {
 export function deriveStageHeaders(metro: MetroVM): StageHeaderItem[] {
   if (metro.stations.length === 0) return [];
 
-  const bounds = computeBoardBounds(
-    metro.stations.map((s) => ({ id: s.id, position3D: s.position3D }))
-  );
-  const backZ = bounds.minZ + 1.2;
+  let minZ = Infinity;
   const layerMap = new Map<number, number[]>();
 
   for (const s of metro.stations) {
+    minZ = Math.min(minZ, s.position3D[2]);
     const xs = layerMap.get(s.layer) ?? [];
     xs.push(s.position3D[0]);
     layerMap.set(s.layer, xs);
   }
+
+  const backZ = minZ - 2.0;
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 

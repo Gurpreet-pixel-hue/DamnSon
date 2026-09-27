@@ -251,10 +251,10 @@ async function main() {
 
   await send("Runtime.evaluate", {
     expression: `(() => {
-      const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
-      if (buttons.length > 0) {
-        buttons[0].click();
-        return buttons[0].getAttribute('aria-label');
+      const card = document.querySelector('button[data-mode]');
+      if (card) {
+        card.click();
+        return card.getAttribute('aria-label');
       }
       return null;
     })()`,
