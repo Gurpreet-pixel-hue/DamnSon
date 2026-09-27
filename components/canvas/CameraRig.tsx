@@ -90,13 +90,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     if (!controls) return;
 
     const enableTransition = !prefersReducedMotion;
-    // G2: Fit station bounding box with 8% margin inside safe area
-    void controls.fitToBox(stationBoundingBox, false, {
-      paddingLeft: 0.8,
-      paddingRight: 0.8,
-      paddingTop: 1.0,
-      paddingBottom: 0.9,
-    }).then(() => {
+    // Fit station bounding box (world-unit paddings 0.8 / 1.0 removed per H2)
+    void controls.fitToBox(stationBoundingBox, false).then(() => {
       // G2: Azimuth -15°, lower camera to polar 52° so horizon and board edge are outside viewport
       void controls.rotateTo(
         (-15 * Math.PI) / 180,

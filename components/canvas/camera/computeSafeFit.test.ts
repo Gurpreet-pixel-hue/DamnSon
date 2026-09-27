@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { computeSafeFit } from "./computeSafeFit";
+import { computeSafeFit, computeTwoPassSafeFit } from "./computeSafeFit";
 
-describe("computeSafeFit (F4)", () => {
-  const insets = { left: 24, right: 24, top: 110, bottom: 120 };
+describe("computeSafeFit (F4 & H2)", () => {
+  const insets = { left: 24, right: 24, top: 88, bottom: 110 };
 
   it("returns fits: true when all points are strictly within safe area at 1440x900", () => {
     const viewport = { width: 1440, height: 900 };
@@ -24,7 +24,7 @@ describe("computeSafeFit (F4)", () => {
 
   it("detects horizontal overflow and scales points into safe bounds at 1440x900", () => {
     const viewport = { width: 1440, height: 900 };
-    // Safe area is [24, 1416] x [110, 780]
+    // Safe area is [24, 1416] x [88, 790]
     const points = [
       { x: 10, y: 450 }, // overflows left (10 < 24)
       { x: 1430, y: 450 }, // overflows right (1430 > 1416)
@@ -44,8 +44,8 @@ describe("computeSafeFit (F4)", () => {
   it("detects vertical overflow and scales points into safe bounds at 1440x900", () => {
     const viewport = { width: 1440, height: 900 };
     const points = [
-      { x: 720, y: 50 }, // overflows top (50 < 110)
-      { x: 720, y: 850 }, // overflows bottom (850 > 780)
+      { x: 720, y: 50 }, // overflows top (50 < 88)
+      { x: 720, y: 850 }, // overflows bottom (850 > 790)
     ];
 
     const result = computeSafeFit(points, viewport, insets);
@@ -60,7 +60,7 @@ describe("computeSafeFit (F4)", () => {
 
   it("verifies safe fit bounds at 1280x800", () => {
     const viewport = { width: 1280, height: 800 };
-    // Safe bounds at 1280x800: [24, 1256] x [110, 680]
+    // Safe bounds at 1280x800: [24, 1256] x [88, 690]
     const points = [
       { x: 50, y: 120 },
       { x: 1200, y: 650 },
@@ -70,8 +70,8 @@ describe("computeSafeFit (F4)", () => {
     expect(result.fits).toBe(true);
     expect(result.safeBounds.minX).toBe(24);
     expect(result.safeBounds.maxX).toBe(1256);
-    expect(result.safeBounds.minY).toBe(110);
-    expect(result.safeBounds.maxY).toBe(680);
+    expect(result.safeBounds.minY).toBe(88);
+    expect(result.safeBounds.maxY).toBe(690);
   });
 
   it("handles empty points gracefully", () => {
@@ -134,5 +134,35 @@ describe("computeSafeFit (F4)", () => {
     ];
     const result = computeSafeFit(stressPoints, viewport, insets);
     expect(result.coverageHeight).toBeGreaterThanOrEqual(0.60);
+  });
+
+  it("computeTwoPassSafeFit refits union of placed cards and headers to safe area with 8% margin", () => {
+    const viewport = { width: 1440, height: 900 };
+    const stationPoints = [
+      { x: 200, y: 300 },
+      { x: 1200, y: 600 },
+    ];
+    const placedCardRects = [
+      { minX: 24, maxX: 260, minY: 88, maxY: 136 },
+      { minX: 1100, maxX: 1416, minY: 742, maxY: 790 },
+    ];
+    const headerRects = [
+      { minX: 50, maxX: 190, minY: 88, maxY: 120 },
+    ];
+
+    const result = computeTwoPassSafeFit({
+      stationPoints,
+      placedCardRects,
+      headerRects,
+      viewport,
+      insets,
+    });
+
+    expect(result.fitsInSafeArea).toBe(true);
+    expect(result.unionBounds.minX).toBe(24);
+    expect(result.unionBounds.maxX).toBe(1416);
+    expect(result.unionBounds.minY).toBe(88);
+    expect(result.unionBounds.maxY).toBe(790);
+    expect(result.pass1.fits).toBe(true);
   });
 });

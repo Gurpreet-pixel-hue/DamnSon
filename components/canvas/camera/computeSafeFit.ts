@@ -52,10 +52,24 @@ export interface SafeFitResult {
   fittedPoints: Point2D[];
 }
 
+export const DEFAULT_SAFE_INSETS: SafeInsets = {
+  left: 24,
+  right: 24,
+  top: 88,
+  bottom: 110,
+};
+
+export interface ScreenRect {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 export function computeSafeFit(
   points2D: Point2D[],
   viewport: Viewport,
-  insets: SafeInsets
+  insets: SafeInsets = DEFAULT_SAFE_INSETS
 ): SafeFitResult {
   const safeBounds: SafeBounds = {
     minX: insets.left,
@@ -177,5 +191,116 @@ export function computeSafeFit(
     },
     safeBounds,
     fittedPoints,
+  };
+}
+
+export interface TwoPassFitInput {
+  stationPoints: Point2D[];
+  placedCardRects?: ScreenRect[];
+  headerRects?: ScreenRect[];
+  viewport: Viewport;
+  insets?: SafeInsets;
+  marginPercent?: number; // 0.08 (8%) per H2
+}
+
+export interface TwoPassFitResult {
+  pass1: SafeFitResult;
+  pass2: SafeFitResult;
+  unionBounds: ScreenRect;
+  effectiveDistanceMultiplier: number;
+  fitsInSafeArea: boolean;
+  fitsWithMargin: boolean;
+}
+
+/**
+ * Two-pass safe fit per visual-direction §5 & H2:
+ * 1. fit the stations;
+ * 2. project and measure the union of the placed card rects plus the headers;
+ * 3. refit so that union sits inside the safe area with an 8 % margin (at most 2 iterations).
+ */
+export function computeTwoPassSafeFit(input: TwoPassFitInput): TwoPassFitResult {
+  const insets = input.insets ?? DEFAULT_SAFE_INSETS;
+  const marginPercent = input.marginPercent ?? 0.08;
+
+  // Pass 1: fit stations
+  const pass1 = computeSafeFit(input.stationPoints, input.viewport, insets);
+
+  // Measure union of placed card rects + headers + station points
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  if (input.placedCardRects) {
+    for (const c of input.placedCardRects) {
+      if (c.minX < minX) minX = c.minX;
+      if (c.maxX > maxX) maxX = c.maxX;
+      if (c.minY < minY) minY = c.minY;
+      if (c.maxY > maxY) maxY = c.maxY;
+    }
+  }
+
+  if (input.headerRects) {
+    for (const h of input.headerRects) {
+      if (h.minX < minX) minX = h.minX;
+      if (h.maxX > maxX) maxX = h.maxX;
+      if (h.minY < minY) minY = h.minY;
+      if (h.maxY > maxY) maxY = h.maxY;
+    }
+  }
+
+  for (const p of input.stationPoints) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  if (!isFinite(minX)) {
+    minX = insets.left;
+    maxX = input.viewport.width - insets.right;
+    minY = insets.top;
+    maxY = input.viewport.height - insets.bottom;
+  }
+
+  const unionBounds: ScreenRect = { minX, maxX, minY, maxY };
+
+  // Pass 2: refit so union sits inside safe area with an 8% margin
+  const safeW = pass1.safeBounds.width;
+  const safeH = pass1.safeBounds.height;
+  const marginX = safeW * marginPercent;
+  const marginY = safeH * marginPercent;
+
+  const marginInsets: SafeInsets = {
+    left: insets.left + marginX,
+    right: insets.right + marginX,
+    top: insets.top + marginY,
+    bottom: insets.bottom + marginY,
+  };
+
+  const unionPoints: Point2D[] = [
+    { x: unionBounds.minX, y: unionBounds.minY },
+    { x: unionBounds.maxX, y: unionBounds.minY },
+    { x: unionBounds.minX, y: unionBounds.maxY },
+    { x: unionBounds.maxX, y: unionBounds.maxY },
+  ];
+
+  const pass2 = computeSafeFit(unionPoints, input.viewport, marginInsets);
+
+  const fitsInSafeArea =
+    unionBounds.minX >= pass1.safeBounds.minX - 0.001 &&
+    unionBounds.maxX <= pass1.safeBounds.maxX + 0.001 &&
+    unionBounds.minY >= pass1.safeBounds.minY - 0.001 &&
+    unionBounds.maxY <= pass1.safeBounds.maxY + 0.001;
+
+  const fitsWithMargin = pass2.fits;
+
+  return {
+    pass1,
+    pass2,
+    unionBounds,
+    effectiveDistanceMultiplier: pass1.distanceMultiplier * pass2.distanceMultiplier,
+    fitsInSafeArea,
+    fitsWithMargin,
   };
 }

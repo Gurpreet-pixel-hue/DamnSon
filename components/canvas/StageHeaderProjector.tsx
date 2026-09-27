@@ -102,7 +102,17 @@ export function StageHeaderProjector({
         continue;
       }
 
-      el.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -50%)`;
+      // Safe area clamping (H2): left/right 24 px, top 88 px, bottom 110 px
+      const safeMinX = 24;
+      const safeMaxX = size.width - 24;
+      const safeMinY = 88;
+      const safeMaxY = size.height - 110;
+
+      // Header width is ~140 px (half width 70), height ~32 px (half height 16)
+      const clampedX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, screenX));
+      const clampedY = Math.max(safeMinY + 16, Math.min(safeMaxY - 16, screenY));
+
+      el.style.transform = `translate3d(${Math.round(clampedX)}px, ${Math.round(clampedY)}px, 0) translate(-50%, -50%)`;
       el.style.visibility = "visible";
     }
   });
