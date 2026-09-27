@@ -285,11 +285,21 @@ export function LabelLayer({
                 {formatMode(station.mode)}
               </span>
             </div>
-            {/* 1 px tether line to building top */}
-            <div
-              className="absolute top-full left-1/2 -translate-x-1/2 w-[1px] h-3 bg-[#B0A48E] pointer-events-none"
+            {/* Dynamic leader line connecting card edge back to station anchor (H2 & H3) */}
+            <svg
+              className="pointer-events-none absolute left-1/2 top-1/2 overflow-visible -z-10"
               aria-hidden="true"
-            />
+            >
+              <line
+                x1="0"
+                y1="22"
+                x2="0"
+                y2="64"
+                stroke="#B0A48E"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         );
       })}

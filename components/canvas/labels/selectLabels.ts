@@ -100,12 +100,22 @@ export function rectsOverlap(a: ScreenRect, b: ScreenRect, margin = 0): boolean 
   );
 }
 
+export const SAFE_INSETS = {
+  left: 24,
+  right: 24,
+  top: 88,
+  bottom: 110,
+};
+
+export const CANDIDATE_Y_OFFSETS = [-64, -128, -192, 64, 128];
+
 export type LabelDisplayMode = "full" | "compact" | "pin" | "none";
 
 export interface PlacedLabel {
   id: string;
   mode: LabelDisplayMode;
   rect: ScreenRect;
+  xOff: number;
   yOff: number;
 }
 
@@ -174,150 +184,187 @@ export function resolveLabelCollisions(
     }
   }
 
-  // Pre-identify stations that are horizontally crowded to avoid cascading blocks on small graphs
-  const crowdedIds = new Set<string>();
-  if (isSmallGraph) {
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        if (Math.abs(pts[i]!.x - pts[j]!.x) < 140) {
-          crowdedIds.add(pts[i]!.id);
-          crowdedIds.add(pts[j]!.id);
-        }
-      }
+  const safeMinX = SAFE_INSETS.left;
+  const safeMaxX = input.viewport.width - SAFE_INSETS.right;
+  const safeMinY = SAFE_INSETS.top;
+  const safeMaxY = input.viewport.height - SAFE_INSETS.bottom;
+
+  // On graphs > 16 stations, full cards only for priority stations (selected, focused, hovered, next-up)
+  const priorityIds = new Set<string>();
+  if (selectedStepId) priorityIds.add(selectedStepId);
+  if (focusedStepId) priorityIds.add(focusedStepId);
+  if (hoveredStepId) priorityIds.add(hoveredStepId);
+  for (const s of stations) {
+    if (s.state === "available" && s.applicability !== "optional") {
+      priorityIds.add(s.id);
     }
   }
 
-  function solve(preferCompactSet: Set<string>): {
-    placedCards: PlacedLabel[];
-    placedPins: PlacedLabel[];
-    unplaced: ProjectedStationPoint[];
-  } {
-    const placedCards: PlacedLabel[] = [];
-    const cardUnplaced: ProjectedStationPoint[] = [];
+  const placedCards: PlacedLabel[] = [];
+  const cardUnplaced: ProjectedStationPoint[] = [];
 
-    // Phase 1: Place cards in priority order
-    for (const p of pts) {
-      let yOffsets = [0, -26, 26, -50, 50, -72, 72];
-      if (p.lane < 0) {
-        yOffsets = [-26, -50, 0, 26, 50, -72, 72];
-      } else if (p.lane > 0) {
-        yOffsets = [26, 50, 0, -26, -50, 72, -72];
-      }
+  // Phase 1: Place cards in priority order
+  for (const p of pts) {
+    const eligibleForFull = isSmallGraph || priorityIds.has(p.id);
+    let placedCard: PlacedLabel | null = null;
 
-      let placedCard: PlacedLabel | null = null;
-      const isCrowded = preferCompactSet.has(p.id);
+    // 1. Try full card slots: above at -64, -128, -192 px; below at +64, +128 px
+    if (eligibleForFull) {
+      const fullHalfW = Math.min(
+        130,
+        Math.max(70, Math.round((p.title.length * 7.5 + 48) / 2))
+      );
+      const fullHalfH = 24;
 
-      // 1. Try full card (unless pre-marked crowded on small graph)
-      if (!isCrowded) {
-        const fullHalfW = Math.min(130, Math.max(70, Math.round((p.title.length * 7.5 + 48) / 2)));
-        for (const yOff of yOffsets) {
-          const cardBox: ScreenRect = {
-            minX: p.x - fullHalfW,
-            maxX: p.x + fullHalfW,
-            minY: p.y + yOff - 24,
-            maxY: p.y + yOff + 24,
-          };
+      for (const yOff of CANDIDATE_Y_OFFSETS) {
+        let cx = p.x;
+        let cy = p.y + yOff;
 
-          const headerHit = stageHeaders.some((h) => rectsOverlap(cardBox, h, 2));
-          if (headerHit) continue;
-
-          const cardHit = placedCards.some((c) => rectsOverlap(cardBox, c.rect, 2));
-          if (cardHit) continue;
-
-          placedCard = { id: p.id, mode: "full", rect: cardBox, yOff };
-          break;
+        // Clamp candidate card into safe area (H2)
+        if (cx - fullHalfW < safeMinX) {
+          cx = safeMinX + fullHalfW;
+        } else if (cx + fullHalfW > safeMaxX) {
+          cx = safeMaxX - fullHalfW;
         }
-      }
 
-      // 2. Fall back to compact form (title only, one line, max 180 px)
-      if (!placedCard) {
-        const compactHalfW = Math.min(85, Math.max(50, Math.round((p.title.length * 6.0 + 32) / 2)));
-        for (const yOff of yOffsets) {
-          const cardBox: ScreenRect = {
-            minX: p.x - compactHalfW,
-            maxX: p.x + compactHalfW,
-            minY: p.y + yOff - 15,
-            maxY: p.y + yOff + 15,
-          };
-
-          const headerHit = stageHeaders.some((h) => rectsOverlap(cardBox, h, 1));
-          if (headerHit) continue;
-
-          const cardHit = placedCards.some((c) => rectsOverlap(cardBox, c.rect, 1));
-          if (cardHit) continue;
-
-          placedCard = { id: p.id, mode: "compact", rect: cardBox, yOff };
-          break;
+        if (cy - fullHalfH < safeMinY) {
+          cy = safeMinY + fullHalfH;
+        } else if (cy + fullHalfH > safeMaxY) {
+          cy = safeMaxY - fullHalfH;
         }
-      }
 
-      if (placedCard) {
-        placedCards.push(placedCard);
-      } else {
-        cardUnplaced.push(p);
-      }
-    }
-
-    // Phase 2: Place pins for stations without a card (only on graphs with > 16 stations)
-    const placedPins: PlacedLabel[] = [];
-    const unplaced: ProjectedStationPoint[] = [];
-
-    for (const p of cardUnplaced) {
-      if (!isSmallGraph) {
-        const px = p.pinX ?? p.x;
-        const py = p.pinY ?? p.y + 24;
-        const pinBox: ScreenRect = {
-          minX: px - 14,
-          maxX: px + 14,
-          minY: py - 48,
-          maxY: py,
+        const cardBox: ScreenRect = {
+          minX: cx - fullHalfW,
+          maxX: cx + fullHalfW,
+          minY: cy - fullHalfH,
+          maxY: cy + fullHalfH,
         };
 
-        const intersectsCard = placedCards.some((c) => rectsOverlap(pinBox, c.rect, 0));
-        const intersectsHeader = stageHeaders.some((h) => rectsOverlap(pinBox, h, 0));
-        const intersectsPin = placedPins.some((pin) => rectsOverlap(pinBox, pin.rect, 0));
-
-        if (!intersectsCard && !intersectsHeader && !intersectsPin) {
-          placedPins.push({ id: p.id, mode: "pin", rect: pinBox, yOff: 0 });
+        if (
+          cardBox.minX < safeMinX ||
+          cardBox.maxX > safeMaxX ||
+          cardBox.minY < safeMinY ||
+          cardBox.maxY > safeMaxY
+        ) {
           continue;
         }
-      }
 
-      unplaced.push(p);
+        if (stageHeaders.some((h) => rectsOverlap(cardBox, h, 2))) continue;
+        if (placedCards.some((c) => rectsOverlap(cardBox, c.rect, 2))) continue;
+
+        placedCard = {
+          id: p.id,
+          mode: "full",
+          rect: cardBox,
+          xOff: cx - p.x,
+          yOff: cy - p.y,
+        };
+        break;
+      }
     }
 
-    return { placedCards, placedPins, unplaced };
-  }
+    // 2. Try compact card slots: same candidate slots
+    if (!placedCard) {
+      const compactHalfW = Math.min(
+        90,
+        Math.max(50, Math.round((p.title.length * 6.0 + 32) / 2))
+      );
+      const compactHalfH = 15;
 
-  let solution = solve(crowdedIds);
+      for (const yOff of CANDIDATE_Y_OFFSETS) {
+        let cx = p.x;
+        let cy = p.y + yOff;
 
-  if (isSmallGraph && solution.unplaced.length > 0) {
-    const retrySet = new Set(crowdedIds);
-    for (const u of solution.unplaced) {
-      retrySet.add(u.id);
-      for (const p of pts) {
-        if (Math.abs(p.x - u.x) < 220) {
-          retrySet.add(p.id);
+        // Clamp candidate card into safe area (H2)
+        if (cx - compactHalfW < safeMinX) {
+          cx = safeMinX + compactHalfW;
+        } else if (cx + compactHalfW > safeMaxX) {
+          cx = safeMaxX - compactHalfW;
         }
+
+        if (cy - compactHalfH < safeMinY) {
+          cy = safeMinY + compactHalfH;
+        } else if (cy + compactHalfH > safeMaxY) {
+          cy = safeMaxY - compactHalfH;
+        }
+
+        const cardBox: ScreenRect = {
+          minX: cx - compactHalfW,
+          maxX: cx + compactHalfW,
+          minY: cy - compactHalfH,
+          maxY: cy + compactHalfH,
+        };
+
+        if (
+          cardBox.minX < safeMinX ||
+          cardBox.maxX > safeMaxX ||
+          cardBox.minY < safeMinY ||
+          cardBox.maxY > safeMaxY
+        ) {
+          continue;
+        }
+
+        if (stageHeaders.some((h) => rectsOverlap(cardBox, h, 1))) continue;
+        if (placedCards.some((c) => rectsOverlap(cardBox, c.rect, 1))) continue;
+
+        placedCard = {
+          id: p.id,
+          mode: "compact",
+          rect: cardBox,
+          xOff: cx - p.x,
+          yOff: cy - p.y,
+        };
+        break;
       }
     }
-    const retried = solve(retrySet);
-    if (retried.placedCards.length > solution.placedCards.length) {
-      solution = retried;
+
+    if (placedCard) {
+      placedCards.push(placedCard);
+    } else {
+      cardUnplaced.push(p);
     }
   }
 
-  for (const c of solution.placedCards) {
+  // Phase 2: Place pins for stations without a card (only on graphs with > 16 stations)
+  const placedPins: PlacedLabel[] = [];
+  const unplaced: ProjectedStationPoint[] = [];
+
+  for (const p of cardUnplaced) {
+    if (!isSmallGraph) {
+      const px = p.pinX ?? p.x;
+      const py = p.pinY ?? p.y + 24;
+      const pinBox: ScreenRect = {
+        minX: px - 14,
+        maxX: px + 14,
+        minY: py - 48,
+        maxY: py,
+      };
+
+      const intersectsCard = placedCards.some((c) => rectsOverlap(pinBox, c.rect, 0));
+      const intersectsHeader = stageHeaders.some((h) => rectsOverlap(pinBox, h, 0));
+      const intersectsPin = placedPins.some((pin) => rectsOverlap(pinBox, pin.rect, 0));
+
+      if (!intersectsCard && !intersectsHeader && !intersectsPin) {
+        placedPins.push({ id: p.id, mode: "pin", rect: pinBox, xOff: 0, yOff: 0 });
+        continue;
+      }
+    }
+
+    unplaced.push(p);
+  }
+
+  for (const c of placedCards) {
     results.set(c.id, c);
   }
-  for (const pin of solution.placedPins) {
+  for (const pin of placedPins) {
     results.set(pin.id, pin);
   }
-  for (const u of solution.unplaced) {
+  for (const u of unplaced) {
     results.set(u.id, {
       id: u.id,
       mode: "none",
       rect: { minX: 0, maxX: 0, minY: 0, maxY: 0 },
+      xOff: 0,
       yOff: 0,
     });
   }

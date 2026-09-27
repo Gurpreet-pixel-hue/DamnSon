@@ -42,6 +42,9 @@ export function LabelProjector({
   const cachedHeight = useRef(0);
   const cachedStations = useRef<StationVM[] | null>(null);
 
+  // Cached line elements for 0-allocation leader line updates
+  const lineEls = useRef<(SVGLineElement | null)[]>([]);
+
   // Development projection counter to verify 0 projections/sec when camera is static
   const devProjectionsRef = useRef(0);
   const devLastSecRef = useRef(0);
@@ -122,11 +125,19 @@ export function LabelProjector({
       const hScreenX = scratchVec.x * halfW + halfW;
       const hScreenY = -scratchVec.y * halfH + halfH;
 
+      const safeMinX = 24;
+      const safeMaxX = size.width - 24;
+      const safeMinY = 88;
+      const safeMaxY = size.height - 110;
+
+      const clampedHX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, hScreenX));
+      const clampedHY = Math.max(safeMinY + 16, Math.min(safeMaxY - 16, hScreenY));
+
       headerBoxes.push({
-        minX: hScreenX - 70,
-        maxX: hScreenX + 70,
-        minY: hScreenY - 16,
-        maxY: hScreenY + 16,
+        minX: clampedHX - 70,
+        maxX: clampedHX + 70,
+        minY: clampedHY - 16,
+        maxY: clampedHY + 16,
       });
     }
 
@@ -204,8 +215,24 @@ export function LabelProjector({
 
       if (pl && pt && (pl.mode === "full" || pl.mode === "compact")) {
         el.dataset.mode = pl.mode;
-        el.style.transform = `translate3d(${Math.round(pt.x)}px, ${Math.round(pt.y + pl.yOff)}px, 0) translate(-50%, -50%)`;
+        const targetX = Math.round(pt.x + pl.xOff);
+        const targetY = Math.round(pt.y + pl.yOff);
+        el.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) translate(-50%, -50%)`;
         el.style.visibility = "visible";
+
+        // Update leader line connecting card edge back to station anchor (H2 & H3)
+        let lineEl = lineEls.current[i];
+        if (!lineEl && el) {
+          lineEl = el.querySelector("line");
+          lineEls.current[i] = lineEl;
+        }
+        if (lineEl) {
+          const startY = pl.yOff < 0 ? (pl.mode === "full" ? 22 : 14) : (pl.mode === "full" ? -22 : -14);
+          lineEl.setAttribute("x1", "0");
+          lineEl.setAttribute("y1", String(startY));
+          lineEl.setAttribute("x2", String(Math.round(-pl.xOff)));
+          lineEl.setAttribute("y2", String(Math.round(-pl.yOff)));
+        }
       } else {
         el.style.visibility = "hidden";
       }

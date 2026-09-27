@@ -278,20 +278,67 @@ function runCollisionCheck(
     projectedMap.set(p.id, p);
   }
 
+  const safeMinX = 24;
+  const safeMaxX = viewport.width - 24;
+  const safeMinY = 88;
+  const safeMaxY = viewport.height - 110;
+
+  // Clamped headers per StageHeaderProjector (H2)
+  const clampedHeaders = fixture.headerBoxes.map((h) => {
+    const halfW = (h.maxX - h.minX) / 2;
+    const halfH = (h.maxY - h.minY) / 2;
+    const cx = (h.minX + h.maxX) / 2;
+    const cy = (h.minY + h.maxY) / 2;
+    const clampedX = Math.max(safeMinX + halfW, Math.min(safeMaxX - halfW, cx));
+    const clampedY = Math.max(safeMinY + halfH, Math.min(safeMaxY - halfH, cy));
+    return {
+      minX: clampedX - halfW,
+      maxX: clampedX + halfW,
+      minY: clampedY - halfH,
+      maxY: clampedY + halfH,
+    };
+  });
+
   const placements = resolveLabelCollisions({
     stations,
     projectedPoints: projectedMap,
-    stageHeaders: fixture.headerBoxes,
+    stageHeaders: clampedHeaders,
     viewport,
   });
 
   const cards: ScreenRect[] = [];
   const pins: ScreenRect[] = [];
+  let fullCards = 0;
+  let compactCards = 0;
+  let clippedCards = 0;
+
   for (const [, pl] of placements.entries()) {
     if (pl.mode === "full" || pl.mode === "compact") {
       cards.push(pl.rect);
+      if (pl.mode === "full") fullCards++;
+      if (pl.mode === "compact") compactCards++;
+      if (
+        pl.rect.minX < safeMinX - 0.001 ||
+        pl.rect.maxX > safeMaxX + 0.001 ||
+        pl.rect.minY < safeMinY - 0.001 ||
+        pl.rect.maxY > safeMaxY + 0.001
+      ) {
+        clippedCards++;
+      }
     } else if (pl.mode === "pin") {
       pins.push(pl.rect);
+    }
+  }
+
+  let clippedHeaders = 0;
+  for (const h of clampedHeaders) {
+    if (
+      h.minX < safeMinX - 0.001 ||
+      h.maxX > safeMaxX + 0.001 ||
+      h.minY < safeMinY - 0.001 ||
+      h.maxY > safeMaxY + 0.001
+    ) {
+      clippedHeaders++;
     }
   }
 
@@ -316,6 +363,10 @@ function runCollisionCheck(
   return {
     totalStations: stations.length,
     placedCards: cards.length,
+    fullCards,
+    compactCards,
+    clippedCards,
+    clippedHeaders,
     placedPins: pins.length,
     cardCardOverlaps,
     pinCardOverlaps,
@@ -352,10 +403,31 @@ describe("resolveLabelCollisions (G1 & G5)", () => {
     expect(res.placedCards).toBeGreaterThanOrEqual(18);
   });
 
-  it("demo fixture at 1440x900 gets 13 labels (full or compact) with no overlaps", () => {
+  it("demo fixture at 1440x900 places at least 10 of 13 full cards with 0 overlaps and 0 clipped (H3)", () => {
     const res = runCollisionCheck(DEMO_1440, { width: 1440, height: 900 });
     expect(res.placedCards).toBe(13);
+    expect(res.fullCards).toBeGreaterThanOrEqual(10);
     expect(res.cardCardOverlaps).toBe(0);
+    expect(res.clippedCards).toBe(0);
+    expect(res.clippedHeaders).toBe(0);
+  });
+
+  it("every card and header rect lies inside safe area for both demo and stress at 1440x900 and 1280x800 (H2)", () => {
+    const demo1440 = runCollisionCheck(DEMO_1440, { width: 1440, height: 900 });
+    expect(demo1440.clippedCards).toBe(0);
+    expect(demo1440.clippedHeaders).toBe(0);
+
+    const demo1280 = runCollisionCheck(DEMO_1280, { width: 1280, height: 800 });
+    expect(demo1280.clippedCards).toBe(0);
+    expect(demo1280.clippedHeaders).toBe(0);
+
+    const stress1440 = runCollisionCheck(STRESS_1440, { width: 1440, height: 900 });
+    expect(stress1440.clippedCards).toBe(0);
+    expect(stress1440.clippedHeaders).toBe(0);
+
+    const stress1280 = runCollisionCheck(STRESS_1280, { width: 1280, height: 800 });
+    expect(stress1280.clippedCards).toBe(0);
+    expect(stress1280.clippedHeaders).toBe(0);
   });
 });
 
