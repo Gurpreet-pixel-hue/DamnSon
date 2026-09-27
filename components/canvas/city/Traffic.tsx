@@ -93,7 +93,7 @@ export function Traffic({ plan, stations, stopped = false }: TrafficProps) {
   useEffect(() => {
     if (loops.length === 0) return;
 
-    const TARGET_MOVING_CARS = 28;
+    const TARGET_MOVING_CARS = 10;
     const states: CarState[] = [];
 
     for (let i = 0; i < TARGET_MOVING_CARS; i++) {
@@ -150,7 +150,7 @@ export function Traffic({ plan, stations, stopped = false }: TrafficProps) {
       return { batchedMesh: null, geomIdMap: new Map(), instanceIndices: [] };
     }
 
-    const movingCount = 28;
+    const movingCount = 10;
     const parkedCount = parkedVehicles.length;
     const totalCount = Math.max(1, movingCount + parkedCount);
 

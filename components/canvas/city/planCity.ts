@@ -423,24 +423,21 @@ export function planCity(options: PlanCityOptions): CityPlan {
     const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
 
     let candidatePool: readonly CityKindInfo[];
-    if (minNetworkCellDist > 8 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // A7: For cells more than 8 cells away, use low-detail buildings only
-      candidatePool = LOW_DETAIL_BUILDINGS;
-    } else if (minNetworkCellDist > 3 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // A7: Use LOW_DETAIL variants for cells more than 3 cells from any station or route
+    if (minNetworkCellDist > 2 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // §11.6: Far-LOD variants for cells more than 2 cells from any station or route
       candidatePool = LOW_DETAIL_BUILDINGS;
     } else if (minStationCellDist <= 3) {
       // G3: fill buildings within 3 cells of a station use low-rise pool
-      candidatePool = LOW_BUILDINGS;
+      candidatePool = LOW_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (dist <= 6.0) {
-      candidatePool = LOW_BUILDINGS;
+      candidatePool = LOW_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (dist <= 14.0) {
-      candidatePool = MID_BUILDINGS;
+      candidatePool = MID_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (isBackThird) {
       // E6: tall tier uses low-detail buildings
       candidatePool = LOW_DETAIL_BUILDINGS;
     } else {
-      candidatePool = MID_BUILDINGS;
+      candidatePool = MID_BUILDINGS.filter((b) => b.triangles <= 2000);
     }
 
     if (candidatePool.length === 0) continue;
@@ -485,7 +482,14 @@ export function planCity(options: PlanCityOptions): CityPlan {
       rotY = (3 * Math.PI) / 2; // Front faces East (+X)
     }
 
-    const sJitter = 0.9 + rand() * 0.2;
+    let sJitter = 0.9 + rand() * 0.2;
+    if (minStationCellDist <= 3 && nearestStation) {
+      const stationH = nearestStation.height ?? 3.0;
+      const maxH = 0.7 * stationH;
+      if (variant.height * sJitter > maxH) {
+        sJitter = Math.min(sJitter, maxH / variant.height);
+      }
+    }
 
     // Uniform scale: scale.x === scale.y === scale.z (visual-direction §10.1)
     buildings.push({

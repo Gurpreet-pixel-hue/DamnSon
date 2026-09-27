@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { CityPlan } from "./planCity";
 import type { StationVM } from "@/lib/graph/viewModel";
+import { useViewStore } from "@/lib/store/useViewStore";
 
 interface PedestriansProps {
   plan: CityPlan;
@@ -93,11 +94,15 @@ export function Pedestrians({ plan, stations, stopped = false }: PedestriansProp
     []
   );
 
-  // 2. Compute Queues (3–5 people at in-person or hybrid station door per §10.4)
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+
+  // 2. Compute Queues (3–5 people at in-person or hybrid station door per §10.4, only focused-stage per §11.5)
   const queuers = useMemo<QueuerState[]>(() => {
     const list: QueuerState[] = [];
 
     for (const s of stations) {
+      if (!wholeRouteView && s.layer !== focusStage - 1) continue;
       // In-person or hybrid stations get queues
       const isOffice = s.officeType !== "online_portal" && s.kind !== "milestone";
       if (!isOffice) continue;

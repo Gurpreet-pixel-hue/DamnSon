@@ -236,7 +236,7 @@ export function MetroScene({
       <Roads plan={plan} />
 
       {/* 2. BatchedMesh city buildings and props */}
-      <CityBatches plan={plan} visibleProps={visibleProps} />
+      <CityBatches plan={plan} visibleProps={visibleProps} stations={metro.stations} />
 
       {/* 2b. Traffic: keep-left cars and parked service vehicles in BatchedMesh (+1 draw, §10.3) */}
       <Traffic plan={plan} stations={metro.stations} stopped={perfLevel >= 3} />
