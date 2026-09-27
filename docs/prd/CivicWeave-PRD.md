@@ -12,12 +12,13 @@
 
 ## What changed in 1.3
 
-The latency budgets between the web BFF and the intelligence service (Class C, §13.3; approved by Gurpreet 2026-09-28). Found in Divvye's review of PL-4/PL-6: §6.6 gave the BFF 6 s for every call, while §7.2 gave the copilot's LLM calls 15 s plus up to 2 repairs. Every real copilot answer would have returned 503.
+The latency budgets between the web BFF and the intelligence service, and one milestone-status rule (Class C, §13.3; approved by Gurpreet 2026-09-28). Found in Divvye's review of PL-4/PL-6: §6.6 gave the BFF 6 s for every call, while §7.2 gave the copilot's LLM calls 15 s plus up to 2 repairs. Every real copilot answer would have returned 503.
 
 | # | Area | 1.2 said | 1.3 says | Why |
 |---|---|---|---|---|
 | 1 | **Search budget** | BFF waits 6 s; the service's per-call timeout is 8 s | BFF still waits **6 s**, then serves `lexical_fallback`. The service finishes the whole search flow within **5 s**: an intent call of at most **4 s**, then the rule matcher on timeout | The service's own timeout has to fit inside the BFF's, or the fallback fires on working answers |
 | 2 | **Copilot budget** | BFF waits 6 s (§6.6); 15 s per call and ≤ 2 repairs (§7.2, §7.4) | Copilot gets its own budget. **BFF waits 25 s** (route `maxDuration = 30`). The service has a **22 s hard deadline**: retrieval ≤ 3 s, generation ≤ 12 s, **at most 1 repair** of ≤ 8 s. At the deadline it returns the safe fallback (`not_found` plus the top 3 passages); it never hangs | A cited answer needs retrieval plus generation and sometimes a repair, which can't fit in 6 s. Vercel functions on every plan run up to 300 s, so 30 s is safe |
+| 4 | **Milestone status (§8.8)** | `done` when every prerequisite that isn't `may_apply` is done | ...**and at least one prerequisite is done** | With no answers, every prerequisite of "Company incorporated" is `may_apply`, so the old rule marked it done before the citizen had done anything (found on the real start-business-mumbai data) |
 | 3 | **Copilot panel** | "The panel says so" on 503 | The panel shows progress ("Searching official sources…", then "Writing a cited answer…"), aborts the request when closed, and shows the 503 message only after 25 s | A 10–20 s answer must not look broken |
 
 ## What changed in 1.2
@@ -619,7 +620,7 @@ For each template question whose fact is unknown, count the kept steps that woul
 | Derivation | Rule |
 |---|---|
 | **Order, layers** | From `analyzeJourney()`: all edges count, so recommended order also moves stations right |
-| **Status** | `done` if the id is in `completed`; else `available` if every `requires` prerequisite is done or `may_apply` (a "may apply" step never locks others); else `locked`. `recommended_after` never locks. **Milestones are never clicked**: `done` when every `requires` prerequisite that isn't `may_apply` is done, else `locked` |
+| **Status** | `done` if the id is in `completed`; else `available` if every `requires` prerequisite is done or `may_apply` (a "may apply" step never locks others); else `locked`. `recommended_after` never locks. **Milestones are never clicked**: `done` when every `requires` prerequisite that isn't `may_apply` is done **and at least one `requires` prerequisite is done** (1.3), else `locked`. A milestone whose prerequisites are all `may_apply` therefore stays `locked` until one of them is done or a fact makes one apply |
 | **Fees remaining** | Skip done, optional and milestone steps. `fixed` and `range` add to min and max for `applies` steps and to max only for `may_apply` steps (`mayApplyCount`). `variable` and `unknown` add to `unconfirmedCount`, never to totals. `annual` recurrence is labelled per year |
 | **Time remaining** | Longest path over `requires` edges among not-done, non-optional steps. Per step (calendar days; working days × 7/5 rounded up): `sla` gives `[min, max]`; `no_fixed_sla` gives `[0, 0]` and marks the result open-ended; `unknown` gives 0 and adds to `unknownCount`. Conditional timelines add to max only (to both if their rule is true); `open_ended` marks the result open-ended. `may_apply` steps count 0 toward min. Output `{minDays, maxDays, openEnded, unknownCount, criticalStepIds, relativeTo}` |
 | **Relative timeline** | If a not-done `no_fixed_sla` step is on the critical path, `relativeTo` = the last such step, and the timeline also reports the totals with that step and its ancestors treated as done ("DPIIT: 0–2 working days after incorporation") |
