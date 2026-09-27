@@ -606,7 +606,7 @@ Status: normative. Decided by Gurpreet after reviewing FE-3.5 (PR #27). Where §
 ### 11.1 The model
 - **A stage is one layer of the journey**, the same columns the stage chips already name ("1 · START HERE", "2 · THEN", "4 · IN PARALLEL (5)").
 - **`focusStage`** is view state in `useViewStore`. It is never stored in progress and never goes in the share link.
-- **The current stage is derived.** `currentStage(metro)` is the lowest layer that still has an `available` step that `applies`. When every step is done, it is the last stage. This is a pure function in `lib/graph/stages.ts`, with tests.
+- **The current stage is derived.** `currentStage(metro)` is the lowest layer that still has an `available` step whose applicability is `applies` or `may_apply` (never optional-only). When every step is done, it is the last stage. This is a pure function in `lib/graph/stages.ts`, with tests.
 - **On load**, `focusStage = currentStage(metro)`.
 
 **How focus moves**
