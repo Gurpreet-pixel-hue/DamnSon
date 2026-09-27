@@ -1,6 +1,5 @@
-import type { Step } from "./schema";
-import type { ResolvedPath } from "./resolvePath";
-import { analyzeGraph } from "./analyzeGraph";
+import type { ComposedJourney, ComposedStep } from "@/lib/contract/compose";
+import { analyzeJourney } from "@/lib/contract/analyze";
 
 export const LAYOUT = {
   layerSpacing3D: 7,
@@ -18,37 +17,40 @@ export interface Placement {
   position2D: { x: number; y: number };
 }
 
-export function computeMetroLayout(path: ResolvedPath): Placement[] {
-  const { graph } = path;
-  if (graph.nodes.length === 0) {
+export function computeMetroLayout(journey: ComposedJourney): Placement[] {
+  if (journey.steps.length === 0) {
     return [];
   }
 
-  const analysis = analyzeGraph(graph);
-  const nodeMap = new Map<string, Step>(graph.nodes.map((n) => [n.id, n]));
-  const nodeOrderMap = new Map<string, number>(
-    graph.nodes.map((n, idx) => [n.id, idx])
+  const analysis = analyzeJourney(journey);
+  const layers = analysis.ok ? analysis.layers : [journey.steps.map((s) => s.id)];
+
+  const stepMap = new Map<string, ComposedStep>(
+    journey.steps.map((s) => [s.id, s])
+  );
+  const stepOrderMap = new Map<string, number>(
+    journey.steps.map((s, idx) => [s.id, idx])
   );
 
-  // Incoming prerequisite IDs per step
-  const prereqsMap = new Map<string, string[]>();
-  for (const node of graph.nodes) {
-    prereqsMap.set(node.id, []);
+  // Incoming edges per step (over all edges)
+  const incomingEdgesMap = new Map<string, string[]>();
+  for (const step of journey.steps) {
+    incomingEdgesMap.set(step.id, []);
   }
-  for (const edge of graph.edges) {
-    prereqsMap.get(edge.to)?.push(edge.from);
+  for (const edge of journey.edges) {
+    incomingEdgesMap.get(edge.to)?.push(edge.from);
   }
 
   const offsetMap = new Map<string, number>();
   const placements: Placement[] = [];
 
-  for (let layerIdx = 0; layerIdx < analysis.layers.length; layerIdx++) {
-    const layerStepIds = analysis.layers[layerIdx] ?? [];
+  for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
+    const layerStepIds = layers[layerIdx] ?? [];
     if (layerStepIds.length === 0) continue;
 
     // Compute barycenter for each step in this layer
     const stepsWithBarycenter = layerStepIds.map((stepId) => {
-      const prereqs = prereqsMap.get(stepId) ?? [];
+      const prereqs = incomingEdgesMap.get(stepId) ?? [];
       let barycenter = 0;
       if (prereqs.length > 0) {
         let sum = 0;
@@ -65,11 +67,11 @@ export function computeMetroLayout(path: ResolvedPath): Placement[] {
       return {
         stepId,
         barycenter,
-        nodeIndex: nodeOrderMap.get(stepId) ?? 0,
+        nodeIndex: stepOrderMap.get(stepId) ?? 0,
       };
     });
 
-    // Sort by barycenter; ties go to nodes order
+    // Sort by barycenter; ties go to step definition order
     stepsWithBarycenter.sort((a, b) => {
       if (a.barycenter !== b.barycenter) {
         return a.barycenter - b.barycenter;
@@ -85,8 +87,8 @@ export function computeMetroLayout(path: ResolvedPath): Placement[] {
       const offset = i - (n - 1) / 2;
       offsetMap.set(stepId, offset);
 
-      const node = nodeMap.get(stepId);
-      const isOnline = node?.mode === "online";
+      const step = stepMap.get(stepId);
+      const isOnline = step && step.kind !== "milestone" && step.mode === "online";
       const y3D = isOnline ? LAYOUT.onlineHeight : 0;
 
       const position3D: [number, number, number] = [
