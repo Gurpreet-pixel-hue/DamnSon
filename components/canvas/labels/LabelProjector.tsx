@@ -125,10 +125,10 @@ export function LabelProjector({
       const hScreenX = scratchVec.x * halfW + halfW;
       const hScreenY = -scratchVec.y * halfH + halfH;
 
-      const safeMinX = 24;
-      const safeMaxX = size.width - 24;
-      const safeMinY = 88;
-      const safeMaxY = size.height - 110;
+      const safeMinX = SAFE_INSETS.left;
+      const safeMaxX = size.width - SAFE_INSETS.right;
+      const safeMinY = SAFE_INSETS.top;
+      const safeMaxY = size.height - SAFE_INSETS.bottom;
 
       const clampedHX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, hScreenX));
       const clampedHY = Math.max(safeMinY + 16, Math.min(safeMaxY - 16, hScreenY));

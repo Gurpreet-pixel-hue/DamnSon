@@ -437,12 +437,12 @@ export function planCity(options: PlanCityOptions): CityPlan {
     );
 
     let candidatePool: readonly CityKindInfo[];
-    if (minStationCellDist <= 3) {
+    if (minStationCellDist > 5 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // P12: every city cell farther than 5 cells from any station uses low-detail buildings (brings tris <= 320k)
+      candidatePool = LOW_DETAIL_BUILDINGS;
+    } else if (minStationCellDist <= 3) {
       // G3: fill buildings within 3 cells of a station use low-rise pool
       candidatePool = LOW_BUILDINGS;
-    } else if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // E6: anything more than 20 units from camera target uses low-detail buildings
-      candidatePool = LOW_DETAIL_BUILDINGS;
     } else if (dist <= 6.0) {
       candidatePool = LOW_BUILDINGS;
     } else if (dist <= 14.0) {
