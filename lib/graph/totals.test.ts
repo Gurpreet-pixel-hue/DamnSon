@@ -54,6 +54,10 @@ describe("totals derivations on ComposedJourney", () => {
         maxINR: 1500,
         unconfirmedCount: 2,
         mayApplyCount: 1,
+        annualMinINR: 0,
+        annualMaxINR: 0,
+        annualUnconfirmedCount: 0,
+        conditionalMaxINR: 0,
       });
     });
 
@@ -71,7 +75,50 @@ describe("totals derivations on ComposedJourney", () => {
         maxINR: 0,
         unconfirmedCount: 2,
         mayApplyCount: 1,
+        annualMinINR: 0,
+        annualMaxINR: 0,
+        annualUnconfirmedCount: 0,
+        conditionalMaxINR: 0,
       });
+    });
+
+    it("keeps annual fees separate from one-time totals (P1 & §8.8)", () => {
+      const { journey } = loadExampleStartupJourney();
+      // Inject an annual fee step for testing
+      const testJourney = {
+        ...journey,
+        steps: [
+          ...journey.steps,
+          {
+            id: "test-module.annual-license",
+            moduleId: "test-module",
+            title: "Annual Operating License",
+            kind: "government" as const,
+            requirement: { kind: "mandatory" as const },
+            applicability: "applies" as const,
+            mode: "online" as const,
+            fee: {
+              kind: "fixed" as const,
+              amountINR: 2500,
+              recurrence: "annual" as const,
+              sourceRef: "src-1",
+            },
+            timeline: { officialSla: { kind: "unknown" as const }, conditional: [] },
+            review: { status: "verified" as const, verifiedOn: "2026-09-01" },
+            documents: [],
+            layer: 10,
+            lane: 0,
+            x: 0,
+            y: 0,
+          },
+        ],
+      };
+
+      const summary = summarizeFees(testJourney, new Set());
+      expect(summary.minINR).toBe(500);
+      expect(summary.maxINR).toBe(1500);
+      expect(summary.annualMinINR).toBe(2500);
+      expect(summary.annualMaxINR).toBe(2500);
     });
   });
 
