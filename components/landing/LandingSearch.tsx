@@ -13,6 +13,7 @@ import type { Question } from "@/lib/contract/schema";
 import type { ComposedJourney } from "@/lib/contract/compose";
 import { encodeShareState } from "@/lib/graph/shareState";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { setArrivedFromLanding } from "@/components/canvas/entrance/entranceState";
 
 export interface LandingSearchProps {
   templates: TemplateSummary[];
@@ -201,6 +202,7 @@ export function LandingSearch({
     }
     // Pre-populate zustand store for immediate hydration
     useTaskStore.getState().setFacts(targetTaskId, allFacts);
+    setArrivedFromLanding(true);
 
     const query = encodeShareState({
       taskId: targetTaskId,

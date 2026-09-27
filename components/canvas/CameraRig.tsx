@@ -16,6 +16,8 @@ import {
   DRAWER_STAGE_INSETS,
 } from "./camera/frameView";
 
+import { shouldPlayEntrance, consumeArrivedFromLanding } from "./entrance/entranceState";
+
 interface CameraRigProps {
   metro: MetroVM;
   boardBounds?: BoardBounds;
@@ -205,16 +207,87 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     ]
   );
 
-  // Initial fit: load-time fit before canvas is revealed (§10.6, §11.3, §11.8)
+  // Initial fit: load-time fit before canvas is revealed (§10.6, §11.3, §11.8, §9.4)
   useEffect(() => {
     if (metro.stations.length > 0 && !initialFittedRef.current) {
       initialFittedRef.current = true;
+
+      if (shouldPlayEntrance()) {
+        consumeArrivedFromLanding();
+        const controls = controlsRef.current;
+        if (controls) {
+          const targetBox = wholeRouteView
+            ? wholeRouteBoundingBox
+            : stageBoundingBox;
+          const camera = controls.camera as THREE.PerspectiveCamera;
+          const fov = camera?.fov ?? 45;
+
+          const { position, target } = frameView({
+            box: targetBox,
+            viewport: { width: size.width, height: size.height },
+            insets: DEFAULT_STAGE_INSETS,
+            fov,
+            isWholeRoute: wholeRouteView,
+          });
+
+          const fitDistance = Math.hypot(
+            position[0] - target[0],
+            position[1] - target[1],
+            position[2] - target[2]
+          );
+
+          // §9.4: Camera starts at polar 12°, azimuth −40°, 2.6 × the fit distance
+          const startDist = 2.6 * fitDistance;
+          const polar = (12 * Math.PI) / 180;
+          const azimuth = (-40 * Math.PI) / 180;
+          const yOff = startDist * Math.cos(polar);
+          const hDist = startDist * Math.sin(polar);
+          const xOff = hDist * Math.sin(azimuth);
+          const zOff = hDist * Math.cos(azimuth);
+
+          // Start pose without transition
+          void controls.setLookAt(
+            target[0] + xOff,
+            target[1] + yOff,
+            target[2] + zOff,
+            target[0],
+            target[1],
+            target[2],
+            false
+          );
+
+          // Transition to safe-fit pose over 1.6 s with smoothTime 0.35 (§9.4)
+          controls.smoothTime = 0.35;
+          const animTimer = setTimeout(() => {
+            void controls.setLookAt(
+              position[0],
+              position[1],
+              position[2],
+              target[0],
+              target[1],
+              target[2],
+              true
+            );
+          }, 50);
+
+          return () => clearTimeout(animTimer);
+        }
+      }
+
       const t = setTimeout(() => {
         frameCurrentStageOrRoute(true);
       }, 50);
       return () => clearTimeout(t);
     }
-  }, [metro.stations, frameCurrentStageOrRoute]);
+  }, [
+    metro.stations,
+    wholeRouteView,
+    wholeRouteBoundingBox,
+    stageBoundingBox,
+    size.width,
+    size.height,
+    frameCurrentStageOrRoute,
+  ]);
 
   const prevFocusStageRef = useRef(focusStage);
   const prevWholeRouteViewRef = useRef(wholeRouteView);
