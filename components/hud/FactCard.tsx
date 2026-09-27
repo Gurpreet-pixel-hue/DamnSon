@@ -3,7 +3,8 @@
 import React, { useMemo, useState } from "react";
 import type { ApprovalModule, JourneyTemplate } from "@/lib/contract/schema";
 import type { FactKey, FactValue } from "@/lib/contract/facts";
-import { getUsedFacts, getFactEditorModel, formatFactDisplayValue } from "@/lib/graph/factEditors";
+import { getUsedFacts, getFactEditorModel } from "@/lib/graph/factEditors";
+import { formatFactValue } from "@/lib/graph/factDisplay";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface FactCardProps {
@@ -26,6 +27,11 @@ export function FactCard({
 
   const [expandedKey, setExpandedKey] = useState<FactKey | null>(null);
   const [showAllEditors, setShowAllEditors] = useState(false);
+
+  const questionMap = useMemo(
+    () => new Map(template.questions.map((q) => [q.fact, q])),
+    [template.questions]
+  );
 
   const currentFacts = useMemo(
     () => (targetTaskId ? factsByTask[targetTaskId] ?? {} : {}),
@@ -99,6 +105,7 @@ export function FactCard({
         {visibleModels.map((item) => {
           const isExpanded = expandedKey === item.key || showAllEditors;
           const factId = `fact-editor-${item.key.replace(/\./g, "-")}`;
+          const matchingQuestion = questionMap.get(item.key);
 
           return (
             <div
@@ -117,7 +124,7 @@ export function FactCard({
                     {item.label}
                   </span>
                   <span className="text-[10px] text-[var(--cw-text-muted)] truncate">
-                    {formatFactDisplayValue(item.value)}
+                    {formatFactValue(item.key, item.value, matchingQuestion)}
                   </span>
                 </div>
 
@@ -195,11 +202,15 @@ export function FactCard({
                       className="w-full text-xs p-1.5 rounded border border-[var(--cw-border)] bg-[var(--cw-surface)] text-[var(--cw-text)] focus:ring-[var(--cw-brand)] focus:border-[var(--cw-brand)]"
                     >
                       <option value="">Select option...</option>
-                      {item.def.values.map((v) => (
-                        <option key={v} value={v}>
-                          {v.replace(/_/g, " ")}
-                        </option>
-                      ))}
+                      {item.def.values.map((v) => {
+                        const opt = matchingQuestion?.options?.find((o) => o.value === v);
+                        const label = opt?.label ?? v.replace(/_/g, " ");
+                        return (
+                          <option key={v} value={v}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
                   )}
 

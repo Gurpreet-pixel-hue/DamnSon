@@ -1,21 +1,37 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { ExcludedItem } from "@/lib/contract/compose";
-import type { FactKey } from "@/lib/contract/facts";
+import { FACTS, type FactKey } from "@/lib/contract/facts";
+import type { JourneyTemplate } from "@/lib/contract/schema";
+import { formatFactValue } from "@/lib/graph/factDisplay";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface ExcludedListProps {
   excluded: ExcludedItem[];
+  template?: JourneyTemplate;
   className?: string;
   onFocusFact?: (key: FactKey) => void;
 }
 
 export function ExcludedList({
   excluded,
+  template,
   className = "",
   onFocusFact,
 }: ExcludedListProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const storeActiveTaskId = useTaskStore((s) => s.activeTaskId);
+  const factsByTask = useTaskStore((s) => s.factsByTask);
+  const currentFacts = useMemo(
+    () => (storeActiveTaskId ? factsByTask[storeActiveTaskId] ?? {} : {}),
+    [storeActiveTaskId, factsByTask]
+  );
+
+  const questionMap = useMemo(
+    () => (template ? new Map(template.questions.map((q) => [q.fact, q])) : new Map()),
+    [template]
+  );
 
   if (excluded.length === 0) return null;
 
@@ -102,14 +118,21 @@ export function ExcludedList({
               {item.facts.length > 0 && (
                 <div className="flex items-center justify-between pt-1 border-t border-[var(--cw-border)]/40 gap-2">
                   <div className="flex flex-wrap items-center gap-1">
-                    {item.facts.map((f) => (
-                      <span
-                        key={f}
-                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)]"
-                      >
-                        {f}
-                      </span>
-                    ))}
+                    {item.facts.map((f) => {
+                      const val = currentFacts[f];
+                      const q = questionMap.get(f);
+                      const valStr = val !== undefined ? `: ${formatFactValue(f, val, q)}` : "";
+                      const label = FACTS[f]?.label ?? f;
+                      return (
+                        <span
+                          key={f}
+                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)]"
+                          title={`${label}${valStr}`}
+                        >
+                          {label}{valStr}
+                        </span>
+                      );
+                    })}
                   </div>
 
                   {item.facts[0] && (

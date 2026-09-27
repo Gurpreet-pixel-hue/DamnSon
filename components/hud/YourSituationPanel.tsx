@@ -33,7 +33,7 @@ export function YourSituationPanel({
 
       {/* 3. Not Needed For You (Excluded steps/modules) */}
       {journey && journey.excluded.length > 0 && (
-        <ExcludedList excluded={journey.excluded} />
+        <ExcludedList excluded={journey.excluded} template={template} />
       )}
     </div>
   );

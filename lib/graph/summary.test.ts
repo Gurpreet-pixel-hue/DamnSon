@@ -239,6 +239,7 @@ describe("lib/graph/summary", () => {
         openEnded: false,
         unknownCount: 2,
         criticalStepIds: ["s1"],
+        relativeTo: null,
       };
       const tile = deriveTimeTile(summary);
       expect(tile.value).toBe("7+ days");
@@ -252,6 +253,7 @@ describe("lib/graph/summary", () => {
         openEnded: false,
         unknownCount: 1,
         criticalStepIds: [],
+        relativeTo: null,
       };
       const tile = deriveTimeTile(summary);
       expect(tile.value).toBe("To confirm");
