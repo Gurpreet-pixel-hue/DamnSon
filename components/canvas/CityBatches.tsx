@@ -266,9 +266,6 @@ export function CityBatches({ plan, stations = [], visibleProps = true }: CityBa
           cityBatchedMesh.setColorAt(i, _whiteColor);
         }
       }
-      if (cityBatchedMesh.instanceColor) {
-        cityBatchedMesh.instanceColor.needsUpdate = true;
-      }
     }
 
     if (propsBatchedMesh) {
@@ -299,9 +296,6 @@ export function CityBatches({ plan, stations = [], visibleProps = true }: CityBa
         } else {
           propsBatchedMesh.setColorAt(i, _whiteColor);
         }
-      }
-      if (propsBatchedMesh.instanceColor) {
-        propsBatchedMesh.instanceColor.needsUpdate = true;
       }
     }
   }, [cityBatchedMesh, propsBatchedMesh, focusStage, wholeRouteView, stations, plan]);

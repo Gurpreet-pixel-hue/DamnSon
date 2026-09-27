@@ -174,9 +174,21 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     }
   }, [metro.stations, frameCurrentStageOrRoute]);
 
+  const prevFocusStageRef = useRef(focusStage);
+  const prevWholeRouteViewRef = useRef(wholeRouteView);
+
   // On every focusStage or wholeRouteView change, glide camera to frame it (§11.3)
   useEffect(() => {
     if (!initialFittedRef.current) return;
+    if (
+      prevFocusStageRef.current === focusStage &&
+      prevWholeRouteViewRef.current === wholeRouteView
+    ) {
+      return;
+    }
+    prevFocusStageRef.current = focusStage;
+    prevWholeRouteViewRef.current = wholeRouteView;
+
     frameCurrentStageOrRoute(false);
   }, [focusStage, wholeRouteView, frameCurrentStageOrRoute]);
 

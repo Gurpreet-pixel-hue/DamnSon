@@ -4,6 +4,7 @@ import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { cancelAutoAdvance } from "./RightDrawer";
 
 export function UndoToast() {
   const undoToast = useViewStore((s) => s.undoToast);
@@ -12,6 +13,7 @@ export function UndoToast() {
 
   const handleUndo = () => {
     if (!undoToast) return;
+    cancelAutoAdvance();
     if (undoToast.previousFocusStage !== undefined) {
       useViewStore.getState().setFocusStage(undoToast.previousFocusStage);
     }

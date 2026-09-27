@@ -15,6 +15,15 @@ export interface RightDrawerProps {
   className?: string;
 }
 
+let autoAdvanceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function cancelAutoAdvance() {
+  if (autoAdvanceTimeout) {
+    clearTimeout(autoAdvanceTimeout);
+    autoAdvanceTimeout = null;
+  }
+}
+
 export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const selectStep = useTaskStore((s) => s.selectStep);
@@ -91,8 +100,11 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
         const currentStageInfo = stages.find((s) => s.number === currentFocus);
         // If the focused stage has no available step that applies left (§11.1)
         if (!currentStageInfo || !currentStageInfo.hasAvailable) {
-          setTimeout(() => {
-            if (useViewStore.getState().focusStage === currentFocus) {
+          cancelAutoAdvance();
+          autoAdvanceTimeout = setTimeout(() => {
+            autoAdvanceTimeout = null;
+            const isStillDone = useTaskStore.getState().completedByTask[activeTaskId]?.includes(step.id);
+            if (isStillDone && useViewStore.getState().focusStage === currentFocus) {
               const next = currentStage(nextMetro);
               useViewStore.getState().setFocusStage(next);
             }

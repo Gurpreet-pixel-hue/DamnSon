@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import type { MetroVM } from "@/lib/graph/viewModel";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
 import { Board } from "./Board";
 import { Roads } from "./city/Roads";
@@ -200,7 +202,6 @@ export function MetroScene({
   }, [activeTaskId, metro.stations, metro.tracks]);
 
   const isDebug =
-    process.env.NODE_ENV === "development" &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("debug") === "1";
 

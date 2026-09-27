@@ -232,7 +232,9 @@ export function LabelLayer({
                 transition: "opacity 180ms ease-out", // NO transform transition (§11.4)
                 willChange: "transform, opacity",
               }}
-              className="pointer-events-auto absolute left-0 top-0"
+              className={`pointer-events-auto absolute left-0 top-0 ${
+                isCompact ? "w-[180px] h-[36px]" : "w-[220px] h-[52px]"
+              }`}
             >
               <button
                 type="button"
@@ -251,10 +253,10 @@ export function LabelLayer({
                     setFocusedStepId(null);
                   }
                 }}
-                className={`group flex items-center gap-2 rounded-[10px] border shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer select-none text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none ${
+                className={`group flex items-center gap-2 rounded-[10px] border shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer select-none text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none box-border ${
                   isCompact
-                    ? "w-[180px] py-1 px-2"
-                    : "w-[220px] px-2.5 py-1.5"
+                    ? "w-[180px] h-[36px] py-1 px-2"
+                    : "w-[220px] h-[52px] px-2.5 py-1.5"
                 } ${
                   isDone
                     ? "bg-[#F4F9F5] border-[#C2E0C9] text-[#1E7F3B]"
@@ -293,7 +295,7 @@ export function LabelLayer({
                     tetherRefs.current.delete(station.id);
                   }
                 }}
-                className="pointer-events-none absolute left-1/2 top-1/2 overflow-visible -z-10"
+                className="pointer-events-none absolute left-1/2 top-1/2 w-0 h-0 overflow-visible -z-10"
                 aria-hidden="true"
               >
                 <line
