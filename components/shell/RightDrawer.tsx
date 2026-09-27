@@ -148,7 +148,7 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                   </span>
                   <span className="font-medium text-[var(--cw-text)]">
                     {actionStep.timeline.officialSla.kind === "sla"
-                      ? `${actionStep.timeline.officialSla.minDuration}–${actionStep.timeline.officialSla.maxDuration} ${actionStep.timeline.officialSla.unit} days`
+                      ? `${actionStep.timeline.officialSla.duration.minDays}–${actionStep.timeline.officialSla.duration.maxDays} ${actionStep.timeline.officialSla.duration.dayType} days`
                       : "Standard processing"}
                   </span>
                 </div>

@@ -7,30 +7,34 @@ function makeMockActionStep(
   status: "unverified" | "verified" | "flagged",
   note?: string
 ): ComposedActionStep {
+  const review =
+    status === "verified"
+      ? { status: "verified" as const, verifiedOn: "2026-09-01", ...(note ? { note } : {}) }
+      : status === "flagged"
+      ? { status: "flagged" as const, note: note ?? "Flagged" }
+      : { status: "unverified" as const, ...(note ? { note } : {}) };
+
   return {
     id,
     moduleId: "mod",
+    localId: id,
     title: id,
+    description: id,
     kind: "government",
     department: "Dept",
     authoritySlug: "auth",
     officeType: "online_portal",
     requirement: { kind: "mandatory" },
     applicability: "applies",
+    reasons: [],
     mode: "online",
-    fee: { kind: "free" },
+    fee: { kind: "free", sourceRef: "src-1" },
     timeline: { officialSla: { kind: "unknown" }, conditional: [] },
-    review: {
-      status,
-      ...(status === "verified" ? { verifiedOn: "2026-09-01" } : {}),
-      ...(note ? { note } : {}),
-    },
+    review,
     documents: [],
     forms: [],
-    layer: 0,
-    lane: 0,
-    x: 0,
-    y: 0,
+    sources: [],
+    outputs: [],
   };
 }
 
@@ -38,14 +42,13 @@ function makeMockMilestone(id: string): ComposedMilestone {
   return {
     id,
     moduleId: "mod",
+    localId: id,
     title: id,
+    description: id,
     kind: "milestone",
     requirement: { kind: "mandatory" },
     applicability: "applies",
-    layer: 0,
-    lane: 0,
-    x: 0,
-    y: 0,
+    reasons: [],
   };
 }
 
