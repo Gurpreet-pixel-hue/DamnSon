@@ -112,6 +112,8 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
   const setViewMode = useViewStore((s) => s.setViewMode);
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
   const toggleCriticalPath = useViewStore((s) => s.toggleCriticalPath);
+  const labelMode = useViewStore((s) => s.labelMode);
+  const setLabelMode = useViewStore((s) => s.setLabelMode);
 
   // Monitor fullscreen change
   useEffect(() => {
@@ -181,6 +183,39 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
           >
             Critical Path
           </button>
+
+          {/* Labels Toggle: Key steps / All (§10.6) */}
+          <div className="flex items-center rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] p-0.5 text-xs">
+            <span className="text-[10px] text-[var(--cw-text-muted)] font-medium px-1.5 hidden sm:inline">
+              Labels:
+            </span>
+            <button
+              type="button"
+              data-testid="footer-toggle-labels-key"
+              onClick={() => setLabelMode("key_steps")}
+              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                labelMode === "key_steps"
+                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
+                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
+              }`}
+              aria-pressed={labelMode === "key_steps"}
+            >
+              Key steps
+            </button>
+            <button
+              type="button"
+              data-testid="footer-toggle-labels-all"
+              onClick={() => setLabelMode("all")}
+              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                labelMode === "all"
+                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
+                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
+              }`}
+              aria-pressed={labelMode === "all"}
+            >
+              All
+            </button>
+          </div>
 
           {/* 3D / 2D Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] p-0.5 text-xs">

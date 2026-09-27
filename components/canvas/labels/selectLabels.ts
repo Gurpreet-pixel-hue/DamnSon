@@ -209,7 +209,8 @@ export function resolveLabelCollisions(
 
   // Phase 1: Place cards in priority order
   for (const p of pts) {
-    const eligibleForFull = isSmallGraph || priorityIds.has(p.id);
+    const isPriority = priorityIds.has(p.id);
+    const eligibleForFull = labelMode === "key_steps" ? isPriority : (isSmallGraph || isPriority);
     let placedCard: PlacedLabel | null = null;
 
     // Hysteresis: order candidate yOffsets so that the previous slot is tried first
@@ -276,8 +277,9 @@ export function resolveLabelCollisions(
       }
     }
 
-    // 2. Try compact card slots: same candidate slots
-    if (!placedCard) {
+    // 2. Try compact card slots: only in 'all' mode or for priority stations
+    const eligibleForCompact = labelMode === "all" || isPriority;
+    if (!placedCard && eligibleForCompact) {
       const compactHalfW = Math.min(
         90,
         Math.max(50, Math.round((p.title.length * 6.0 + 32) / 2))
@@ -343,7 +345,7 @@ export function resolveLabelCollisions(
   const unplaced: ProjectedStationPoint[] = [];
 
   for (const p of cardUnplaced) {
-    if (!isSmallGraph) {
+    if (labelMode === "key_steps" || !isSmallGraph) {
       const px = p.pinX ?? p.x;
       const py = p.pinY ?? p.y + 24;
       const pinBox: ScreenRect = {

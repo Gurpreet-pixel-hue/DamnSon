@@ -13,6 +13,8 @@ import {
   type PlacedLabel,
 } from "./selectLabels";
 import { deriveStageHeaders } from "../StageHeaders";
+import { useViewStore } from "@/lib/store/useViewStore";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface LabelProjectorProps {
   metro: MetroVM;
@@ -53,6 +55,8 @@ export function LabelProjector({
 
   // Cached placements for 250ms still-camera stability and slot hysteresis (§10.6)
   const cachedPlacements = useRef<Map<string, PlacedLabel>>(new Map());
+  const cachedLabelMode = useRef<string>("key_steps");
+  const cachedSelectedId = useRef<string | null>(null);
   const cameraSettledRef = useRef(false);
   const stillTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -205,11 +209,25 @@ export function LabelProjector({
       }
     }
 
-    // Re-run collision resolution only on initial load, size change, station change, or after 250ms camera settled
+    // Re-run collision resolution only on initial load, size change, station change, mode change, selection change, or after 250ms camera settled
+    const currentLabelMode = useViewStore.getState().labelMode;
+    const labelModeChanged = currentLabelMode !== cachedLabelMode.current;
+    if (labelModeChanged) {
+      cachedLabelMode.current = currentLabelMode;
+    }
+
+    const currentSelectedId = useTaskStore.getState().selectedStepId;
+    const selectedChanged = currentSelectedId !== cachedSelectedId.current;
+    if (selectedChanged) {
+      cachedSelectedId.current = currentSelectedId;
+    }
+
     const shouldRecomputeSlots =
       cachedPlacements.current.size === 0 ||
       stationsChanged ||
       sizeChanged ||
+      labelModeChanged ||
+      selectedChanged ||
       settled;
 
     let placements = cachedPlacements.current;
@@ -220,6 +238,8 @@ export function LabelProjector({
         projectedPoints: projectedMap,
         stageHeaders: headerBoxes,
         viewport: size,
+        selectedStepId: currentSelectedId,
+        labelMode: currentLabelMode,
         previousPlacements: cachedPlacements.current,
       });
       cachedPlacements.current = placements;

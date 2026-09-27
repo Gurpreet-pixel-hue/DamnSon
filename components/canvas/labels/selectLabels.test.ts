@@ -70,6 +70,126 @@ describe("selectLabels", () => {
     expect(labelsNoHover.map((s) => s.id)).toEqual(labelsWithHover2.map((s) => s.id));
   });
 
+  it("the same input twice gives identical slots (§10.6)", () => {
+    const stations = [
+      makeDummyStation("s1", "available"),
+      makeDummyStation("s2", "available"),
+      makeDummyStation("s3", "locked"),
+      makeDummyStation("s4", "done"),
+    ];
+    const projectedMap = new Map<string, ProjectedStationPoint>([
+      ["s1", { id: "s1", title: "Station s1", lane: 0, layer: 0, x: 200, y: 300, pinX: 200, pinY: 330 }],
+      ["s2", { id: "s2", title: "Station s2", lane: 1, layer: 0, x: 350, y: 300, pinX: 350, pinY: 330 }],
+      ["s3", { id: "s3", title: "Station s3", lane: 0, layer: 1, x: 500, y: 300, pinX: 500, pinY: 330 }],
+      ["s4", { id: "s4", title: "Station s4", lane: 1, layer: 1, x: 650, y: 300, pinX: 650, pinY: 330 }],
+    ]);
+
+    const run1 = resolveLabelCollisions({
+      stations,
+      projectedPoints: projectedMap,
+      viewport: { width: 1440, height: 900 },
+      labelMode: "all",
+    });
+
+    const run2 = resolveLabelCollisions({
+      stations,
+      projectedPoints: projectedMap,
+      viewport: { width: 1440, height: 900 },
+      labelMode: "all",
+    });
+
+    for (const [id, pl1] of run1.entries()) {
+      const pl2 = run2.get(id);
+      expect(pl2).toBeDefined();
+      expect(pl1.yOff).toBe(pl2!.yOff);
+      expect(pl1.xOff).toBe(pl2!.xOff);
+      expect(pl1.mode).toBe(pl2!.mode);
+    }
+  });
+
+  it("a 2 % camera move changes the slot of at most 10 % of labels (§10.6)", () => {
+    const stations = DEMO_1440.pts.map((p) =>
+      makeDummyStation(p.id, "available", "applies")
+    );
+    for (let i = 0; i < stations.length; i++) {
+      stations[i]!.title = DEMO_1440.pts[i]!.title;
+    }
+    const initialMap = new Map<string, ProjectedStationPoint>();
+    for (const p of DEMO_1440.pts) {
+      initialMap.set(p.id, p);
+    }
+
+    const initial = resolveLabelCollisions({
+      stations,
+      projectedPoints: initialMap,
+      viewport: { width: 1440, height: 900 },
+      labelMode: "all",
+    });
+
+    // 2% move: dx = 28.8px, dy = 18px
+    const movedMap = new Map<string, ProjectedStationPoint>();
+    for (const p of DEMO_1440.pts) {
+      movedMap.set(p.id, {
+        ...p,
+        x: p.x + 28.8,
+        y: p.y + 18,
+        pinX: (p.pinX ?? p.x) + 28.8,
+        pinY: (p.pinY ?? p.y) + 18,
+      });
+    }
+
+    const moved = resolveLabelCollisions({
+      stations,
+      projectedPoints: movedMap,
+      viewport: { width: 1440, height: 900 },
+      previousPlacements: initial,
+      labelMode: "all",
+    });
+
+    let slotChanges = 0;
+    let totalCards = 0;
+    for (const [id, initPl] of initial.entries()) {
+      if (initPl.mode === "full" || initPl.mode === "compact") {
+        totalCards++;
+        const movedPl = moved.get(id);
+        if (!movedPl || movedPl.yOff !== initPl.yOff) {
+          slotChanges++;
+        }
+      }
+    }
+
+    const changeRatio = totalCards > 0 ? slotChanges / totalCards : 0;
+    expect(changeRatio).toBeLessThanOrEqual(0.10);
+  });
+
+  it("the default mode ('key_steps') shows full cards only for next-up and selected stations, and pins for the rest (§10.6)", () => {
+    const stations = [
+      makeDummyStation("s1", "available"), // next-up
+      makeDummyStation("s2", "locked"),
+      makeDummyStation("s3", "locked"), // selected
+      makeDummyStation("s4", "done"), // done
+    ];
+    const projectedMap = new Map<string, ProjectedStationPoint>([
+      ["s1", { id: "s1", title: "Station s1", lane: 0, layer: 0, x: 200, y: 300, pinX: 200, pinY: 330 }],
+      ["s2", { id: "s2", title: "Station s2", lane: 1, layer: 0, x: 350, y: 300, pinX: 350, pinY: 330 }],
+      ["s3", { id: "s3", title: "Station s3", lane: 0, layer: 1, x: 500, y: 300, pinX: 500, pinY: 330 }],
+      ["s4", { id: "s4", title: "Station s4", lane: 1, layer: 1, x: 650, y: 300, pinX: 650, pinY: 330 }],
+    ]);
+
+    const placements = resolveLabelCollisions({
+      stations,
+      projectedPoints: projectedMap,
+      viewport: { width: 1440, height: 900 },
+      selectedStepId: "s3",
+      labelMode: "key_steps",
+    });
+
+    expect(placements.get("s1")?.mode).toBe("full"); // next-up
+    expect(placements.get("s3")?.mode).toBe("full"); // selected
+    expect(placements.get("s2")?.mode).toBe("pin"); // locked
+    expect(placements.get("s4")?.mode).toBe("pin"); // done
+  });
+
   it("shows all stations when count <= 16", () => {
     const stations = Array.from({ length: 12 }, (_, i) =>
       makeDummyStation(`s${i + 1}`, i < 2 ? "done" : i < 6 ? "available" : "locked")
