@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ex-incorporation",
+  "version": 1,
+  "title": "Example incorporation",
+  "summary": "Synthetic test module: file the incorporation form, then the company exists.",
+  "authority": { "slug": "example-authority", "name": "Example Authority", "tier": "central", "officialUrl": "https://www.india.gov.in/" },
+  "eligibility": [],
+  "sources": [
+    { "id": "ex-portal", "url": "https://www.india.gov.in/", "title": "National Portal of India", "kind": "portal", "retrievedOn": "2026-09-26" },
+    { "id": "ex-blog", "url": "https://example.com/unofficial-guide", "title": "Unofficial blog guide", "kind": "guideline", "retrievedOn": "2026-09-26" }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "file",
+      "title": "File the incorporation form",
+      "description": "Submit the integrated incorporation form.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "example-authority",
+      "department": "Example Department",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": { "name": "Example portal", "url": "https://www.india.gov.in/" },
+      "forms": [ { "name": "Example incorporation form", "code": "EX-1", "url": "https://www.india.gov.in/" } ],
+      "documents": [
+        { "documentTypeId": "office-address-proof", "name": "Registered office address proof" },
+        { "documentTypeId": "pan-card-individual", "name": "PAN card", "perPerson": { "fact": "company.founders_count", "label": "Founder" } }
+      ],
+      "outputs": [ { "documentTypeId": "certificate-of-incorporation", "name": "Certificate of Incorporation" } ],
+      "fee": { "kind": "range", "minINR": 500, "maxINR": 1500, "recurrence": "one_time", "sourceRef": "ex-portal" },
+      "timeline": { "officialSla": { "kind": "no_fixed_sla", "note": "No fixed service time is published", "sourceRef": "ex-portal" }, "conditional": [] },
+      "sourceIds": ["ex-portal", "ex-blog"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-26" }
+    },
+    {
+      "kind": "milestone",
+      "id": "incorporated",
+      "title": "Company incorporated",
+      "description": "The company exists and has its identifiers.",
+      "requirement": { "kind": "mandatory" }
+    }
+  ],
+  "edges": [ { "id": "e-file-done", "from": "file", "to": "incorporated", "kind": "requires" } ],
+  "entrySteps": ["file"],
+  "exitSteps": ["incorporated"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-26T10:00:00+05:30" }
+}
