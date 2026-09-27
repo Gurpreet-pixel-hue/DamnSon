@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, frontend, backend]
+  push:
+    branches: [main, frontend, backend]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web — lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Quality gate (lint, typecheck, test, build)
+        run: npm run verify
+
+      - name: Validate seed data against contract v3
+        run: npm run validate:seed
+
+  # Jai adds the services/intelligence job (make lint typecheck test) in AI-1.
