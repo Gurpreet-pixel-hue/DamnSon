@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
+import type { ComposedStep } from "@/lib/contract/compose";
 import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
 import { currentStage } from "@/lib/graph/stages";
+import { computeRecomposeDiff, clampFocusStage } from "@/lib/graph/recomposeDiff";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { deriveSummaryValues } from "@/components/hud/SummaryBar";
@@ -50,11 +52,36 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
 
   const journey = composeResult.ok ? composeResult.journey : undefined;
 
+  // Recompose diff detection & toast (PRD §8.6 & Amendment 4)
+  const prevStepsRef = useRef<ComposedStep[] | null>(null);
+  useEffect(() => {
+    if (journey) {
+      if (prevStepsRef.current !== null) {
+        const diff = computeRecomposeDiff(prevStepsRef.current, journey.steps);
+        if (diff.toastMessage) {
+          useViewStore.getState().showRecomposeToast(diff.toastMessage);
+        }
+      }
+      prevStepsRef.current = journey.steps;
+    }
+  }, [journey]);
+
   // Memoize MetroVM on (composed journey, completed)
   const metro = useMemo<MetroVM | null>(() => {
     if (!journey) return null;
     return fromJourney(journey, completed);
   }, [journey, completed]);
+
+  // Clamp focusStage if the focused stage disappeared after recompose (Amendment 4)
+  useEffect(() => {
+    if (metro && metro.stations.length > 0) {
+      const currentFocus = useViewStore.getState().focusStage;
+      const clamped = clampFocusStage(currentFocus, metro);
+      if (clamped !== currentFocus) {
+        useViewStore.getState().setFocusStage(clamped);
+      }
+    }
+  }, [metro]);
 
   // Derive 4 summary tile values
   const summary = useMemo(() => {
@@ -102,6 +129,25 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
     keepMine,
   } = useShareJourney(taskId, journey);
 
+  // Auto-switch to 2D view below 1024px with advisory note (Amendment 6 & PRD §11.3)
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== "undefined") {
+        if (window.innerWidth < 1024) {
+          useViewStore.getState().setViewMode("2d");
+          useViewStore
+            .getState()
+            .setWebglFallbackReason(
+              "Best experienced on a laptop (≥1024px). Switched to 2D view."
+            );
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Development-only ?nowebgl=1 fallback hook
   useEffect(() => {
     if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
@@ -118,7 +164,7 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   }, []);
 
   // On load, focusStage = currentStage(metro) (§11.1)
-  const initialStageRef = React.useRef(false);
+  const initialStageRef = useRef(false);
   useEffect(() => {
     if (metro && metro.stations.length > 0 && !initialStageRef.current) {
       initialStageRef.current = true;
@@ -156,19 +202,23 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         )}
       </div>
 
-      {/* Main Shell Row: Rail, Framed 3D Window with Overlay Drawer (§11.3) */}
-      <div className="flex-1 min-h-0 flex gap-4 relative">
-        {/* Left Rail */}
-        <LeftRail />
+      {/* Main Shell Row: Rail, Framed 3D/2D Window with Overlay Drawer (§11.3) */}
+      <div className="flex-1 min-h-0 flex gap-4 relative overflow-hidden">
+        {/* Left Rail (Holds navigation + Your situation panel) */}
+        <LeftRail
+          template={template}
+          modules={modules}
+          journey={journey}
+        />
 
-        {/* Framed 3D Window Card with internal Overlay Drawer */}
+        {/* Framed 3D / 2D Window Card with internal Overlay Drawer */}
         <WindowCard
           metro={metro}
           drawer={<RightDrawer journey={journey} />}
         />
       </div>
 
-      {/* 8s Undo Toast on Mark Done (§10.7) */}
+      {/* Undo and Recompose Toasts */}
       <UndoToast />
     </div>
   );

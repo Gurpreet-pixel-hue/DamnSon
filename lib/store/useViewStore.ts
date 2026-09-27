@@ -22,6 +22,7 @@ interface ViewState {
   previousFocusStage: number | null;
   wholeRouteView: boolean;
   undoToast: UndoToastState | null;
+  recomposeToast: string | null;
   stepperBottomInset: number;
   setViewMode: (mode: ViewMode) => void;
   setFocusedStepId: (id: string | null) => void;
@@ -37,9 +38,12 @@ interface ViewState {
   setStepperBottomInset: (inset: number) => void;
   showUndoToast: (toast: UndoToastState) => void;
   dismissUndoToast: () => void;
+  showRecomposeToast: (message: string) => void;
+  dismissRecomposeToast: () => void;
 }
 
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+let recomposeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useViewStore = create<ViewState>((set) => ({
   viewMode: "3d",
@@ -52,6 +56,7 @@ export const useViewStore = create<ViewState>((set) => ({
   previousFocusStage: null,
   wholeRouteView: false,
   undoToast: null,
+  recomposeToast: null,
   stepperBottomInset: 133,
   setViewMode: (viewMode) => set({ viewMode }),
   setFocusedStepId: (focusedStepId) => set({ focusedStepId }),
@@ -91,6 +96,23 @@ export const useViewStore = create<ViewState>((set) => ({
       toastTimeout = null;
     }
     set({ undoToast: null });
+  },
+  showRecomposeToast: (message) => {
+    if (recomposeTimeout) {
+      clearTimeout(recomposeTimeout);
+    }
+    set({ recomposeToast: message });
+    recomposeTimeout = setTimeout(() => {
+      set({ recomposeToast: null });
+      recomposeTimeout = null;
+    }, 5000);
+  },
+  dismissRecomposeToast: () => {
+    if (recomposeTimeout) {
+      clearTimeout(recomposeTimeout);
+      recomposeTimeout = null;
+    }
+    set({ recomposeToast: null });
   },
 }));
 
@@ -146,4 +168,3 @@ export function requestHover(id: string | null) {
     }, 200);
   }
 }
-
