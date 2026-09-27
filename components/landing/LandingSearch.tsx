@@ -11,6 +11,8 @@ import { suggestFacts, type SuggestedFact } from "@/lib/landing/suggestFacts";
 import { GuidedQuestions } from "@/components/hud/GuidedQuestions";
 import type { Question } from "@/lib/contract/schema";
 import type { ComposedJourney } from "@/lib/contract/compose";
+import { encodeShareState } from "@/lib/graph/shareState";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface LandingSearchProps {
   templates: TemplateSummary[];
@@ -191,13 +193,21 @@ export function LandingSearch({
     if (onNavigateStart) {
       onNavigateStart();
     }
-    const params = new URLSearchParams();
-    params.set("task", targetTaskId);
-    if (Object.keys(confirmedFacts).length > 0) {
-      params.set("f", JSON.stringify(confirmedFacts));
+    const allFacts = { ...confirmedFacts };
+    if (location && !allFacts["location.city"]) {
+      const parts = location.split(",").map((s) => s.trim());
+      if (parts[0]) allFacts["location.city"] = parts[0];
+      if (parts[1]) allFacts["location.state"] = parts[1];
     }
-    params.set("done", "");
-    router.push(`/journey/${targetTaskId}?${params.toString()}`);
+    // Pre-populate zustand store for immediate hydration
+    useTaskStore.getState().setFacts(targetTaskId, allFacts);
+
+    const query = encodeShareState({
+      taskId: targetTaskId,
+      facts: allFacts,
+      completed: [],
+    });
+    router.push(`/journey/${targetTaskId}?${query}`);
   };
 
   return (

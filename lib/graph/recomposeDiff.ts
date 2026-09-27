@@ -1,6 +1,4 @@
 import type { ComposedStep } from "@/lib/contract/compose";
-import type { MetroVM } from "./viewModel";
-import { getStages, currentStage } from "./stages";
 
 export interface RecomposeDiffResult {
   added: ComposedStep[];
