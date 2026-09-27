@@ -16,11 +16,13 @@
     "seed": "prisma db seed",
     "typecheck": "next typegen && tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "art:compose": "node art/compose.mjs",
+    "art:optimize": "node art/optimize.mjs",
     "postinstall": "prisma generate"
   },
   "engines": {
     "node": ">=22.12.0",
-    "npm": ">=11"
+    "npm": ">=11.20.0"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -52,6 +54,9 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "4.5.0",
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "24.19.0",
     "@types/pg": "8.23.1",
@@ -63,6 +68,8 @@
     "dotenv": "18.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "meshoptimizer": "1.2.0",
+    "sharp": "0.35.4",
     "tailwindcss": "^4",
     "tsx": "4.23.15",
     "typescript": "^5",

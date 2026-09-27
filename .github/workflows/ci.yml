@@ -22,8 +22,10 @@ jobs:
           node-version: 24
           cache: npm
 
+      # package.json requires npm >= 11.20.0 (engine-strict): older npm drops the
+      # @emnapi lockfile entries. The runner's bundled npm is older, so pin it here.
       - name: Install
-        run: npm ci
+        run: npx -y npm@11.20.0 ci
 
       - name: Quality gate (lint, typecheck, test, build)
         run: npm run verify

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { StateStorage } from "zustand/middleware";
 import { createTaskStore } from "./useTaskStore";
+import { canMarkDone, deriveStepStates } from "@/lib/graph/progress";
+import { sanitizeShareState } from "@/lib/graph/shareState";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import { journeyTemplateSchema, approvalModuleSchema } from "@/lib/contract/schema";
+import { composeJourney } from "@/lib/contract/compose";
 
 class MemoryStorage implements StateStorage {
   private store = new Map<string, string>();
@@ -18,7 +23,32 @@ class MemoryStorage implements StateStorage {
   }
 }
 
-describe("useTaskStore", () => {
+function loadExampleStartupJourney() {
+  const template = journeyTemplateSchema.parse(
+    readTemplateFixture("example-startup")
+  );
+  const moduleNames = [
+    "ex-directors",
+    "ex-incorporation",
+    "ex-banking",
+    "ex-tax",
+    "ex-food",
+    "ex-recognition",
+    "ex-local",
+  ];
+  const modules = moduleNames.map((name) =>
+    approvalModuleSchema.parse(readModuleFixture(name))
+  );
+  const facts = {
+    "business.sector": "it_saas",
+    "company.founders_count": 2,
+    "employees.count": 5,
+  };
+  const journey = composeJourney(template, modules, facts);
+  return { journey, facts };
+}
+
+describe("useTaskStore v2", () => {
   it("toggles step completion immutably and per task", () => {
     const memory = new MemoryStorage();
     const store = createTaskStore(memory);
@@ -39,60 +69,47 @@ describe("useTaskStore", () => {
     expect(store.getState().completedByTask["task-a"]).toEqual(["step-2"]);
   });
 
-  it("sets and clears answers immutably and per task", () => {
+  it("sets and clears facts immutably and per task", () => {
     const memory = new MemoryStorage();
     const store = createTaskStore(memory);
 
-    expect(store.getState().answersByTask).toEqual({});
+    expect(store.getState().factsByTask).toEqual({});
 
-    store.getState().setAnswer("task-1", "q1", true);
-    store.getState().setAnswer("task-1", "q2", false);
-    store.getState().setAnswer("task-2", "q1", false);
+    store.getState().setFact("task-1", "business.sector", "it_saas");
+    store.getState().setFact("task-1", "company.founders_count", 2);
+    store.getState().setFact("task-2", "employees.count", 15);
 
-    expect(store.getState().answersByTask["task-1"]).toEqual({
-      q1: true,
-      q2: false,
+    expect(store.getState().factsByTask["task-1"]).toEqual({
+      "business.sector": "it_saas",
+      "company.founders_count": 2,
     });
-    expect(store.getState().answersByTask["task-2"]).toEqual({
-      q1: false,
+    expect(store.getState().factsByTask["task-2"]).toEqual({
+      "employees.count": 15,
     });
 
-    store.getState().clearAnswers("task-1");
-    expect(store.getState().answersByTask["task-1"]).toEqual({});
-    expect(store.getState().answersByTask["task-2"]).toEqual({
-      q1: false,
+    store.getState().clearFact("task-1", "company.founders_count");
+    expect(store.getState().factsByTask["task-1"]).toEqual({
+      "business.sector": "it_saas",
+    });
+
+    store.getState().setFacts("task-1", {
+      "business.sector": "food_service",
+      "employees.count": 10,
+    });
+    expect(store.getState().factsByTask["task-1"]).toEqual({
+      "business.sector": "food_service",
+      "employees.count": 10,
     });
   });
 
-  it("migrates legacy persisted state by defaulting missing fields", async () => {
-    const memory = new MemoryStorage();
-    // Simulate legacy storage containing only completedByTask and no answersByTask
-    memory.setItem(
-      "damnson-progress-v1",
-      JSON.stringify({
-        state: {
-          completedByTask: { "task-legacy": ["step-done"] },
-        },
-        version: 0,
-      })
-    );
-
-    const store = createTaskStore(memory);
-    await store.persist.rehydrate();
-    expect(store.getState().completedByTask["task-legacy"]).toEqual([
-      "step-done",
-    ]);
-    expect(store.getState().answersByTask).toEqual({});
-  });
-
-  it("handles corrupted storage by rehydrating broken fields to empty objects without throwing", async () => {
+  it("discards v1 legacy persisted state on migration", async () => {
     const memory = new MemoryStorage();
     memory.setItem(
-      "damnson-progress-v1",
+      "damnson-progress-v2",
       JSON.stringify({
         state: {
-          completedByTask: "x",
-          answersByTask: { t: { q: "yes" } },
+          completedByTask: { "task-v1": ["step-old"] },
+          answersByTask: { "task-v1": { q: true } },
         },
         version: 1,
       })
@@ -101,26 +118,83 @@ describe("useTaskStore", () => {
     const store = createTaskStore(memory);
     await store.persist.rehydrate();
     expect(store.getState().completedByTask).toEqual({});
-    expect(store.getState().answersByTask).toEqual({});
+    expect(store.getState().factsByTask).toEqual({});
+  });
+
+  it("handles corrupted storage by rehydrating broken fields to empty objects without throwing", async () => {
+    const memory = new MemoryStorage();
+    memory.setItem(
+      "damnson-progress-v2",
+      JSON.stringify({
+        state: {
+          completedByTask: "not-an-object",
+          factsByTask: "not-an-object",
+        },
+        version: 2,
+      })
+    );
+
+    const store = createTaskStore(memory);
+    await store.persist.rehydrate();
+    expect(store.getState().completedByTask).toEqual({});
+    expect(store.getState().factsByTask).toEqual({});
   });
 
   it("round-trips valid persisted storage cleanly", async () => {
     const memory = new MemoryStorage();
     const validData = {
       completedByTask: { "task-1": ["s1", "s2"] },
-      answersByTask: { "task-1": { q1: true, q2: false } },
+      factsByTask: { "task-1": { "business.sector": "it_saas" } },
     };
     memory.setItem(
-      "damnson-progress-v1",
+      "damnson-progress-v2",
       JSON.stringify({
         state: validData,
-        version: 1,
+        version: 2,
       })
     );
 
     const store = createTaskStore(memory);
     await store.persist.rehydrate();
     expect(store.getState().completedByTask).toEqual(validData.completedByTask);
-    expect(store.getState().answersByTask).toEqual(validData.answersByTask);
+    expect(store.getState().factsByTask).toEqual(validData.factsByTask);
+  });
+
+  it("enforces milestone guards per C1: canMarkDone, deriveStepStates, sanitizeShareState", () => {
+    // 1. canMarkDone is false for milestones
+    expect(canMarkDone("milestone")).toBe(false);
+    expect(canMarkDone("government")).toBe(true);
+
+    // 2. A milestone id in completed doesn't change any state
+    const { journey } = loadExampleStartupJourney();
+    const statesWithout = deriveStepStates(journey, new Set());
+    const statesWithMilestone = deriveStepStates(
+      journey,
+      new Set(["ex-incorporation.incorporated"])
+    );
+    expect(statesWithMilestone).toEqual(statesWithout);
+    expect(statesWithMilestone.get("ex-incorporation.incorporated")).toBe("locked");
+
+    // 3. sanitize drops a milestone id
+    const sanitized = sanitizeShareState(
+      {
+        taskId: "example-startup",
+        facts: {},
+        completed: ["ex-incorporation.incorporated", "ex-incorporation.file"],
+      },
+      journey
+    );
+    expect(sanitized.completed).toEqual(["ex-incorporation.file"]);
+  });
+
+  it("sets completed steps immutably via setCompleted", () => {
+    const memory = new MemoryStorage();
+    const store = createTaskStore(memory);
+
+    store.getState().setCompleted("task-x", ["step-1", "step-2"]);
+    expect(store.getState().completedByTask["task-x"]).toEqual(["step-1", "step-2"]);
+
+    store.getState().setCompleted("task-x", ["step-3"]);
+    expect(store.getState().completedByTask["task-x"]).toEqual(["step-3"]);
   });
 });

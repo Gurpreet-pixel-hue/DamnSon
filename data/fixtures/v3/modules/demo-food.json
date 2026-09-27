@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "demo-food",
+  "version": 1,
+  "title": "[Synthetic] Food Business Licensing",
+  "summary": "Synthetic module for health inspection and food license.",
+  "authority": {
+    "slug": "demo-food-auth",
+    "name": "Example Health Department",
+    "tier": "state",
+    "officialUrl": "https://www.india.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "health-permit",
+      "title": "[Synthetic] Health and food licence",
+      "description": "Sanitary inspection and food licence issuance.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-food-auth",
+      "department": "Example Health Department",
+      "mode": "in_person",
+      "officeType": "health_department",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "variable", "note": "Depends on dining capacity", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 5, "maxDays": 10, "dayType": "calendar" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    }
+  ],
+  "edges": [],
+  "entrySteps": ["health-permit"],
+  "exitSteps": ["health-permit"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}

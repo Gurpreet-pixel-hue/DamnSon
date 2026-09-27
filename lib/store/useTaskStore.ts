@@ -5,22 +5,34 @@ import {
   type StateStorage,
 } from "zustand/middleware";
 import { z } from "zod";
+import { parseFacts, type FactKey, type FactValue, type Facts } from "@/lib/contract/facts";
 
 const persistedProgressSchema = z.object({
   completedByTask: z.record(z.string(), z.array(z.string())).catch({}),
-  answersByTask: z.record(z.string(), z.record(z.string(), z.boolean())).catch({}),
+  factsByTask: z
+    .record(z.string(), z.unknown())
+    .transform((rec) => {
+      const out: Record<string, Facts> = {};
+      for (const [taskId, rawFacts] of Object.entries(rec)) {
+        out[taskId] = parseFacts(rawFacts);
+      }
+      return out;
+    })
+    .catch({}),
 });
 
 export interface TaskState {
   activeTaskId: string | null;
   selectedStepId: string | null;
+  factsByTask: Record<string, Facts>;
   completedByTask: Record<string, string[]>;
-  answersByTask: Record<string, Record<string, boolean>>;
   setActiveTask: (taskId: string | null) => void;
   selectStep: (stepId: string | null) => void;
+  setFact: (taskId: string, key: FactKey, value: FactValue) => void;
+  clearFact: (taskId: string, key: FactKey) => void;
+  setFacts: (taskId: string, facts: Facts) => void;
+  setCompleted: (taskId: string, stepIds: string[]) => void;
   toggleStepDone: (taskId: string, stepId: string) => void;
-  setAnswer: (taskId: string, questionId: string, answer: boolean) => void;
-  clearAnswers: (taskId: string) => void;
 }
 
 const noopStorage: StateStorage = {
@@ -35,10 +47,45 @@ export function createTaskStore(customStorage?: StateStorage) {
       (set) => ({
         activeTaskId: null,
         selectedStepId: null,
+        factsByTask: {},
         completedByTask: {},
-        answersByTask: {},
         setActiveTask: (taskId) => set({ activeTaskId: taskId }),
         selectStep: (stepId) => set({ selectedStepId: stepId }),
+        setFact: (taskId, key, value) =>
+          set((state) => ({
+            factsByTask: {
+              ...state.factsByTask,
+              [taskId]: {
+                ...(state.factsByTask[taskId] ?? {}),
+                [key]: value,
+              },
+            },
+          })),
+        clearFact: (taskId, key) =>
+          set((state) => {
+            const currentFacts = { ...(state.factsByTask[taskId] ?? {}) };
+            delete currentFacts[key];
+            return {
+              factsByTask: {
+                ...state.factsByTask,
+                [taskId]: currentFacts,
+              },
+            };
+          }),
+        setFacts: (taskId, facts) =>
+          set((state) => ({
+            factsByTask: {
+              ...state.factsByTask,
+              [taskId]: parseFacts(facts),
+            },
+          })),
+        setCompleted: (taskId, stepIds) =>
+          set((state) => ({
+            completedByTask: {
+              ...state.completedByTask,
+              [taskId]: [...stepIds],
+            },
+          })),
         toggleStepDone: (taskId, stepId) =>
           set((state) => {
             const currentList = state.completedByTask[taskId] ?? [];
@@ -53,41 +100,31 @@ export function createTaskStore(customStorage?: StateStorage) {
               },
             };
           }),
-        setAnswer: (taskId, questionId, answer) =>
-          set((state) => ({
-            answersByTask: {
-              ...state.answersByTask,
-              [taskId]: {
-                ...(state.answersByTask[taskId] ?? {}),
-                [questionId]: answer,
-              },
-            },
-          })),
-        clearAnswers: (taskId) =>
-          set((state) => ({
-            answersByTask: {
-              ...state.answersByTask,
-              [taskId]: {},
-            },
-          })),
       }),
       {
-        name: "damnson-progress-v1",
-        version: 1,
+        name: "damnson-progress-v2",
+        version: 2,
         storage: customStorage
           ? createJSONStorage(() => customStorage)
           : createJSONStorage(() =>
               typeof window !== "undefined" ? localStorage : noopStorage
             ),
         partialize: (state) => ({
+          factsByTask: state.factsByTask,
           completedByTask: state.completedByTask,
-          answersByTask: state.answersByTask,
         }),
-        merge: (persisted, current) => ({
-          ...current,
-          ...persistedProgressSchema.parse(persisted ?? {}),
-        }),
-        migrate: (persistedState: unknown) => {
+        merge: (persisted, current) => {
+          const parsed = persistedProgressSchema.safeParse(persisted ?? {});
+          if (!parsed.success) return current;
+          return {
+            ...current,
+            ...parsed.data,
+          };
+        },
+        migrate: (persistedState: unknown, version: number) => {
+          if (version < 2) {
+            return { factsByTask: {}, completedByTask: {} };
+          }
           return persistedProgressSchema.parse(persistedState ?? {});
         },
         skipHydration: true,
