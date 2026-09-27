@@ -6,9 +6,19 @@
 |---|---|
 | Problem statement | **PSWB 02 · Municipal Bureaucracy Path Visualizer** · Internal Hackathon 2026-27, Computer Engineering Department, Web category |
 | Product / repo | CivicWeave / `DamnSon` (`github.com/Gurpreet-pixel-hue/DamnSon`, one repository) |
-| Version, date | **1.2.0** · 2026-09-27 (supersedes 1.1.0; changes in "What changed in 1.2") |
+| Version, date | **1.3.0** · 2026-09-28 (supersedes 1.2.0; changes in "What changed in 1.3") |
 | Team | **Gurpreet**: all frontend · **Divvye**: platform and API · **Jai**: AI service · **Pruthviraj**: data, verification and evaluation |
 | Status | **Single source of truth.** The graph contract (§8, Appendix D), API contracts (§10, Appendix F) and database (Appendix A) are normative. Change control is in §13.3 |
+
+## What changed in 1.3
+
+The latency budgets between the web BFF and the intelligence service (Class C, §13.3; approved by Gurpreet 2026-09-28). Found in Divvye's review of PL-4/PL-6: §6.6 gave the BFF 6 s for every call, while §7.2 gave the copilot's LLM calls 15 s plus up to 2 repairs. Every real copilot answer would have returned 503.
+
+| # | Area | 1.2 said | 1.3 says | Why |
+|---|---|---|---|---|
+| 1 | **Search budget** | BFF waits 6 s; the service's per-call timeout is 8 s | BFF still waits **6 s**, then serves `lexical_fallback`. The service finishes the whole search flow within **5 s**: an intent call of at most **4 s**, then the rule matcher on timeout | The service's own timeout has to fit inside the BFF's, or the fallback fires on working answers |
+| 2 | **Copilot budget** | BFF waits 6 s (§6.6); 15 s per call and ≤ 2 repairs (§7.2, §7.4) | Copilot gets its own budget. **BFF waits 25 s** (route `maxDuration = 30`). The service has a **22 s hard deadline**: retrieval ≤ 3 s, generation ≤ 12 s, **at most 1 repair** of ≤ 8 s. At the deadline it returns the safe fallback (`not_found` plus the top 3 passages); it never hangs | A cited answer needs retrieval plus generation and sometimes a repair, which can't fit in 6 s. Vercel functions on every plan run up to 300 s, so 30 s is safe |
+| 3 | **Copilot panel** | "The panel says so" on 503 | The panel shows progress ("Searching official sources…", then "Writing a cited answer…"), aborts the request when closed, and shows the 503 message only after 25 s | A 10–20 s answer must not look broken |
 
 ## What changed in 1.2
 
@@ -418,7 +428,7 @@ Browser → Vercel → `proxy.ts` (request id, Supabase session refresh on `/adm
 
 | Failure | Behaviour |
 |---|---|
-| Intelligence service down or > 6 s | `/search` returns `mode: "lexical_fallback"`: token scoring over published template titles and keywords (the M1 `searchTasks` rules), no facts. `/copilot` returns 503 `upstream_unavailable`; the panel says so. Journeys, progress and sources keep working |
+| Intelligence service down, or `/search` > 6 s, or `/copilot` > 25 s (1.3) | `/search` returns `mode: "lexical_fallback"`: token scoring over published template titles and keywords (the M1 `searchTasks` rules), no facts. `/copilot` returns 503 `upstream_unavailable`; the panel says so. Journeys, progress and sources keep working. The service keeps inside these budgets itself (§7.2), so a working answer never trips the fallback |
 | Gemini down or rate-limited | Router falls back to Groq, then to the rule matcher (search) or to the top 3 passages (copilot) |
 | Database down | Set `DATA_SOURCE=files` and redeploy: journeys are served read-only from `data/seed`. Admin and feedback return 503 |
 | WebGL missing or context lost | Switch to 2D with a one-line notice |
@@ -447,7 +457,10 @@ Rules:
 - Model ids live in config (`llm/policy.yaml` + env), never in code. Confirm current ids on ai.google.dev at H0.
 - Temperature 0 for extraction and intent, ≤ 0.2 for the copilot. Structured output (JSON schema) for every call.
 - **No personal data to LLMs.** Phone numbers, emails, PAN- and Aadhaar-like numbers are redacted before any call. On the Gemini API free tier, Google may use prompts and responses to improve its products and human reviewers may read them, and its terms say not to submit personal information; a billed project turns that off.
-- Circuit breaker: 5 failures in 60 s opens it for 30 s. Per-call timeout 8 s (search) and 15 s (copilot).
+- Circuit breaker: 5 failures in 60 s opens it for 30 s.
+- **Budgets (1.3):**
+  - **Search:** the intent call is at most 4 s, and the whole flow finishes within 5 s (the rule matcher on timeout). The BFF waits 6 s.
+  - **Copilot:** 22 s hard deadline. Retrieval ≤ 3 s, generation ≤ 12 s per call, at most 1 repair (≤ 8 s). At the deadline, return the safe fallback. The BFF waits 25 s.
 - `gemini-embedding-2` takes task instructions inside the text rather than a `task_type` parameter. Use the prefixes recommended on the embeddings docs page, the same way for every chunk and query, and record them in `embedding_model` (for example `gemini-embedding-2@768/v1`).
 
 **Government APIs:** data.gov.in and the Local Government Directory are later. Most procedure pages have **no API**, so they are fetched politely by the ingestion script (§9).
@@ -476,7 +489,7 @@ flowchart LR
 
 Three small, code-routed flows. The LLM never picks the next step.
 - **Search:** guard → redact → intent + facts (structured output restricted to the fact registry, each fact with the quoted words it came from) → jurisdiction (gazetteer first, then LLM) → rank candidate templates → clarify (≤ 2) or respond.
-- **Copilot:** guard → scope check → retrieve → generate → validate (≤ 2 repairs) → respond or safe fallback.
+- **Copilot:** guard → scope check → retrieve → generate → validate (≤ 1 repair, 1.3) → respond or safe fallback, all within the 22 s deadline (§7.2).
 - **Extraction (later):** retrieve → extract with evidence → build module → `analyzeModule` → Review Brief → human review.
 
 In the hackathon these may be plain async functions with one function per node. LangGraph 1.x is adopted when the extraction pipeline needs human-in-the-loop interrupts. LangChain is used only if it saves time for prompt templates. Prompts are versioned files in `prompts/`.
