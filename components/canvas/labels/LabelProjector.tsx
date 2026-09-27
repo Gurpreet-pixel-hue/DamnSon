@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
@@ -10,6 +10,7 @@ import {
   resolveLabelCollisions,
   type ProjectedStationPoint,
   type ScreenRect,
+  type PlacedLabel,
 } from "./selectLabels";
 import { deriveStageHeaders } from "../StageHeaders";
 
@@ -50,6 +51,17 @@ export function LabelProjector({
   const devProjectionsRef = useRef(0);
   const devLastSecRef = useRef(0);
 
+  // Cached placements for 250ms still-camera stability and slot hysteresis (§10.6)
+  const cachedPlacements = useRef<Map<string, PlacedLabel>>(new Map());
+  const cameraSettledRef = useRef(false);
+  const stillTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (stillTimeoutRef.current) clearTimeout(stillTimeoutRef.current);
+    };
+  }, []);
+
   useFrame(() => {
     if (process.env.NODE_ENV !== "production") {
       const now = performance.now();
@@ -81,8 +93,9 @@ export function LabelProjector({
 
     const stations = selectionRef?.current ?? EMPTY_STATIONS;
     const stationsChanged = stations !== cachedStations.current;
+    const settled = cameraSettledRef.current;
 
-    if (!matrixChanged && !sizeChanged && !stationsChanged) {
+    if (!matrixChanged && !sizeChanged && !stationsChanged && !settled) {
       return;
     }
 
@@ -96,6 +109,11 @@ export function LabelProjector({
         cwm[i] = wm[i]!;
         cpm[i] = pm[i]!;
       }
+      // Camera is moving: schedule collision re-evaluation 250ms after it settles (§10.6)
+      if (stillTimeoutRef.current) clearTimeout(stillTimeoutRef.current);
+      stillTimeoutRef.current = setTimeout(() => {
+        cameraSettledRef.current = true;
+      }, 250);
     }
     if (sizeChanged) {
       cachedWidth.current = size.width;
@@ -187,13 +205,25 @@ export function LabelProjector({
       }
     }
 
-    // Single unified pure collision pass (G1 & G5)
-    const placements = resolveLabelCollisions({
-      stations,
-      projectedPoints: projectedMap,
-      stageHeaders: headerBoxes,
-      viewport: size,
-    });
+    // Re-run collision resolution only on initial load, size change, station change, or after 250ms camera settled
+    const shouldRecomputeSlots =
+      cachedPlacements.current.size === 0 ||
+      stationsChanged ||
+      sizeChanged ||
+      settled;
+
+    let placements = cachedPlacements.current;
+    if (shouldRecomputeSlots) {
+      cameraSettledRef.current = false;
+      placements = resolveLabelCollisions({
+        stations,
+        projectedPoints: projectedMap,
+        stageHeaders: headerBoxes,
+        viewport: size,
+        previousPlacements: cachedPlacements.current,
+      });
+      cachedPlacements.current = placements;
+    }
 
     // 1. Update Cards
     for (let i = 0; i < MAX_LABEL_SLOTS; i++) {

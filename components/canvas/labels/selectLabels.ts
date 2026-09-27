@@ -7,14 +7,33 @@ export const MAX_LABEL_SLOTS = 32;
  * Priority order: selected > focused > hovered > next-up > done-last > the rest.
  * (Greedy collision culling by that priority order is performed during screen projection in LabelProjector).
  */
+export type LabelDensityMode = "key_steps" | "all";
+
+/**
+ * Selects and orders stations to display labels for per visual-direction §4 & §10.6:
+ * Priority order: selected > next-up > done-last > the rest.
+ * Hover and focus are explicitly NOT inputs (visual-direction §10.6), so hover never moves other labels.
+ */
 export function selectLabels(
   metro: MetroVM,
-  hoveredStepId: string | null,
-  focusedStepId: string | null,
-  selectedStepId: string | null = null,
+  selectedStepIdOrLegacy?: string | null,
+  labelModeOrLegacy?: LabelDensityMode | string | null,
+  legacySelected?: string | null,
   maxSlots = MAX_LABEL_SLOTS
 ): StationVM[] {
   if (metro.stations.length === 0) return [];
+
+  // Determine selectedStepId (supports clean 2-arg or legacy 4-arg calls)
+  let selectedStepId: string | null = null;
+  if (legacySelected !== undefined) {
+    selectedStepId = legacySelected;
+  } else if (
+    typeof selectedStepIdOrLegacy === "string" &&
+    selectedStepIdOrLegacy !== "key_steps" &&
+    selectedStepIdOrLegacy !== "all"
+  ) {
+    selectedStepId = selectedStepIdOrLegacy;
+  }
 
   const stationMap = new Map<string, StationVM>(
     metro.stations.map((s) => [s.id, s])
@@ -30,25 +49,7 @@ export function selectLabels(
     selectedIds.add(selectedStepId);
   }
 
-  // 2. Focused station (second priority)
-  if (
-    focusedStepId &&
-    stationMap.has(focusedStepId) &&
-    selectedIds.size < maxSlots
-  ) {
-    selectedIds.add(focusedStepId);
-  }
-
-  // 3. Hovered station (third priority)
-  if (
-    hoveredStepId &&
-    stationMap.has(hoveredStepId) &&
-    selectedIds.size < maxSlots
-  ) {
-    selectedIds.add(hoveredStepId);
-  }
-
-  // 4. Next-up stations (state === 'available' and applicability !== 'optional')
+  // 2. Next-up stations (state === 'available' and applicability !== 'optional')
   for (const station of metro.stations) {
     if (selectedIds.size >= maxSlots) break;
     if (station.state === "available" && station.applicability !== "optional") {
@@ -139,11 +140,15 @@ export interface ResolveLabelCollisionsInput {
   focusedStepId?: string | null;
   selectedStepId?: string | null;
   maxSlots?: number;
+  labelMode?: LabelDensityMode;
+  previousPlacements?: Map<string, PlacedLabel>;
 }
 
 /**
- * Pure collision pass for cards and pins per visual-direction §4, G1, and G5.
- * - Priority order: selected > focused > hovered > next-up > done-last > the rest.
+ * Pure collision pass for cards and pins per visual-direction §4, §10.6, G1, and G5.
+ * - Priority order: selected > next-up > done-last > the rest.
+ * - Hover and focus never affect collision placement or displace other labels (§10.6).
+ * - A label keeps its previous slot unless that slot now collides (hysteresis).
  * - Stations with <= 16 total stations never use pins; they use full cards falling back to compact.
  * - When full cards collide, fallback to compact (one line, max 180px, ellipsis).
  * - A station with a card never shows a separate pin.
@@ -158,10 +163,10 @@ export function resolveLabelCollisions(
     stations,
     projectedPoints,
     stageHeaders = [],
-    hoveredStepId = null,
-    focusedStepId = null,
     selectedStepId = null,
     maxSlots = MAX_LABEL_SLOTS,
+    labelMode = "key_steps",
+    previousPlacements,
   } = input;
 
   const results = new Map<string, PlacedLabel>();
@@ -170,9 +175,9 @@ export function resolveLabelCollisions(
   const isSmallGraph = stations.length <= 16;
   const prioritizedStations = selectLabels(
     { stations, tracks: [] },
-    hoveredStepId,
-    focusedStepId,
     selectedStepId,
+    labelMode,
+    undefined,
     maxSlots
   );
 
@@ -189,11 +194,10 @@ export function resolveLabelCollisions(
   const safeMinY = SAFE_INSETS.top;
   const safeMaxY = input.viewport.height - SAFE_INSETS.bottom;
 
-  // On graphs > 16 stations, full cards only for priority stations (selected, focused, hovered, next-up)
+  // On graphs > 16 stations, full cards only for priority stations (selected, next-up)
+  // Hover and focus are explicitly omitted to prevent jitter (§10.6)
   const priorityIds = new Set<string>();
   if (selectedStepId) priorityIds.add(selectedStepId);
-  if (focusedStepId) priorityIds.add(focusedStepId);
-  if (hoveredStepId) priorityIds.add(hoveredStepId);
   for (const s of stations) {
     if (s.state === "available" && s.applicability !== "optional") {
       priorityIds.add(s.id);
@@ -208,6 +212,15 @@ export function resolveLabelCollisions(
     const eligibleForFull = isSmallGraph || priorityIds.has(p.id);
     let placedCard: PlacedLabel | null = null;
 
+    // Hysteresis: order candidate yOffsets so that the previous slot is tried first
+    const prev = previousPlacements?.get(p.id);
+    const candidateYOffsets = [...CANDIDATE_Y_OFFSETS];
+    if (prev && candidateYOffsets.includes(prev.yOff)) {
+      const idx = candidateYOffsets.indexOf(prev.yOff);
+      candidateYOffsets.splice(idx, 1);
+      candidateYOffsets.unshift(prev.yOff);
+    }
+
     // 1. Try full card slots: above at -64, -128, -192 px; below at +64, +128 px
     if (eligibleForFull) {
       const fullHalfW = Math.min(
@@ -216,7 +229,7 @@ export function resolveLabelCollisions(
       );
       const fullHalfH = 24;
 
-      for (const yOff of CANDIDATE_Y_OFFSETS) {
+      for (const yOff of candidateYOffsets) {
         let cx = p.x;
         let cy = p.y + yOff;
 

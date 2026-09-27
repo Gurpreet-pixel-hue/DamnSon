@@ -37,7 +37,7 @@ function makeDummyMetro(stations: StationVM[]): MetroVM {
 }
 
 describe("selectLabels", () => {
-  it("prioritizes selected first, then focused, then hovered, then next-up available mandatory stations", () => {
+  it("prioritizes selected first, then next-up available mandatory stations, without hover/focus inputs (§10.6)", () => {
     const stations = [
       makeDummyStation("s1", "locked"),
       makeDummyStation("s2", "available"),
@@ -47,9 +47,27 @@ describe("selectLabels", () => {
     ];
     const metro = makeDummyMetro(stations);
 
-    const labels = selectLabels(metro, "s5", "s1", "s4");
-    // s4 (selected), s1 (focused), s5 (hovered), then s2, s3 (available next-up)
-    expect(labels.map((s) => s.id)).toEqual(["s4", "s1", "s5", "s2", "s3"]);
+    // s4 is selected; s5/s1 (passed as legacy or hover/focus) are ignored
+    const labels = selectLabels(metro, "s4");
+    // s4 (selected), then s2, s3 (available next-up), then s1, s5 (locked)
+    expect(labels.map((s) => s.id)).toEqual(["s4", "s2", "s3", "s1", "s5"]);
+  });
+
+  it("the same inputs with a different hoveredStepId give identical slots, because hover is not an input (§10.6)", () => {
+    const stations = [
+      makeDummyStation("s1", "available"),
+      makeDummyStation("s2", "available"),
+      makeDummyStation("s3", "locked"),
+      makeDummyStation("s4", "locked"),
+    ];
+    const metro = makeDummyMetro(stations);
+
+    const labelsNoHover = selectLabels(metro, null);
+    const labelsWithHover1 = selectLabels(metro, "s3", "s3", null); // legacy call simulation
+    const labelsWithHover2 = selectLabels(metro, "s4", "s4", null);
+
+    expect(labelsNoHover.map((s) => s.id)).toEqual(labelsWithHover1.map((s) => s.id));
+    expect(labelsNoHover.map((s) => s.id)).toEqual(labelsWithHover2.map((s) => s.id));
   });
 
   it("shows all stations when count <= 16", () => {
@@ -58,40 +76,24 @@ describe("selectLabels", () => {
     );
     const metro = makeDummyMetro(stations);
 
-    const labels = selectLabels(metro, null, null);
+    const labels = selectLabels(metro, null);
     expect(labels).toHaveLength(12);
   });
 
-  it("prioritizes selected, focused, hovered, next-up and last done when count > 16", () => {
+  it("prioritizes selected, next-up and last done when count > 16", () => {
     const stations = Array.from({ length: 20 }, (_, i) =>
       makeDummyStation(`s${i + 1}`, i === 0 ? "done" : i < 4 ? "available" : "locked")
     );
     const metro = makeDummyMetro(stations);
 
-    // Hover s10, focus s12, select s15
-    const labels = selectLabels(metro, "s10", "s12", "s15");
+    // Select s15
+    const labels = selectLabels(metro, "s15");
     const ids = labels.map((s) => s.id);
     expect(ids[0]).toBe("s15"); // selected
-    expect(ids[1]).toBe("s12"); // focused
-    expect(ids[2]).toBe("s10"); // hovered
     expect(ids).toContain("s2"); // next-up available
     expect(ids).toContain("s3"); // next-up available
     expect(ids).toContain("s4"); // next-up available
     expect(ids).toContain("s1"); // last done
-  });
-
-  it("removes duplicates when hovered equals focused or matches an available next-up station", () => {
-    const stations = [
-      makeDummyStation("s1", "available"),
-      makeDummyStation("s2", "available"),
-      makeDummyStation("s3", "available"),
-    ];
-    const metro = makeDummyMetro(stations);
-
-    // s2 is hovered and focused
-    const labels = selectLabels(metro, "s2", "s2");
-    expect(labels.map((s) => s.id)).toEqual(["s2", "s1", "s3"]);
-    expect(new Set(labels.map((s) => s.id)).size).toBe(labels.length);
   });
 
   it("skips optional stations from next-up priority when count > 16", () => {
@@ -104,7 +106,7 @@ describe("selectLabels", () => {
     );
     const metro = makeDummyMetro(stations);
 
-    const labels = selectLabels(metro, null, null);
+    const labels = selectLabels(metro, null);
     const ids = labels.map((s) => s.id);
     // s1 is optional available, s2 and s3 are non-optional available
     expect(ids).toContain("s2");
@@ -112,11 +114,55 @@ describe("selectLabels", () => {
     expect(ids.indexOf("s2")).toBeLessThan(ids.indexOf("s1") === -1 ? 999 : ids.indexOf("s1"));
   });
 
+  it("hovering across stations produces 0 px displacement on all other labels (§10.6)", () => {
+    const stations = DEMO_1440.pts.map((p) =>
+      makeDummyStation(p.id, "available", "applies")
+    );
+    const projectedMap = new Map<string, ProjectedStationPoint>();
+    for (const p of DEMO_1440.pts) {
+      projectedMap.set(p.id, p);
+    }
+
+    const basePlacements = resolveLabelCollisions({
+      stations,
+      projectedPoints: projectedMap,
+      stageHeaders: DEMO_1440.headerBoxes,
+      viewport: { width: 1440, height: 900 },
+      hoveredStepId: null,
+    });
+
+    // Simulate hovering across 3 different stations
+    const testStations = [stations[0]!.id, stations[3]!.id, stations[5]!.id];
+    for (const hoveredId of testStations) {
+      const hoverPlacements = resolveLabelCollisions({
+        stations,
+        projectedPoints: projectedMap,
+        stageHeaders: DEMO_1440.headerBoxes,
+        viewport: { width: 1440, height: 900 },
+        hoveredStepId: hoveredId,
+        previousPlacements: basePlacements,
+      });
+
+      for (const [id, basePl] of basePlacements.entries()) {
+        if (id === hoveredId) continue; // non-hovered labels must have 0px displacement
+        const hoverPl = hoverPlacements.get(id);
+        expect(hoverPl).toBeDefined();
+        if (basePl.mode === hoverPl!.mode && basePl.mode !== "none") {
+          const dx = Math.abs(basePl.xOff - hoverPl!.xOff);
+          const dy = Math.abs(basePl.yOff - hoverPl!.yOff);
+          expect(dx).toBe(0);
+          expect(dy).toBe(0);
+          expect(basePl.rect).toEqual(hoverPl!.rect);
+        }
+      }
+    }
+  });
+
   it("ignores non-existent station IDs gracefully", () => {
     const stations = [makeDummyStation("s1", "available")];
     const metro = makeDummyMetro(stations);
 
-    const labels = selectLabels(metro, "ghost-hover", "ghost-focus");
+    const labels = selectLabels(metro, "ghost-selected");
     expect(labels.map((s) => s.id)).toEqual(["s1"]);
   });
 });

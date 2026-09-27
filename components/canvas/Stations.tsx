@@ -13,7 +13,7 @@ import {
 } from "./stationGeometries";
 import { PALETTE } from "./palette";
 import { useTaskStore } from "@/lib/store/useTaskStore";
-import { useViewStore } from "@/lib/store/useViewStore";
+import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 
 interface StationsProps {
   stations: StationVM[];
@@ -359,14 +359,14 @@ export function Stations({ stations }: StationsProps) {
     if (list && typeof e.instanceId === "number") {
       const station = list[e.instanceId];
       if (station) {
-        useViewStore.getState().setHoveredStepId(station.id);
+        requestHover(station.id);
       }
     }
   };
 
   const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    useViewStore.getState().setHoveredStepId(null);
+    requestHover(null);
   };
 
   const handleClick = (e: ThreeEvent<MouseEvent>, key: ArchetypeKey) => {
