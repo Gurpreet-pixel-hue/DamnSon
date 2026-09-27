@@ -122,8 +122,8 @@ export function Traffic({ plan, stations, stopped = false }: TrafficProps) {
   }, [loops]);
 
   // 3. BatchedMesh for all cars (+1 draw)
-  const { batchedMesh, geomIdMap, instanceIndices } = useMemo(() => {
-    if (!gltf?.scene) return { batchedMesh: null, geomIdMap: new Map(), instanceIndices: [] };
+  const { batchedMesh, instanceIndices } = useMemo(() => {
+    if (!gltf?.scene) return { batchedMesh: null, instanceIndices: [] };
 
     const gMap = new Map<string, THREE.BufferGeometry>();
     let atlasMaterial: THREE.MeshStandardMaterial | null = null;
@@ -234,7 +234,7 @@ export function Traffic({ plan, stations, stopped = false }: TrafficProps) {
   ) => {
     const wps = loop.waypoints;
     const totalLen = loop.length;
-    let targetDist = ((dist % totalLen) + totalLen) % totalLen;
+    const targetDist = ((dist % totalLen) + totalLen) % totalLen;
 
     let accumulated = 0;
     for (let i = 0; i < wps.length; i++) {

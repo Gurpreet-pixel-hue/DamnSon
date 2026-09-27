@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
-import type { ComposedJourney } from "@/lib/contract/compose";
+import React, { useEffect, useCallback, useMemo } from "react";
+import type { ComposedJourney, ComposedStep } from "@/lib/contract/compose";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { useViewStore } from "@/lib/store/useViewStore";
+import { deriveStepStates } from "@/lib/graph/progress";
 import { formatINR } from "@/lib/graph/summary";
 
 export interface RightDrawerProps {
@@ -16,6 +18,7 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
   const toggleStepDone = useTaskStore((s) => s.toggleStepDone);
   const completedByTask = useTaskStore((s) => s.completedByTask);
+  const showUndoToast = useViewStore((s) => s.showUndoToast);
 
   const isOpen = Boolean(selectedStepId);
 
@@ -37,9 +40,46 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
 
   const step = journey?.steps.find((s) => s.id === selectedStepId);
   const actionStep = step && step.kind !== "milestone" ? step : null;
-  const isDone = activeTaskId && selectedStepId
-    ? (completedByTask[activeTaskId] ?? []).includes(selectedStepId)
-    : false;
+
+  const completedSet = useMemo(
+    () => new Set(activeTaskId ? completedByTask[activeTaskId] ?? [] : []),
+    [activeTaskId, completedByTask]
+  );
+  const stepStates = useMemo(
+    () => (journey ? deriveStepStates(journey, completedSet) : new Map<string, string>()),
+    [journey, completedSet]
+  );
+  const currentState = step ? stepStates.get(step.id) ?? "locked" : "locked";
+  const isDone = currentState === "done";
+  const isLocked = currentState === "locked";
+  const isAvailable = currentState === "available";
+
+  const unfinishedPrereqs = useMemo(() => {
+    if (!journey || !step || !isLocked) return [];
+    const reqEdges = journey.edges.filter((e) => e.to === step.id && e.kind === "requires");
+    const stepMap = new Map(journey.steps.map((s) => [s.id, s]));
+    return reqEdges
+      .map((e) => stepMap.get(e.from))
+      .filter((prereq): prereq is ComposedStep => {
+        if (!prereq) return false;
+        if (prereq.applicability === "may_apply") return false;
+        return stepStates.get(prereq.id) !== "done";
+      });
+  }, [journey, step, isLocked, stepStates]);
+
+  const handleToggleDone = () => {
+    if (!activeTaskId || !step) return;
+    if (isAvailable) {
+      toggleStepDone(activeTaskId, step.id);
+      showUndoToast({
+        taskId: activeTaskId,
+        stepId: step.id,
+        title: step.title,
+      });
+    } else if (isDone) {
+      toggleStepDone(activeTaskId, step.id);
+    }
+  };
 
   return (
     <aside
@@ -93,10 +133,12 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                 className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
                   isDone
                     ? "bg-[#1E7F3B]/10 text-[#1E7F3B]"
-                    : "bg-[var(--cw-border)]/40 text-[var(--cw-text)]"
+                    : isAvailable
+                    ? "bg-[#1F63D6]/10 text-[#1F63D6]"
+                    : "bg-[var(--cw-border)]/40 text-[var(--cw-text-muted)]"
                 }`}
               >
-                {isDone ? "Completed" : "Available"}
+                {isDone ? "Completed" : isAvailable ? "Available" : "Locked"}
               </span>
 
               {actionStep && (
@@ -154,17 +196,36 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                 </div>
               </div>
             )}
+            {/* Unfinished Prerequisites Notice (§10.7) */}
+            {isLocked && unfinishedPrereqs.length > 0 && (
+              <div
+                data-testid="drawer-prereqs-notice"
+                className="mt-3 p-3 rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] text-xs flex flex-col gap-1.5"
+              >
+                <span className="font-semibold text-[var(--cw-text)] text-[11px]">
+                  Finish these first:
+                </span>
+                <ul className="list-disc list-inside text-[var(--cw-text-muted)] space-y-0.5">
+                  {unfinishedPrereqs.map((p) => (
+                    <li key={p.id}>{p.title}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
-          {/* Action button */}
+          {/* Action button (§10.7) */}
           <div className="pt-4 border-t border-[var(--cw-border)]/60 flex flex-col gap-2">
             {actionStep && activeTaskId && (
               <button
                 type="button"
                 data-testid="drawer-mark-done-btn"
-                onClick={() => toggleStepDone(activeTaskId, step.id)}
+                disabled={isLocked}
+                onClick={handleToggleDone}
                 className={`w-full py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all shadow-xs ${
-                  isDone
+                  isLocked
+                    ? "bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)] cursor-not-allowed border border-[var(--cw-border)]"
+                    : isDone
                     ? "bg-[var(--cw-border)]/50 text-[var(--cw-text)] hover:bg-[var(--cw-border)]"
                     : "bg-[var(--cw-brand)] text-white hover:opacity-90"
                 }`}

@@ -13,6 +13,7 @@ import { TopBar } from "./TopBar";
 import { LeftRail } from "./LeftRail";
 import { WindowCard } from "./WindowCard";
 import { RightDrawer } from "./RightDrawer";
+import { UndoToast } from "./UndoToast";
 import { useShareJourney } from "./useShareJourney";
 
 export interface JourneyShellProps {
@@ -155,6 +156,9 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         {/* Right Docked / Overlay Drawer (P11) */}
         <RightDrawer journey={journey} />
       </div>
+
+      {/* 8s Undo Toast on Mark Done (§10.7) */}
+      <UndoToast />
     </div>
   );
 }

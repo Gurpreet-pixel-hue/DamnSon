@@ -117,9 +117,16 @@ export function useSceneKeyboard(metro: MetroVM) {
       } else if (e.key === " " || e.code === "Space") {
         if (focusedStepId && activeTaskId) {
           const current = metro.stations.find((s) => s.id === focusedStepId);
-          if (current && canMarkDone(current.kind)) {
+          if (current && canMarkDone(current.kind) && current.state !== "locked") {
             e.preventDefault();
             toggleStepDone(activeTaskId, focusedStepId);
+            if (current.state === "available") {
+              useViewStore.getState().showUndoToast({
+                taskId: activeTaskId,
+                stepId: focusedStepId,
+                title: current.title,
+              });
+            }
           }
         }
       } else if (e.key === "Escape") {

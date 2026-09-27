@@ -81,12 +81,12 @@ export function computeTrackCurves(metro: MetroVM): {
 
     if (track.dashed) {
       dashedSegments.push(...segPairs);
+    } else if (fromStation.state === "done") {
+      doneSegments.push(...segPairs);
     } else if (track.critical) {
       criticalSegments.push(...segPairs);
     } else if (track.toAvailable) {
       nextUpSegments.push(...segPairs);
-    } else if (fromStation.state === "done" && toStation.state === "done") {
-      doneSegments.push(...segPairs);
     } else {
       normalSegments.push(...segPairs);
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildRoadGraph, selectRoadTile, type BuildRoadGraphOptions } from "./roadGraph";
+import { buildRoadGraph, selectRoadTile } from "./roadGraph";
 import { planCity } from "./planCity";
 
 describe("Road Graph Generator (visual-direction §10.2)", () => {

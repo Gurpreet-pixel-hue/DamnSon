@@ -197,4 +197,44 @@ describe("useTaskStore v2", () => {
     store.getState().setCompleted("task-x", ["step-3"]);
     expect(store.getState().completedByTask["task-x"]).toEqual(["step-3"]);
   });
+
+  it("handles mark done, downstream unlock, and undo restoration per §10.7", () => {
+    const memory = new MemoryStorage();
+    const store = createTaskStore(memory);
+    const { journey } = loadExampleStartupJourney();
+
+    const taskId = "example-startup";
+    const initialCompleted = new Set<string>();
+    const initialStates = deriveStepStates(journey, initialCompleted);
+
+    // Initial state: KYC 1 & 2 are available, incorporation file is locked
+    expect(initialStates.get("ex-directors.kyc.1")).toBe("available");
+    expect(initialStates.get("ex-directors.kyc.2")).toBe("available");
+    expect(initialStates.get("ex-incorporation.file")).toBe("locked");
+
+    // Complete first founder KYC: incorporation file remains locked
+    store.getState().toggleStepDone(taskId, "ex-directors.kyc.1");
+    expect(store.getState().completedByTask[taskId]).toEqual(["ex-directors.kyc.1"]);
+    const partialStates = deriveStepStates(journey, new Set(store.getState().completedByTask[taskId]));
+    expect(partialStates.get("ex-directors.kyc.1")).toBe("done");
+    expect(partialStates.get("ex-incorporation.file")).toBe("locked");
+
+    // Complete second founder KYC: incorporation file unlocks to available
+    store.getState().toggleStepDone(taskId, "ex-directors.kyc.2");
+    const fullKYCStates = deriveStepStates(journey, new Set(store.getState().completedByTask[taskId]));
+    expect(fullKYCStates.get("ex-directors.kyc.2")).toBe("done");
+    expect(fullKYCStates.get("ex-incorporation.file")).toBe("available");
+
+    // Citizen completes incorporation file: milestone unlocks/completes automatically (PRD §8.8)
+    store.getState().toggleStepDone(taskId, "ex-incorporation.file");
+    const afterIncorpStates = deriveStepStates(journey, new Set(store.getState().completedByTask[taskId]));
+    expect(afterIncorpStates.get("ex-incorporation.file")).toBe("done");
+    expect(afterIncorpStates.get("ex-incorporation.incorporated")).toBe("done");
+
+    // Citizen clicks Undo / Mark as not done on incorporation file: restores previous state exactly
+    store.getState().toggleStepDone(taskId, "ex-incorporation.file");
+    const afterUndoStates = deriveStepStates(journey, new Set(store.getState().completedByTask[taskId]));
+    expect(afterUndoStates.get("ex-incorporation.file")).toBe("available");
+    expect(afterUndoStates.get("ex-incorporation.incorporated")).toBe("locked");
+  });
 });

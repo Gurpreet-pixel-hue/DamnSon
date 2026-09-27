@@ -29,9 +29,8 @@ interface WalkerState {
   startZ: number;
   endX: number;
   endZ: number;
-  progress: number;
   speed: number;
-  forward: boolean;
+  phase: number;
 }
 
 interface QueuerState {
@@ -158,9 +157,8 @@ export function Pedestrians({ plan, stations, stopped = false }: PedestriansProp
         startZ,
         endX,
         endZ,
-        progress: (i * 0.17) % 1,
+        phase: (i * 0.73) % 10,
         speed: 0.45 + (i % 4) * 0.06, // 0.45–0.63 units/s
-        forward: i % 2 === 0,
       });
     }
 
@@ -185,7 +183,7 @@ export function Pedestrians({ plan, stations, stopped = false }: PedestriansProp
   }, [totalInstances]);
 
   // 4. Animation loop: allocation-free useFrame (§10.4)
-  useFrame((state, delta) => {
+  useFrame((state) => {
     const mesh = meshRef.current;
     if (!mesh) return;
     if (typeof document !== "undefined" && document.hidden) return;
@@ -217,20 +215,21 @@ export function Pedestrians({ plan, stations, stopped = false }: PedestriansProp
         continue;
       }
 
-      // Update walker progress
+      // Analytical progress along segment (0 to 1 and back) without mutating state
       const segLen = Math.hypot(w.endX - w.startX, w.endZ - w.startZ);
-      const dp = (w.speed * delta) / Math.max(0.1, segLen);
-      w.progress = (w.progress + dp) % 1;
+      const cycleTime = Math.max(0.1, (2 * segLen) / w.speed);
+      const cycleProgress = ((time + w.phase) % cycleTime) / cycleTime;
+      const forward = cycleProgress < 0.5;
+      const p = forward ? cycleProgress * 2 : (1 - cycleProgress) * 2;
 
-      const p = w.forward ? w.progress : 1 - w.progress;
       const x = w.startX + p * (w.endX - w.startX);
       const z = w.startZ + p * (w.endZ - w.startZ);
-      const heading = w.forward
+      const heading = forward
         ? Math.atan2(w.endX - w.startX, w.endZ - w.startZ)
         : Math.atan2(w.startX - w.endX, w.startZ - w.endZ);
 
       // Subtle walking bounce
-      const bounceY = Math.abs(Math.sin(time * 8 + w.progress * 10)) * 0.012;
+      const bounceY = Math.abs(Math.sin(time * 8 + w.phase)) * 0.012;
 
       _tempObj.position.set(x, 0.17 + bounceY, z);
       _tempObj.rotation.set(0, heading, 0);

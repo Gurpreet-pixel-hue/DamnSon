@@ -227,6 +227,28 @@ export function Stations({ stations }: StationsProps) {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
+  // Track previous station states to trigger 0.6s unlock pop when becoming available (§10.7)
+  const prevStatesRef = useRef<Map<string, string>>(new Map());
+  const unlockTimesRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    if (prevStatesRef.current.size > 0) {
+      const now = performance.now() / 1000;
+      for (const station of stations) {
+        const prevState = prevStatesRef.current.get(station.id);
+        if (prevState === "locked" && station.state === "available") {
+          unlockTimesRef.current.set(station.id, now);
+        }
+      }
+    }
+    const newMap = new Map<string, string>();
+    for (const station of stations) {
+      newMap.set(station.id, station.state);
+    }
+    prevStatesRef.current = newMap;
+  }, [stations, prefersReducedMotion]);
+
   useEffect(() => {
     animStartRef.current = null;
     animDoneRef.current = prefersReducedMotion;
@@ -268,14 +290,28 @@ export function Stations({ stations }: StationsProps) {
           }
         }
 
+        let popScale = 1.0;
+        const unlockTime = unlockTimesRef.current.get(station.id);
+        if (unlockTime !== undefined && !prefersReducedMotion) {
+          const dt = performance.now() / 1000 - unlockTime;
+          if (dt < 0.6) {
+            const p = dt / 0.6;
+            // 0.6s unlock pop: scale 1 -> 1.12 -> 1
+            popScale = 1.0 + Math.sin(p * Math.PI) * 0.12;
+            allFinished = false;
+          } else {
+            unlockTimesRef.current.delete(station.id);
+          }
+        }
+
         const [x, , z] = station.position3D;
         const bob =
           key === "online_portal" && !prefersReducedMotion
             ? Math.sin((time * Math.PI * 2) / 3.0) * 0.08
             : 0;
         _tempObj.position.set(x, 0.21 + bob, z);
-        // G3: Stations render at 1.25x scale
-        _tempObj.scale.set(1.25, 1.25 * scaleY, 1.25);
+        // G3: Stations render at 1.25x scale + unlock pop (§10.7)
+        _tempObj.scale.set(1.25 * popScale, 1.25 * scaleY * popScale, 1.25 * popScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
