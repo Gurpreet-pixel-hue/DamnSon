@@ -1,24 +1,11 @@
-import type { ResolvedPath } from "./resolvePath";
+import type { ComposedJourney } from "@/lib/contract/compose";
+import type { OfficeType } from "@/lib/contract/schema";
 import { deriveStepStates } from "./progress";
 import { computeMetroLayout } from "./layout";
 import { summarizeTime } from "./totals";
 
 export type StationState = "done" | "available" | "locked";
 export type Applicability = "applies" | "may_apply" | "optional";
-
-export type OfficeType =
-  | "municipal_hq"
-  | "ward_office"
-  | "fire_services"
-  | "health_department"
-  | "revenue_office"
-  | "labour_department"
-  | "police"
-  | "pollution_control_board"
-  | "utility_provider"
-  | "court_or_notary"
-  | "other"
-  | "online_portal";
 
 export interface StationVM {
   id: string;
@@ -50,47 +37,42 @@ export interface MetroVM {
   tracks: TrackVM[];
 }
 
-export function fromV2(
-  resolved: ResolvedPath,
+export function fromJourney(
+  journey: ComposedJourney,
   completed: ReadonlySet<string>
 ): MetroVM {
-  const { graph, undecidedStepIds } = resolved;
-  const states = deriveStepStates(graph, completed);
-  const placements = computeMetroLayout(resolved);
-  const timeSummary = summarizeTime(resolved, completed);
+  const states = deriveStepStates(journey, completed);
+  const placements = computeMetroLayout(journey);
+  const timeSummary = summarizeTime(journey, completed);
   const criticalStepIds = timeSummary.criticalStepIds;
 
   const placementMap = new Map(placements.map((p) => [p.stepId, p]));
-  const undecidedSet = new Set(undecidedStepIds);
+  const stepMap = new Map(journey.steps.map((s) => [s.id, s]));
 
   const stations: StationVM[] = [];
-  const stationApplicabilityMap = new Map<string, Applicability>();
 
-  for (const node of graph.nodes) {
-    const placement = placementMap.get(node.id);
-    let applicability: Applicability = "applies";
-    if (undecidedSet.has(node.id)) {
-      applicability = "may_apply";
-    } else if (node.requirement.kind === "optional") {
-      applicability = "optional";
-    }
+  for (const step of journey.steps) {
+    const placement = placementMap.get(step.id);
+    const state = states.get(step.id) ?? "locked";
 
-    stationApplicabilityMap.set(node.id, applicability);
-
-    const state = states.get(node.id) ?? "locked";
+    const badge =
+      step.kind !== "milestone" && step.repeatCountUnknown
+        ? "×?"
+        : undefined;
 
     stations.push({
-      id: node.id,
-      title: node.title,
-      kind: "government",
-      officeType: node.officeType,
-      mode: node.mode,
+      id: step.id,
+      title: step.title,
+      kind: step.kind,
+      officeType: step.kind === "milestone" ? null : step.officeType,
+      mode: step.kind === "milestone" ? null : step.mode,
       state,
-      applicability,
+      applicability: step.applicability,
       layer: placement?.layer ?? 0,
       lane: placement?.lane ?? 0,
       position3D: placement?.position3D ?? [0, 0, 0],
       position2D: placement?.position2D ?? { x: 0, y: 0 },
+      ...(badge ? { badge } : {}),
     });
   }
 
@@ -105,10 +87,15 @@ export function fromV2(
   }
 
   const tracks: TrackVM[] = [];
-  for (const edge of graph.edges) {
-    const fromApplicability = stationApplicabilityMap.get(edge.from) ?? "applies";
-    const toApplicability = stationApplicabilityMap.get(edge.to) ?? "applies";
+  for (const edge of journey.edges) {
+    const fromStep = stepMap.get(edge.from);
+    const toStep = stepMap.get(edge.to);
+
+    const fromApplicability = fromStep?.applicability ?? "applies";
+    const toApplicability = toStep?.applicability ?? "applies";
+
     const dashed =
+      edge.kind === "recommended_after" ||
       fromApplicability === "may_apply" ||
       fromApplicability === "optional" ||
       toApplicability === "may_apply" ||
@@ -122,7 +109,7 @@ export function fromV2(
       id: edge.id,
       from: edge.from,
       to: edge.to,
-      kind: "requires",
+      kind: edge.kind,
       critical: isCritical,
       toAvailable,
       dashed,

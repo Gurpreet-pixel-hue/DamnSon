@@ -1,73 +1,105 @@
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { computeMetroLayout, LAYOUT } from "./layout";
-import { resolvePath } from "./resolvePath";
-import { civicTaskGraphSchema, type CivicTaskGraph } from "./schema";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import {
+  journeyTemplateSchema,
+  approvalModuleSchema,
+} from "@/lib/contract/schema";
+import { composeJourney } from "@/lib/contract/compose";
+import { computeMetroLayout } from "./layout";
 
-function loadExample(): CivicTaskGraph {
-  const filePath = path.resolve(
-    process.cwd(),
-    "data/fixtures/valid/example-graph.json"
+function loadExampleStartupJourney() {
+  const template = journeyTemplateSchema.parse(
+    readTemplateFixture("example-startup")
   );
-  return civicTaskGraphSchema.parse(
-    JSON.parse(fs.readFileSync(filePath, "utf8"))
+  const moduleNames = [
+    "ex-directors",
+    "ex-incorporation",
+    "ex-banking",
+    "ex-tax",
+    "ex-food",
+    "ex-recognition",
+    "ex-local",
+  ];
+  const modules = moduleNames.map((name) =>
+    approvalModuleSchema.parse(readModuleFixture(name))
   );
+  const facts = {
+    "business.sector": "it_saas",
+    "company.founders_count": 2,
+    "employees.count": 5,
+  };
+  const journey = composeJourney(template, modules, facts);
+  return { journey };
 }
 
-describe("layout", () => {
-  it("computes metro layout for {} matching exact expectations", () => {
-    const graph = loadExample();
-    const resolved = resolvePath(graph, {});
-    const placements = computeMetroLayout(resolved);
+describe("layout derivation on ComposedJourney", () => {
+  it("computes exact 3D and 2D coordinates for all steps per Phase 2 specifications", () => {
+    const { journey } = loadExampleStartupJourney();
+    const placements = computeMetroLayout(journey);
 
-    expect(placements.map((p) => p.stepId)).toEqual([
-      "apply-online",
-      "site-inspection",
-      "fire-clearance",
-      "licence-issued",
-    ]);
+    const placementMap = new Map(placements.map((p) => [p.stepId, p]));
 
-    expect(placements[0]).toEqual({
-      stepId: "apply-online",
+    expect(placementMap.get("ex-directors.kyc.1")).toMatchObject({
       layer: 0,
-      lane: 0,
-      position3D: [0, 2.2, 0],
-      position2D: { x: 0, y: 0 },
-    });
-
-    expect(placements[1]).toEqual({
-      stepId: "site-inspection",
-      layer: 1,
       lane: -0.5,
-      position3D: [7, 0, -2.25],
-      position2D: { x: 280, y: -70 },
+      position3D: [0, 2.2, -2.25],
+      position2D: { x: 0, y: -70 },
     });
 
-    expect(placements[2]).toEqual({
-      stepId: "fire-clearance",
-      layer: 1,
+    expect(placementMap.get("ex-directors.kyc.2")).toMatchObject({
+      layer: 0,
       lane: 0.5,
-      position3D: [7, 0, 2.25],
-      position2D: { x: 280, y: 70 },
+      position3D: [0, 2.2, 2.25],
+      position2D: { x: 0, y: 70 },
     });
 
-    expect(placements[3]).toEqual({
-      stepId: "licence-issued",
+    expect(placementMap.get("ex-incorporation.file")).toMatchObject({
+      layer: 1,
+      lane: 0,
+      position3D: [7, 2.2, 0],
+      position2D: { x: 280, y: 0 },
+    });
+
+    expect(placementMap.get("ex-incorporation.incorporated")).toMatchObject({
       layer: 2,
       lane: 0,
-      position3D: [14, 2.2, 0],
+      position3D: [14, 0, 0],
       position2D: { x: 560, y: 0 },
     });
-  });
 
-  it("exports exact LAYOUT constants", () => {
-    expect(LAYOUT).toEqual({
-      layerSpacing3D: 7,
-      laneSpacing3D: 4.5,
-      onlineHeight: 2.2,
-      layerSpacing2D: 280,
-      laneSpacing2D: 140,
+    expect(placementMap.get("ex-banking.open-account")).toMatchObject({
+      layer: 3,
+      lane: -1,
+      position3D: [21, 0, -4.5],
+      position2D: { x: 840, y: -140 },
+    });
+
+    expect(placementMap.get("ex-food.apply")).toMatchObject({
+      layer: 3,
+      lane: 0,
+      position3D: [21, 2.2, 0],
+      position2D: { x: 840, y: 0 },
+    });
+
+    expect(placementMap.get("ex-local.intimation")).toMatchObject({
+      layer: 3,
+      lane: 1,
+      position3D: [21, 2.2, 4.5],
+      position2D: { x: 840, y: 140 },
+    });
+
+    expect(placementMap.get("ex-recognition.apply")).toMatchObject({
+      layer: 4,
+      lane: -0.5,
+      position3D: [28, 2.2, -2.25],
+      position2D: { x: 1120, y: -70 },
+    });
+
+    expect(placementMap.get("ex-local.display")).toMatchObject({
+      layer: 4,
+      lane: 0.5,
+      position3D: [28, 0, 2.25],
+      position2D: { x: 1120, y: 70 },
     });
   });
 });
