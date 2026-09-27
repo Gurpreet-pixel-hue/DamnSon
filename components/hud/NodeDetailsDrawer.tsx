@@ -17,12 +17,23 @@ export function NodeDetailsDrawer() {
   const isOpen = selectedStepId !== null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && selectStep(null)}>
-      <SheetContent side="right" className="border-l border-[var(--cw-border)] bg-[var(--cw-surface)] text-[var(--cw-text)]">
+    <Sheet
+      open={isOpen}
+      modal={false}
+      onOpenChange={(open) => !open && selectStep(null)}
+    >
+      <SheetContent
+        side="right"
+        showOverlay={false}
+        className="border-l border-[var(--cw-border)] bg-[var(--cw-surface)] text-[var(--cw-text)] pointer-events-auto shadow-xl"
+      >
         <SheetHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 pr-8">
             <SheetTitle className="text-[var(--cw-text)]">Step Details</SheetTitle>
-            <Badge variant="outline" className="text-[10px] text-[var(--cw-text-muted)] border-[var(--cw-border)]">
+            <Badge
+              variant="outline"
+              className="text-[10px] text-[var(--cw-text-muted)] border-[var(--cw-border)]"
+            >
               Placeholder
             </Badge>
           </div>

@@ -129,16 +129,39 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     const [x, y, z] = station.position3D;
     const enableTransition = !prefersReducedMotion;
 
-    void controls.setLookAt(
-      x + 7,
-      y + 8,
-      z + 9,
-      x,
-      y,
-      z,
-      enableTransition
-    );
-  }, [targetStationId, metro.stations, prefersReducedMotion]);
+    if (selectedStepId) {
+      // G4: Selected station framed in visible area left of drawer, ~25% viewport height
+      // Shift target to the right along camera plane so station lands in center of remaining area
+      const targetX = x + 2.7;
+      const targetY = y + 0.5;
+      const targetZ = z + 0.7;
+
+      const camX = targetX - 5.55;
+      const camY = targetY + 18.0;
+      const camZ = targetZ + 20.7;
+
+      void controls.setLookAt(
+        camX,
+        camY,
+        camZ,
+        targetX,
+        targetY,
+        targetZ,
+        enableTransition
+      );
+    } else {
+      // Focused station without drawer open
+      void controls.setLookAt(
+        x - 5.55,
+        y + 18.0,
+        z + 20.7,
+        x,
+        y,
+        z,
+        enableTransition
+      );
+    }
+  }, [selectedStepId, focusedStepId, metro.stations, prefersReducedMotion]);
 
   return (
     <CameraControls

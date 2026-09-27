@@ -122,6 +122,12 @@ export function useSceneKeyboard(metro: MetroVM) {
             toggleStepDone(activeTaskId, focusedStepId);
           }
         }
+      } else if (e.key === "Escape") {
+        const { selectedStepId, selectStep } = useTaskStore.getState();
+        if (selectedStepId) {
+          e.preventDefault();
+          selectStep(null);
+        }
       }
     }
 
