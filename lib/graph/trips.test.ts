@@ -1,41 +1,57 @@
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import {
+  journeyTemplateSchema,
+  approvalModuleSchema,
+} from "@/lib/contract/schema";
+import { composeJourney } from "@/lib/contract/compose";
 import { planOfficeTrips } from "./trips";
-import { resolvePath } from "./resolvePath";
-import { civicTaskGraphSchema, type CivicTaskGraph } from "./schema";
 
-function loadExample(): CivicTaskGraph {
-  const filePath = path.resolve(
-    process.cwd(),
-    "data/fixtures/valid/example-graph.json"
+function loadExampleStartupJourney() {
+  const template = journeyTemplateSchema.parse(
+    readTemplateFixture("example-startup")
   );
-  return civicTaskGraphSchema.parse(
-    JSON.parse(fs.readFileSync(filePath, "utf8"))
+  const moduleNames = [
+    "ex-directors",
+    "ex-incorporation",
+    "ex-banking",
+    "ex-tax",
+    "ex-food",
+    "ex-recognition",
+    "ex-local",
+  ];
+  const modules = moduleNames.map((name) =>
+    approvalModuleSchema.parse(readModuleFixture(name))
   );
+  const facts = {
+    "business.sector": "it_saas",
+    "company.founders_count": 2,
+    "employees.count": 5,
+  };
+  const journey = composeJourney(template, modules, facts);
+  return { journey };
 }
 
-describe("planOfficeTrips", () => {
-  it("plans office trips for {} matching exact expectations", () => {
-    const graph = loadExample();
-    const resolved = resolvePath(graph, {});
-    const trips = planOfficeTrips(resolved);
+describe("trips derivation on ComposedJourney", () => {
+  it("groups non-online, non-optional action steps by office/department in order", () => {
+    const { journey } = loadExampleStartupJourney();
+    const trips = planOfficeTrips(journey);
 
-    expect(trips.map((t) => [t.name, t.stepIds])).toEqual([
-      ["Example Ward Office", ["site-inspection"]],
-      ["Example Fire Services", ["fire-clearance"]],
+    expect(trips).toEqual([
+      {
+        key: "any scheduled bank",
+        name: "Any scheduled bank",
+        officeType: "other",
+        stepIds: ["ex-banking.open-account"],
+        mayApply: false,
+      },
+      {
+        key: "example state department",
+        name: "Example State Department",
+        officeType: "other",
+        stepIds: ["ex-local.display"],
+        mayApply: false,
+      },
     ]);
-
-    expect(trips[0]?.lat).toBe(19.0596);
-    expect(trips[0]?.lng).toBe(72.8295);
-    expect(trips[0]?.officeType).toBe("ward_office");
-  });
-
-  it('plans office trips for {"large-premises": false} matching exact expectations', () => {
-    const graph = loadExample();
-    const resolved = resolvePath(graph, { "large-premises": false });
-    const trips = planOfficeTrips(resolved);
-
-    expect(trips.map((t) => t.name)).toEqual(["Example Ward Office"]);
   });
 });
