@@ -100,14 +100,22 @@ function CardDebugOverlay() {
 }
 
 import { StageStepper } from "@/components/canvas/StageStepper";
+import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
+import type { ComposedJourney } from "@/lib/contract/compose";
 
 export interface WindowCardProps {
   metro: MetroVM | null;
+  journey?: ComposedJourney;
   drawer?: React.ReactNode;
   className?: string;
 }
 
-export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
+export function WindowCard({
+  metro,
+  journey,
+  drawer,
+  className = "",
+}: WindowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -184,12 +192,13 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
         {/* Debug overlay inside card, bottom-left */}
         <CardDebugOverlay />
 
-        {/* Stage Stepper, bottom center (§11.1) */}
+        {/* Stage Stepper & Personalise Nudge, bottom center (§11.1, A3) */}
         {metro && (
           <div
             ref={stepperContainerRef}
-            className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30"
+            className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 max-w-[90vw]"
           >
+            <PersonaliseNudge journey={journey} metro={metro} />
             <StageStepper metro={metro} />
           </div>
         )}

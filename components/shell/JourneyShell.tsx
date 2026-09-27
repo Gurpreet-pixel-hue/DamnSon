@@ -214,6 +214,7 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         {/* Framed 3D / 2D Window Card with internal Overlay Drawer */}
         <WindowCard
           metro={metro}
+          journey={journey}
           drawer={<RightDrawer journey={journey} />}
         />
       </div>
