@@ -21,8 +21,9 @@ interface StationsProps {
 }
 
 const _tempObj = new THREE.Object3D();
-const _targetColor = new THREE.Color();
-const _currentColor = new THREE.Color();
+const _scratchColor = new THREE.Color();
+const _scratchBase = new THREE.Color();
+const _scratchPaper = new THREE.Color(PALETTE.background);
 
 function getArchetypeKey(station: StationVM): ArchetypeKey {
   if (station.kind === "milestone") return "milestone";
@@ -291,6 +292,68 @@ export function Stations({ stations }: StationsProps) {
     animDoneRef.current = prefersReducedMotion;
   }, [stations, prefersReducedMotion]);
 
+  // Update instance colors only when stations or focusStage change (§11.2, AGENTS rule)
+  useEffect(() => {
+    // 1. Station building colors
+    for (const key of ARCHETYPE_KEYS) {
+      const mesh = meshRefs.current.get(key);
+      const list = groupedStations.get(key);
+      if (!mesh || !list || list.length === 0) continue;
+
+      for (let i = 0; i < list.length; i++) {
+        const station = list[i];
+        if (!station) continue;
+
+        const isFocusedStage = station.layer === focusStage - 1;
+        if (isFocusedStage) {
+          if (station.state === "locked") {
+            _scratchColor.setRGB(0.75, 0.75, 0.75);
+          } else {
+            _scratchColor.setRGB(1.0, 1.0, 1.0);
+          }
+        } else {
+          if (station.state === "locked") {
+            _scratchBase.setRGB(0.75, 0.75, 0.75);
+          } else {
+            _scratchBase.setRGB(1.0, 1.0, 1.0);
+          }
+          _scratchColor.copy(_scratchBase).lerp(_scratchPaper, 0.4);
+        }
+        mesh.setColorAt(i, _scratchColor);
+      }
+
+      if (mesh.instanceColor) {
+        mesh.instanceColor.needsUpdate = true;
+      }
+    }
+
+    // 2. Status rings colors (§11.2):
+    // Focused stage: state colour x 1.4
+    // Outside focused stage: lerp state colour 60 % toward --cw-paper, without the 1.4 multiplier
+    const ringMesh = ringMeshRef.current;
+    if (ringMesh && stations.length > 0) {
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (!station) continue;
+
+        const isFocusedStage = station.layer === focusStage - 1;
+        const colorHex = getStateColorHex(station);
+
+        if (isFocusedStage) {
+          _scratchColor.set(colorHex).multiplyScalar(1.4);
+        } else {
+          _scratchBase.set(colorHex);
+          _scratchColor.copy(_scratchBase).lerp(_scratchPaper, 0.6);
+        }
+        ringMesh.setColorAt(i, _scratchColor);
+      }
+
+      if (ringMesh.instanceColor) {
+        ringMesh.instanceColor.needsUpdate = true;
+      }
+    }
+  }, [stations, groupedStations, focusStage]);
+
   // Frame loop for scale animation and instance transforms
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
@@ -353,31 +416,9 @@ export function Stations({ stations }: StationsProps) {
         _tempObj.updateMatrix();
 
         mesh.setMatrixAt(i, _tempObj.matrix);
-
-        // §11.2: Focused stage has full color; other stages instance color 40% toward --cw-paper (PALETTE.background)
-        const isFocusedStage = station.layer === focusStage - 1;
-        const paperColor = new THREE.Color(PALETTE.background);
-
-        if (isFocusedStage) {
-          if (station.state === "locked") {
-            _targetColor.setRGB(0.75, 0.75, 0.75);
-          } else {
-            _targetColor.setRGB(1.0, 1.0, 1.0);
-          }
-        } else {
-          const baseColor =
-            station.state === "locked"
-              ? new THREE.Color(0.75, 0.75, 0.75)
-              : new THREE.Color(1.0, 1.0, 1.0);
-          _targetColor.copy(baseColor).lerp(paperColor, 0.4);
-        }
-        mesh.setColorAt(i, _targetColor);
       }
 
       mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true;
-      }
     }
 
     // 1b. Update plaza pads (E9: plaza colour, radius 1.6, 0.04 high)
@@ -398,7 +439,7 @@ export function Stations({ stations }: StationsProps) {
       padMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 2. Update status rings (toneMapped=false at 1.4x, sitting on plaza pad at y = 0.225 per §11.5)
+    // 2. Update status rings (sitting on plaza pad at y = 0.225 per §11.5)
     const ringMesh = ringMeshRef.current;
     if (ringMesh && stations.length > 0) {
       for (let i = 0; i < stations.length; i++) {
@@ -412,17 +453,9 @@ export function Stations({ stations }: StationsProps) {
         _tempObj.updateMatrix();
 
         ringMesh.setMatrixAt(i, _tempObj.matrix);
-
-        // 1.4x multiplier for bloom per visual-direction §3
-        const colorHex = getStateColorHex(station);
-        _currentColor.set(colorHex).multiplyScalar(1.4);
-        ringMesh.setColorAt(i, _currentColor);
       }
 
       ringMesh.instanceMatrix.needsUpdate = true;
-      if (ringMesh.instanceColor) {
-        ringMesh.instanceColor.needsUpdate = true;
-      }
     }
 
     // 3. Update next-up beacons (sitting on plaza pad at y = 0.225 per §11.5)

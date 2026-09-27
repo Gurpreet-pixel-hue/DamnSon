@@ -199,6 +199,7 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
       wholeRouteBoundingBox,
       stageBoundingBox,
       prefersReducedMotion,
+      stepperBottomInset,
       size.width,
       size.height,
     ]
