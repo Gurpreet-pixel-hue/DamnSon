@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import hashlib
 import json
+import os
 from typing import Any
 
 from civicweave_ai.embeddings.router import embed_texts
@@ -23,15 +25,28 @@ async def main() -> None:
     parser.add_argument("--registry", required=True)
     args = parser.parse_args()
 
-    with open(args.registry) as f:
+    # The registry is at data/sources/registry.json, so its dir is data/sources.
+    # The monorepo root is two levels up from that.
+    registry_path = os.path.abspath(args.registry)
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(registry_path)))
+
+    with open(registry_path) as f:
         registry = json.load(f)
 
     results: list[dict[str, Any]] = []
 
     for source in registry:
         try:
-            content, mime, content_hash = fetch_url(source["url"])
-            text = parse_content(content, mime)
+            if "manualText" in source:
+                manual_path = os.path.join(repo_root, source["manualText"])
+                with open(manual_path, "rb") as mf:
+                    content = mf.read()
+                mime = "text/markdown"
+                content_hash = hashlib.sha256(content).hexdigest()
+                text = parse_content(content, mime)
+            else:
+                content, mime, content_hash = fetch_url(source["url"])
+                text = parse_content(content, mime)
 
             if not text.strip():
                 results.append({"url": source["url"], "status": "empty text", "chunks": 0})
