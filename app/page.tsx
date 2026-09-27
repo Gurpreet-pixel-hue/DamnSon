@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
 import { LandingSearch } from "@/components/landing/LandingSearch";
+import { ContinueCard } from "@/components/landing/ContinueCard";
 import type { Question } from "@/lib/contract/schema";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,10 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] p-6 md:p-12 flex flex-col items-center">
-      <div className="w-full max-w-4xl flex flex-col gap-12">
+      <div className="w-full max-w-4xl flex flex-col gap-10">
+        {/* Continue Card (if saved progress exists) */}
+        <ContinueCard templates={templates} />
+
         {/* Landing Natural-Language Search (§9.3) */}
         <LandingSearch templates={templates} questionsByTaskId={questionsByTaskId} />
 
@@ -87,7 +91,7 @@ export default async function HomePage() {
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--cw-border)]/50 text-[11px] text-[var(--cw-text-muted)]">
-                  <span>{template.verifiedStepCount} verified steps</span>
+                  <span>{template.verifiedStepCount} of {template.stepCount} verified</span>
                   <span className="font-medium text-[var(--cw-brand)] group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
                     Open journey &rarr;
                   </span>
