@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 3,
+  "taskId": "start-business-mumbai",
+  "revision": 1,
+  "title": "Start a business in Mumbai",
+  "summary": "Incorporate and register a business in Mumbai, Maharashtra.",
+  "jurisdiction": {
+    "country": "IN",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "localBody": "Municipal Corporation of Greater Mumbai"
+  },
+  "category": "business_and_trade",
+  "keywords": [
+    "start a company",
+    "register a startup",
+    "saas company",
+    "private limited",
+    "new business mumbai",
+    "incorporate a company",
+    "cloud kitchen"
+  ],
+  "sources": [
+    {
+      "id": "code-ss",
+      "url": "https://www.labour.gov.in/static/uploads/2025/07/b0620548445580767b5c0d18c95c26f7.pdf",
+      "title": "The Code on Social Security, 2020",
+      "kind": "act_or_rule",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mole"
+    }
+  ],
+  "questions": [
+    {
+      "fact": "business.entity_type",
+      "text": "What type of company will you register?",
+      "options": [
+        {
+          "value": "private_limited",
+          "label": "Private Limited"
+        },
+        {
+          "value": "opc",
+          "label": "One Person Company"
+        }
+      ],
+      "help": "This journey covers Private Limited and One Person Companies; other entity types are not modelled yet."
+    },
+    {
+      "fact": "business.sector",
+      "text": "What will the business mainly do?",
+      "options": [
+        {
+          "value": "it_saas",
+          "label": "Software / SaaS"
+        },
+        {
+          "value": "food_service",
+          "label": "Food service"
+        },
+        {
+          "value": "retail",
+          "label": "Retail"
+        },
+        {
+          "value": "manufacturing",
+          "label": "Manufacturing"
+        },
+        {
+          "value": "services",
+          "label": "Services"
+        },
+        {
+          "value": "other",
+          "label": "Something else"
+        }
+      ]
+    },
+    {
+      "fact": "business.serves_food",
+      "text": "Will your business make, serve or sell food?"
+    },
+    {
+      "fact": "company.founders_count",
+      "text": "How many founders will be directors?"
+    },
+    {
+      "fact": "employees.count",
+      "text": "How many people will work there, including founders?"
+    },
+    {
+      "fact": "intent.gst_now",
+      "text": "Do you want to register for GST now?"
+    },
+    {
+      "fact": "intent.udyam",
+      "text": "Do you want Udyam (MSME) registration?"
+    },
+    {
+      "fact": "intent.dpiit",
+      "text": "Do you want Startup India (DPIIT) recognition?"
+    },
+    {
+      "fact": "intent.trademark",
+      "text": "Do you want to register a trademark for your brand?"
+    }
+  ],
+  "modules": [
+    {
+      "moduleId": "founder-kyc",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "Directors' identity details are part of SPICe+ (companies only)"
+    },
+    {
+      "moduleId": "dsc",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "Each director signs the SPICe+ filing with a DSC (companies only)"
+    },
+    {
+      "moduleId": "mca-spice-plus",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "Companies (Private Limited or One Person Company) incorporate through SPICe+"
+    },
+    {
+      "moduleId": "bank-account",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "New companies apply for the bank account through AGILE-PRO-S with SPICe+ (MCA FAQ 40)"
+    },
+    {
+      "moduleId": "gst-registration",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "fact": "intent.gst_now",
+        "op": "eq",
+        "value": true
+      },
+      "reason": "Only if you register for GST now (can also be filed inside SPICe+ Part B)"
+    },
+    {
+      "moduleId": "mh-shops-establishments",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Establishments in Maharashtra: intimation or registration by worker count"
+    },
+    {
+      "moduleId": "mh-professional-tax",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Professional Tax: through SPICe+ for new companies in Maharashtra (MCA FAQ 38)"
+    },
+    {
+      "moduleId": "epfo",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "EPF: through SPICe+ for new companies (MCA FAQ 39); contributions from 20 employees"
+    },
+    {
+      "moduleId": "esic",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "ESI: through SPICe+ for new companies (MCA FAQ 39); contributions from 10 employees"
+    },
+    {
+      "moduleId": "udyam",
+      "version": 1,
+      "requirement": "optional",
+      "activation": {
+        "fact": "intent.udyam",
+        "op": "eq",
+        "value": true
+      },
+      "reason": "MSME benefits"
+    },
+    {
+      "moduleId": "dpiit-recognition",
+      "version": 1,
+      "requirement": "optional",
+      "activation": {
+        "fact": "intent.dpiit",
+        "op": "eq",
+        "value": true
+      },
+      "reason": "Startup India benefits"
+    },
+    {
+      "moduleId": "ip-trademark",
+      "version": 1,
+      "requirement": "optional",
+      "activation": {
+        "fact": "intent.trademark",
+        "op": "eq",
+        "value": true
+      },
+      "reason": "Brand protection"
+    },
+    {
+      "moduleId": "fssai",
+      "version": 1,
+      "requirement": "conditional",
+      "activation": {
+        "any": [
+          {
+            "fact": "business.sector",
+            "op": "eq",
+            "value": "food_service"
+          },
+          {
+            "fact": "business.serves_food",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      "reason": "Food businesses need FSSAI registration or a licence"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-kyc-spice",
+      "fromModule": "founder-kyc",
+      "toModule": "mca-spice-plus",
+      "kind": "requires"
+    },
+    {
+      "id": "l-dsc-spice",
+      "fromModule": "dsc",
+      "toModule": "mca-spice-plus",
+      "kind": "requires",
+      "via": "digital-signature-certificate"
+    },
+    {
+      "id": "l-spice-bank",
+      "fromModule": "mca-spice-plus",
+      "toModule": "bank-account",
+      "kind": "requires"
+    },
+    {
+      "id": "l-spice-gst",
+      "fromModule": "mca-spice-plus",
+      "toModule": "gst-registration",
+      "kind": "requires",
+      "via": "company-pan"
+    },
+    {
+      "id": "l-spice-se",
+      "fromModule": "mca-spice-plus",
+      "toModule": "mh-shops-establishments",
+      "kind": "requires"
+    },
+    {
+      "id": "l-spice-pt",
+      "fromModule": "mca-spice-plus",
+      "toModule": "mh-professional-tax",
+      "kind": "requires"
+    },
+    {
+      "id": "l-spice-epfo",
+      "fromModule": "mca-spice-plus",
+      "toModule": "epfo",
+      "kind": "requires"
+    },
+    {
+      "id": "l-spice-esic",
+      "fromModule": "mca-spice-plus",
+      "toModule": "esic",
+      "kind": "requires"
+    },
+    {
+      "id": "l-spice-udyam",
+      "fromModule": "mca-spice-plus",
+      "toModule": "udyam",
+      "kind": "requires",
+      "via": "company-pan"
+    },
+    {
+      "id": "l-spice-dpiit",
+      "fromModule": "mca-spice-plus",
+      "toModule": "dpiit-recognition",
+      "kind": "requires",
+      "note": "DPIIT recognition is for an incorporated entity"
+    },
+    {
+      "id": "l-bank-dpiit",
+      "fromModule": "bank-account",
+      "toModule": "dpiit-recognition",
+      "kind": "recommended_after"
+    },
+    {
+      "id": "l-dpiit-tm",
+      "fromModule": "dpiit-recognition",
+      "toModule": "ip-trademark",
+      "kind": "recommended_after"
+    },
+    {
+      "id": "l-spice-fssai",
+      "fromModule": "mca-spice-plus",
+      "toModule": "fssai",
+      "kind": "requires"
+    }
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-28T12:00:00+05:30"
+  }
+}
