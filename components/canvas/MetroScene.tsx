@@ -10,6 +10,8 @@ import { useTaskStore } from "@/lib/store/useTaskStore";
 import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
 import { Board } from "./Board";
 import { Roads } from "./city/Roads";
+import { Traffic } from "./city/Traffic";
+import { Pedestrians } from "./city/Pedestrians";
 import { CityBatches } from "./CityBatches";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
@@ -237,6 +239,12 @@ export function MetroScene({
 
       {/* 2. BatchedMesh city buildings and props */}
       <CityBatches plan={plan} visibleProps={visibleProps} />
+
+      {/* 2b. Traffic: keep-left cars and parked service vehicles in BatchedMesh (+1 draw, §10.3) */}
+      <Traffic plan={plan} stations={metro.stations} stopped={perfLevel >= 3} />
+
+      {/* 2c. Pedestrians: walkers and office queues in InstancedMesh (+1 draw, §10.4) */}
+      <Pedestrians plan={plan} stations={metro.stations} stopped={perfLevel >= 2} />
 
       {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
       <Stations stations={metro.stations} />
