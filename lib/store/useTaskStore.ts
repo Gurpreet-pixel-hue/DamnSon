@@ -19,6 +19,9 @@ const persistedProgressSchema = z.object({
       return out;
     })
     .catch({}),
+  documentChecklist: z
+    .record(z.string(), z.record(z.string(), z.boolean()))
+    .catch({}),
 });
 
 export interface TaskState {
@@ -26,6 +29,7 @@ export interface TaskState {
   selectedStepId: string | null;
   factsByTask: Record<string, Facts>;
   completedByTask: Record<string, string[]>;
+  documentChecklist: Record<string, Record<string, boolean>>;
   setActiveTask: (taskId: string | null) => void;
   selectStep: (stepId: string | null) => void;
   setFact: (taskId: string, key: FactKey, value: FactValue) => void;
@@ -33,6 +37,7 @@ export interface TaskState {
   setFacts: (taskId: string, facts: Facts) => void;
   setCompleted: (taskId: string, stepIds: string[]) => void;
   toggleStepDone: (taskId: string, stepId: string) => void;
+  toggleDocumentCheck: (taskId: string, docKey: string) => void;
 }
 
 const noopStorage: StateStorage = {
@@ -49,6 +54,7 @@ export function createTaskStore(customStorage?: StateStorage) {
         selectedStepId: null,
         factsByTask: {},
         completedByTask: {},
+        documentChecklist: {},
         setActiveTask: (taskId) => set({ activeTaskId: taskId }),
         selectStep: (stepId) => set({ selectedStepId: stepId }),
         setFact: (taskId, key, value) =>
@@ -100,10 +106,21 @@ export function createTaskStore(customStorage?: StateStorage) {
               },
             };
           }),
+        toggleDocumentCheck: (taskId, docKey) =>
+          set((state) => {
+            const taskDocs = { ...(state.documentChecklist[taskId] ?? {}) };
+            taskDocs[docKey] = !taskDocs[docKey];
+            return {
+              documentChecklist: {
+                ...state.documentChecklist,
+                [taskId]: taskDocs,
+              },
+            };
+          }),
       }),
       {
-        name: "damnson-progress-v2",
-        version: 2,
+        name: "damnson-progress-v3",
+        version: 3,
         storage: customStorage
           ? createJSONStorage(() => customStorage)
           : createJSONStorage(() =>
@@ -112,6 +129,7 @@ export function createTaskStore(customStorage?: StateStorage) {
         partialize: (state) => ({
           factsByTask: state.factsByTask,
           completedByTask: state.completedByTask,
+          documentChecklist: state.documentChecklist,
         }),
         merge: (persisted, current) => {
           const parsed = persistedProgressSchema.safeParse(persisted ?? {});
@@ -123,7 +141,17 @@ export function createTaskStore(customStorage?: StateStorage) {
         },
         migrate: (persistedState: unknown, version: number) => {
           if (version < 2) {
-            return { factsByTask: {}, completedByTask: {} };
+            return { factsByTask: {}, completedByTask: {}, documentChecklist: {} };
+          }
+          if (version === 2) {
+            const parsed = persistedProgressSchema.safeParse(persistedState ?? {});
+            if (parsed.success) {
+              return {
+                ...parsed.data,
+                documentChecklist: parsed.data.documentChecklist ?? {},
+              };
+            }
+            return { factsByTask: {}, completedByTask: {}, documentChecklist: {} };
           }
           return persistedProgressSchema.parse(persistedState ?? {});
         },
