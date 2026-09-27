@@ -13,7 +13,7 @@ import { errorCodes, isServable, loadSeedRoot } from "./seedFiles";
 
 config({ path: [".env.local", ".env"], quiet: true });
 
-type Action = "created" | "exists" | "pointer moved" | "CONFLICT";
+type Action = "created" | "exists" | "pointer moved" | "superseded" | "CONFLICT";
 interface Row {
   kind: "module" | "template";
   id: string;
@@ -113,6 +113,16 @@ async function main(): Promise<void> {
             const pointerMoved = await movePointer(tx, module.moduleId, existing.id);
             return { kind: "module", id: module.moduleId, version: module.version, action: pointerMoved ? "pointer moved" : "exists" };
           }
+          // The content is already stored at this version but an admin has moved on: it was superseded
+          // by a later publish, or it is sitting in review as a draft. Re-seeding must not undo either,
+          // and must not try to create the row again (it exists, and the version is unique).
+          return {
+            kind: "module",
+            id: module.moduleId,
+            version: module.version,
+            action: "superseded",
+            note: `already stored as ${existing.status}; an admin has published past this version`,
+          };
         }
 
         // Publishing a new version supersedes the previous one, so "status = published" stays unique
@@ -166,6 +176,13 @@ async function main(): Promise<void> {
             const pointerMoved = await moveTemplatePointer(tx, template.taskId, existing.id);
             return { kind: "template", id: template.taskId, version: template.revision, action: pointerMoved ? "pointer moved" : "exists" };
           }
+          return {
+            kind: "template",
+            id: template.taskId,
+            version: template.revision,
+            action: "superseded",
+            note: `already stored as ${existing.status}; an admin has published past this revision`,
+          };
         }
 
         await tx.journeyTemplateRevision.updateMany({
@@ -193,7 +210,11 @@ async function main(): Promise<void> {
   }
 
   printTable(rows);
-  console.log(`\n${label}: ${rows.filter((r) => r.action === "created").length} created, ${rows.filter((r) => r.action === "exists").length} unchanged, ${conflicts} conflict(s)`);
+  const count = (action: Action): number => rows.filter((row) => row.action === action).length;
+  console.log(
+    `\n${label}: ${count("created")} created, ${count("exists")} unchanged, ` +
+      `${count("superseded")} already published past, ${conflicts} conflict(s)`,
+  );
   if (conflicts > 0) process.exitCode = 1;
 }
 
