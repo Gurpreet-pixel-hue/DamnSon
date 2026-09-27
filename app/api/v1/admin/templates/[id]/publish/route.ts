@@ -4,7 +4,7 @@ import { idSchema } from "@/lib/contract/schema";
 import { publishTemplate } from "@/lib/server/admin/publish";
 import { adminErrorResponse } from "@/lib/server/admin/types";
 import { ADMIN_HEADERS, requireAdmin } from "@/lib/server/auth";
-import { jsonError, jsonOk, requestId } from "@/lib/server/http";
+import { jsonError, jsonOk, readJsonBody, requestId } from "@/lib/server/http";
 
 /** POST /api/v1/admin/templates/{id}/publish — the human gate before anything reaches a citizen (§6.4). */
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/v1/admin/templates/[id]/publish">): Promise<Response> {
@@ -21,15 +21,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/v1/admi
     });
   }
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return jsonError("invalid_json", "The request body is not valid JSON.", 400, {
-      requestId: requestIdValue,
-      headers: ADMIN_HEADERS,
-    });
-  }
+  const incoming = await readJsonBody(request, { requestId: requestIdValue, headers: ADMIN_HEADERS });
+  if (!incoming.ok) return incoming.response;
+  const raw = incoming.value;
 
   const parsed = publishRequestSchema.safeParse(raw);
   if (!parsed.success) {

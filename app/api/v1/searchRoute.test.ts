@@ -79,6 +79,15 @@ describe("POST /api/v1/search — validation", () => {
     expect(errorBodySchema.parse(await response.json()).error.code).toBe("invalid_json");
   });
 
+  it("400 before parsing, for a body over the size cap (#10 review)", async () => {
+    const { MAX_BODY_BYTES } = await import("@/lib/server/http");
+    const response = await search(post(null, JSON.stringify({ query: "x".repeat(MAX_BODY_BYTES + 50) })));
+    expect(response.status).toBe(400);
+    const body = errorBodySchema.parse(await response.json());
+    expect(body.error.code).toBe("invalid_request");
+    expect(body.error.message).toBe("The request body is too large.");
+  });
+
   it("400 invalid_request for a query that is too short, naming the field but not the query", async () => {
     const response = await search(post({ query: "hi" }));
     expect(response.status).toBe(400);

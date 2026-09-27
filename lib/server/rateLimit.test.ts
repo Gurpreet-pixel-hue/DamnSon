@@ -50,7 +50,23 @@ describe("ipHash (§12.1)", () => {
 });
 
 describe("clientIp", () => {
-  it("takes the first entry of x-forwarded-for", () => {
+  // The bug this guards: a client can prepend its own entry to x-forwarded-for, so trusting the first
+  // entry lets anyone rotate a fake address and walk past the rate limit. x-real-ip comes from the proxy.
+  it("prefers x-real-ip over a client-supplied x-forwarded-for", () => {
+    const request = new Request("http://localhost/", {
+      headers: { "x-forwarded-for": "1.2.3.4, 203.0.113.7", "x-real-ip": "203.0.113.7" },
+    });
+    expect(clientIp(request)).toBe("203.0.113.7");
+  });
+
+  it("ignores a spoofed chain entirely when the proxy has spoken", () => {
+    const spoofed = (fake: string): string =>
+      clientIp(new Request("http://localhost/", { headers: { "x-forwarded-for": fake, "x-real-ip": "198.51.100.9" } }));
+    // Rotating the forged entry must not change the bucket.
+    expect(spoofed("10.0.0.1")).toBe(spoofed("10.0.0.2"));
+  });
+
+  it("falls back to the first x-forwarded-for entry where no proxy sets x-real-ip", () => {
     const request = new Request("http://localhost/", { headers: { "x-forwarded-for": "203.0.113.7, 70.41.3.18" } });
     expect(clientIp(request)).toBe("203.0.113.7");
   });
