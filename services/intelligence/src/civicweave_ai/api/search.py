@@ -1,3 +1,4 @@
+import asyncio
 import json
 import string
 from pathlib import Path
@@ -147,11 +148,11 @@ Extract intent, check if civic, extract facts (use exact substring for evidence)
 
     extracted = None
     try:
-        extracted = generate_json("search", messages, Extraction)
+        extracted = await asyncio.wait_for(asyncio.to_thread(generate_json, "extract", messages, Extraction), timeout=4.5)
+    except asyncio.TimeoutError:
+        print("Extraction LLM call timed out")
     except NoProviderAvailable as e:
         print(f"Provider error: {e}")
-        # Fallback to rules (lexical)
-        pass
 
     facts = []
     jurisdiction = None

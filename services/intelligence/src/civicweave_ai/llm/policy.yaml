@@ -20,9 +20,14 @@ circuit_breaker:
   open_seconds: 30
 
 timeouts:
-  extract: 8
-  answer:  15
+  extract: 4
+  search: 4
+  answer: 12
+  repair: 8
+  deadline: 22
 
 temperatures:
   extract: 0.0
   answer:  0.2
+  copilot: 0.2
+  search: 0.0
