@@ -6,6 +6,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   isFocusedStage: boolean;
   isSelected: boolean;
   isHovered: boolean;
+  ariaLabel: string;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -53,11 +54,29 @@ export function buildFlow2DGraph(
   const nodes: FlowStationNode[] = [];
   const edges: FlowTrackEdge[] = [];
 
-  for (const station of metro.stations) {
+  const stationMap = new Map<string, StationVM>(
+    metro.stations.map((s) => [s.id, s])
+  );
+  const totalSteps = metro.stations.length;
+
+  for (let i = 0; i < metro.stations.length; i++) {
+    const station = metro.stations[i]!;
+    const stepIndex = i + 1;
+
     // layer is 0-indexed; focusStage is 1-indexed (§11.1)
     const isFocusedStage = station.layer === focusStage - 1;
     const isSelected = station.id === selectedStepId;
     const isHovered = station.id === hoveredStepId;
+
+    // Count finished incoming "requires" prerequisites
+    const finishedPrereqsCount = metro.tracks.filter(
+      (t) =>
+        t.to === station.id &&
+        t.kind === "requires" &&
+        stationMap.get(t.from)?.state === "done"
+    ).length;
+
+    const ariaLabel = `Step ${stepIndex} of ${totalSteps}, ${station.title}, ${station.state}, ${finishedPrereqsCount} prerequisites done`;
 
     nodes.push({
       id: station.id,
@@ -71,12 +90,13 @@ export function buildFlow2DGraph(
         isFocusedStage,
         isSelected,
         isHovered,
+        ariaLabel,
         onSelect: onSelectStep,
         onHover: onHoverStep,
       },
       draggable: false,
       selectable: true,
-      ariaLabel: `${station.title}, ${station.state}, Stage ${station.layer + 1}`,
+      ariaLabel,
     });
   }
 

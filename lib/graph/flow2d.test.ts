@@ -87,4 +87,65 @@ describe("flow2d", () => {
       expect(criticalEdge.style?.strokeWidth).toBe(3); // Amendment 3
     }
   });
+
+  it("formats StationNode aria-label exactly as 'Step X of Y, Title, State, Z prerequisites done'", () => {
+    const template = journeyTemplateSchema.parse(
+      readTemplateFixture("example-startup")
+    );
+    const moduleNames = [
+      "ex-directors",
+      "ex-incorporation",
+      "ex-banking",
+      "ex-tax",
+      "ex-food",
+      "ex-recognition",
+      "ex-local",
+    ];
+    const modules = moduleNames.map((name) =>
+      approvalModuleSchema.parse(readModuleFixture(name))
+    );
+    const facts = {
+      "business.sector": "it_saas",
+      "company.founders_count": 2,
+      "employees.count": 5,
+    };
+    const journey = composeJourney(template, modules, facts);
+
+    // Initial state: first step is available with 0 prerequisites done
+    const metro0 = fromJourney(journey, new Set());
+    const { nodes: nodes0 } = buildFlow2DGraph(metro0, {
+      focusStage: 1,
+      selectedStepId: null,
+      hoveredStepId: null,
+      criticalPathOn: false,
+    });
+
+    const firstNode = nodes0[0]!;
+    expect(firstNode.ariaLabel).toBe(
+      `Step 1 of ${metro0.stations.length}, ${firstNode.data.station.title}, available, 0 prerequisites done`
+    );
+    expect(firstNode.data.ariaLabel).toBe(firstNode.ariaLabel);
+
+    // Complete first step and verify dependent station reflects prerequisites done count
+    const completedSet = new Set(["ex-directors.kyc.1"]);
+    const metro1 = fromJourney(journey, completedSet);
+    const { nodes: nodes1 } = buildFlow2DGraph(metro1, {
+      focusStage: 1,
+      selectedStepId: null,
+      hoveredStepId: null,
+      criticalPathOn: false,
+    });
+
+    for (let i = 0; i < nodes1.length; i++) {
+      const node = nodes1[i]!;
+      const station = metro1.stations[i]!;
+      expect(node.ariaLabel).toMatch(
+        new RegExp(
+          `^Step ${i + 1} of ${metro1.stations.length}, .+, (done|available|locked), \\d+ prerequisites done$`
+        )
+      );
+      expect(node.ariaLabel).toContain(station.title);
+      expect(node.ariaLabel).toContain(station.state);
+    }
+  });
 });

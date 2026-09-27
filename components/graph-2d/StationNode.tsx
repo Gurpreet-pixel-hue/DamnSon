@@ -8,8 +8,15 @@ export const StationNode = memo(function StationNode({
   data,
   selected,
 }: NodeProps<FlowStationNode>) {
-  const { station, isFocusedStage, isSelected, isHovered, onSelect, onHover } =
-    data;
+  const {
+    station,
+    isFocusedStage,
+    isSelected,
+    isHovered,
+    ariaLabel,
+    onSelect,
+    onHover,
+  } = data;
 
   const isDone = station.state === "done";
   const isAvailable = station.state === "available";
@@ -26,10 +33,19 @@ export const StationNode = memo(function StationNode({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel}
       data-testid={`2d-station-node-${station.id}`}
       data-step-id={station.id}
       data-state={station.state}
       onClick={() => onSelect(station.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(station.id);
+        }
+      }}
       onMouseEnter={() => onHover(station.id)}
       onMouseLeave={() => onHover(null)}
       className={`w-[200px] h-[72px] rounded-xl border p-2 flex flex-col justify-between select-none cursor-pointer transition-all duration-150 relative box-border ${getBorderAndBg()} ${
@@ -64,19 +80,19 @@ export const StationNode = memo(function StationNode({
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
-              aria-label="Done"
+              aria-hidden="true"
             >
               <polyline points="20 6 9 17 4 12" />
             </svg>
           ) : isAvailable ? (
             <span
               className="w-2.5 h-2.5 rounded-full bg-[#1F63D6] ring-2 ring-[#1F63D6]/20 shrink-0 animate-pulse"
-              aria-label="Available"
+              aria-hidden="true"
             />
           ) : isMayApply ? (
             <span
               className="w-2.5 h-2.5 rounded-full border border-dashed border-[#B45309] bg-amber-500/20 shrink-0"
-              aria-label="May apply"
+              aria-hidden="true"
             />
           ) : (
             <svg
@@ -87,7 +103,7 @@ export const StationNode = memo(function StationNode({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              aria-label="Locked"
+              aria-hidden="true"
             >
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
