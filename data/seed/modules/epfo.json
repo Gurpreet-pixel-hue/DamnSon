@@ -85,7 +85,8 @@
         "epfo-faq"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     }
   ],

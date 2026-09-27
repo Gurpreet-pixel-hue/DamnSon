@@ -95,8 +95,9 @@
         "mahagst-tc-01t-2026"
       ],
       "review": {
-        "status": "unverified",
-        "note": "Registration confirmed live on 2026-09-27: the MAHAGST new registration form accepted a PAN and validated the OTP. Trade Circular 01T of 2026 had disabled it in March 2026."
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Registration confirmed live on 2026-09-27 (form accepted a PAN and validated the OTP), after Trade Circular 01T of 2026 had disabled it in March 2026."
       }
     },
     {
@@ -157,8 +158,9 @@
         "mahagst-tc-01t-2026"
       ],
       "review": {
-        "status": "unverified",
-        "note": "Registration confirmed live on 2026-09-27: the MAHAGST new registration form accepted a PAN and validated the OTP. Trade Circular 01T of 2026 had disabled it in March 2026."
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Registration confirmed live on 2026-09-27 (form accepted a PAN and validated the OTP), after Trade Circular 01T of 2026 had disabled it in March 2026."
       }
     }
   ],

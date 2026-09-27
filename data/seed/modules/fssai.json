@@ -64,7 +64,8 @@
         "fssai-eligibility"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     },
     {
@@ -109,7 +110,8 @@
         "fssai-eligibility"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     },
     {
@@ -154,7 +156,8 @@
         "fssai-eligibility"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     }
   ],
