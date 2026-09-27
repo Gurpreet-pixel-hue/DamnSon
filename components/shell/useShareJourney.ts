@@ -10,7 +10,7 @@ import {
   areShareStatesEqual,
   isLocalStateEmpty,
   type ShareState,
-} from "./shareState";
+} from "@/lib/graph/shareState";
 
 export interface UseShareJourneyResult {
   copied: boolean;

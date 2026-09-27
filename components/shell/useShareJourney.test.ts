@@ -3,7 +3,7 @@ import { useTaskStore } from "@/lib/store/useTaskStore";
 import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
 import { journeyTemplateSchema, approvalModuleSchema } from "@/lib/contract/schema";
 import { composeJourney } from "@/lib/contract/compose";
-import { decodeShareState, encodeShareState, type ShareState } from "./shareState";
+import { decodeShareState, encodeShareState, sanitizeShareState, type ShareState } from "@/lib/graph/shareState";
 
 function loadTestJourney() {
   const template = journeyTemplateSchema.parse(
@@ -49,7 +49,7 @@ describe("Share Journey logic (P3 & P4 & §10.3)", () => {
     const facts = useTaskStore.getState().factsByTask[taskId]!;
     const completed = useTaskStore.getState().completedByTask[taskId]!;
 
-    const state: ShareState = { taskId, facts, completed };
+    const state: ShareState = sanitizeShareState({ taskId, facts, completed }, journey);
     const encoded = encodeShareState(state);
     const decoded = decodeShareState(new URLSearchParams(encoded));
 

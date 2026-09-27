@@ -13,7 +13,7 @@ import { TopBar } from "./TopBar";
 import { LeftRail } from "./LeftRail";
 import { WindowCard } from "./WindowCard";
 import { RightDrawer } from "./RightDrawer";
-import { useShareJourney } from "@/lib/graph/useShareJourney";
+import { useShareJourney } from "./useShareJourney";
 
 export interface JourneyShellProps {
   initialBundle: {
@@ -41,11 +41,10 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   const completedList = completedByTask[taskId] ?? EMPTY_COMPLETED;
   const completed = useMemo(() => new Set(completedList), [completedList]);
 
-  // Compose journey on (template.revision, facts)
-  const templateRevision = template.revision;
+  // Compose journey on (template, modules, facts)
   const composeResult = useMemo<SafeComposeResult>(() => {
     return safeCompose(template, modules, facts);
-  }, [template, modules, templateRevision, facts]);
+  }, [template, modules, facts]);
 
   const journey = composeResult.ok ? composeResult.journey : undefined;
 
@@ -75,6 +74,7 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
           openEnded: false,
           unknownCount: 0,
           criticalStepIds: [],
+          relativeTo: null,
         },
         trips: [],
         nextUpIds: [],

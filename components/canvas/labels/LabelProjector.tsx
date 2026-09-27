@@ -6,6 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import {
   MAX_LABEL_SLOTS,
+  SAFE_INSETS,
   resolveLabelCollisions,
   type ProjectedStationPoint,
   type ScreenRect,

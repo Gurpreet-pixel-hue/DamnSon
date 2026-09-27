@@ -431,10 +431,6 @@ export function planCity(options: PlanCityOptions): CityPlan {
     if (occupied[r]![c]) continue;
 
     const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
-    const distToCameraTarget = Math.hypot(
-      cx - bounds.centerX,
-      cz - (bounds.minZ + bounds.depth * 0.4)
-    );
 
     let candidatePool: readonly CityKindInfo[];
     if (minStationCellDist > 5 && LOW_DETAIL_BUILDINGS.length > 0) {

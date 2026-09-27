@@ -148,7 +148,7 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
         {viewMode === "3d" ? (
           metro && <SceneContainer metro={metro} />
         ) : (
-          metro && <FlowchartView metro={metro} />
+          <FlowchartView />
         )}
 
         {/* Debug overlay inside card, bottom-left */}

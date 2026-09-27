@@ -1,33 +1,69 @@
 import { describe, it, expect } from "vitest";
 import { summarizeVerification } from "./VerificationBanner";
-import type { ComposedJourney } from "@/lib/contract/compose";
+import type { ComposedJourney, ComposedActionStep, ComposedMilestone } from "@/lib/contract/compose";
+
+function makeMockActionStep(
+  id: string,
+  status: "unverified" | "verified" | "flagged",
+  note?: string
+): ComposedActionStep {
+  return {
+    id,
+    moduleId: "mod",
+    title: id,
+    kind: "government",
+    department: "Dept",
+    authoritySlug: "auth",
+    officeType: "online_portal",
+    requirement: { kind: "mandatory" },
+    applicability: "applies",
+    mode: "online",
+    fee: { kind: "free" },
+    timeline: { officialSla: { kind: "unknown" }, conditional: [] },
+    review: {
+      status,
+      ...(status === "verified" ? { verifiedOn: "2026-09-01" } : {}),
+      ...(note ? { note } : {}),
+    },
+    documents: [],
+    forms: [],
+    layer: 0,
+    lane: 0,
+    x: 0,
+    y: 0,
+  };
+}
+
+function makeMockMilestone(id: string): ComposedMilestone {
+  return {
+    id,
+    moduleId: "mod",
+    title: id,
+    kind: "milestone",
+    requirement: { kind: "mandatory" },
+    applicability: "applies",
+    layer: 0,
+    lane: 0,
+    x: 0,
+    y: 0,
+  };
+}
 
 describe("summarizeVerification (P2 & §8.8)", () => {
   it("returns zero counts and isPartiallyVerified=false when all action steps are verified", () => {
     const journey: ComposedJourney = {
-      template: {
-        id: "test",
-        title: "Test",
-        jurisdiction: { state: "MH", city: "Mumbai" },
-        task: "test",
-      } as any,
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "Test",
+      jurisdiction: { country: "IN", state: "MH", city: "Mumbai" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
       steps: [
-        {
-          id: "step-1",
-          title: "Step 1",
-          kind: "government",
-          requirement: { kind: "mandatory" },
-          applicability: "applies",
-          mode: "online",
-          review: { status: "verified", verifiedOn: "2026-09-01" },
-        } as any,
-        {
-          id: "ms-1",
-          title: "Milestone 1",
-          kind: "milestone",
-          requirement: { kind: "mandatory" },
-          applicability: "applies",
-        } as any,
+        makeMockActionStep("step-1", "verified"),
+        makeMockMilestone("ms-1"),
       ],
       edges: [],
     };
@@ -40,23 +76,19 @@ describe("summarizeVerification (P2 & §8.8)", () => {
 
   it("counts unverified action steps separately and ignores milestones", () => {
     const journey: ComposedJourney = {
-      template: {} as any,
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "",
+      jurisdiction: { country: "IN", state: "MH" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
       steps: [
-        {
-          id: "step-1",
-          kind: "government",
-          review: { status: "unverified" },
-        } as any,
-        {
-          id: "step-2",
-          kind: "government",
-          review: { status: "unverified" },
-        } as any,
-        {
-          id: "ms-1",
-          kind: "milestone",
-          // Milestone does not have review status
-        } as any,
+        makeMockActionStep("step-1", "unverified"),
+        makeMockActionStep("step-2", "unverified"),
+        makeMockMilestone("ms-1"),
       ],
       edges: [],
     };
@@ -69,18 +101,18 @@ describe("summarizeVerification (P2 & §8.8)", () => {
 
   it("counts flagged action steps separately and identifies partial verification", () => {
     const journey: ComposedJourney = {
-      template: {} as any,
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "",
+      jurisdiction: { country: "IN", state: "MH" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
       steps: [
-        {
-          id: "step-1",
-          kind: "government",
-          review: { status: "flagged", note: "Fee structure updated in August" },
-        } as any,
-        {
-          id: "step-2",
-          kind: "government",
-          review: { status: "verified", verifiedOn: "2026-09-01" },
-        } as any,
+        makeMockActionStep("step-1", "flagged", "Fee structure updated in August"),
+        makeMockActionStep("step-2", "verified"),
       ],
       edges: [],
     };
@@ -93,23 +125,19 @@ describe("summarizeVerification (P2 & §8.8)", () => {
 
   it("handles both unverified and flagged steps together", () => {
     const journey: ComposedJourney = {
-      template: {} as any,
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "",
+      jurisdiction: { country: "IN", state: "MH" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
       steps: [
-        {
-          id: "step-1",
-          kind: "government",
-          review: { status: "unverified" },
-        } as any,
-        {
-          id: "step-2",
-          kind: "government",
-          review: { status: "flagged", note: "Under review" },
-        } as any,
-        {
-          id: "step-3",
-          kind: "non_government",
-          review: { status: "verified", verifiedOn: "2026-09-01" },
-        } as any,
+        makeMockActionStep("step-1", "unverified"),
+        makeMockActionStep("step-2", "flagged", "Under review"),
+        makeMockActionStep("step-3", "verified"),
       ],
       edges: [],
     };

@@ -36,6 +36,7 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
   }, [isOpen, handleClose]);
 
   const step = journey?.steps.find((s) => s.id === selectedStepId);
+  const actionStep = step && step.kind !== "milestone" ? step : null;
   const isDone = activeTaskId && selectedStepId
     ? (completedByTask[activeTaskId] ?? []).includes(selectedStepId)
     : false;
@@ -58,7 +59,7 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--cw-border)]/60">
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cw-text-muted)]">
-                  {step.kind === "milestone" ? "Milestone" : (step as any).department ?? "Action Step"}
+                  {actionStep ? actionStep.department : "Milestone"}
                 </span>
                 <h2 className="text-base font-bold text-[var(--cw-text)] tracking-tight leading-snug">
                   {step.title}
@@ -98,46 +99,46 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                 {isDone ? "Completed" : "Available"}
               </span>
 
-              {step.kind !== "milestone" && (
+              {actionStep && (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)] capitalize">
-                  {(step as any).mode?.replace("_", " ")}
+                  {actionStep.mode.replace("_", " ")}
                 </span>
               )}
 
-              {step.kind !== "milestone" && (step as any).review?.status && (
+              {actionStep && (
                 <span
                   className={`text-[10px] font-medium px-2 py-0.5 rounded ${
-                    (step as any).review.status === "verified"
+                    actionStep.review.status === "verified"
                       ? "bg-green-500/10 text-green-700 dark:text-green-300"
-                      : (step as any).review.status === "flagged"
+                      : actionStep.review.status === "flagged"
                       ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                       : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400"
                   }`}
                 >
-                  {(step as any).review.status}
+                  {actionStep.review.status}
                 </span>
               )}
             </div>
 
             {/* Description */}
             <p className="text-xs text-[var(--cw-text-muted)] leading-relaxed mt-1">
-              {step.description || "Official procedural step required for civic compliance."}
+              {(actionStep ? actionStep.description : "") || "Official procedural step required for civic compliance."}
             </p>
 
             {/* Fee & Timeline breakdown */}
-            {step.kind !== "milestone" && (
+            {actionStep && (
               <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--cw-border)]/60 text-xs">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase font-semibold text-[var(--cw-text-muted)]">
                     Official Fee
                   </span>
                   <span className="font-medium text-[var(--cw-text)]">
-                    {(step as any).fee?.kind === "free"
+                    {actionStep.fee.kind === "free"
                       ? "Free"
-                      : (step as any).fee?.kind === "fixed"
-                      ? formatINR((step as any).fee.amountINR)
-                      : (step as any).fee?.kind === "range"
-                      ? `${formatINR((step as any).fee.minINR)}–${formatINR((step as any).fee.maxINR)}`
+                      : actionStep.fee.kind === "fixed"
+                      ? formatINR(actionStep.fee.amountINR)
+                      : actionStep.fee.kind === "range"
+                      ? `${formatINR(actionStep.fee.minINR)}–${formatINR(actionStep.fee.maxINR)}`
                       : "Unconfirmed"}
                   </span>
                 </div>
@@ -146,8 +147,8 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                     Official SLA
                   </span>
                   <span className="font-medium text-[var(--cw-text)]">
-                    {(step as any).timeline?.officialSla?.kind === "sla"
-                      ? `${(step as any).timeline.officialSla.minDuration}–${(step as any).timeline.officialSla.maxDuration} ${(step as any).timeline.officialSla.unit} days`
+                    {actionStep.timeline.officialSla.kind === "sla"
+                      ? `${actionStep.timeline.officialSla.minDuration}–${actionStep.timeline.officialSla.maxDuration} ${actionStep.timeline.officialSla.unit} days`
                       : "Standard processing"}
                   </span>
                 </div>
@@ -157,7 +158,7 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
 
           {/* Action button */}
           <div className="pt-4 border-t border-[var(--cw-border)]/60 flex flex-col gap-2">
-            {step.kind !== "milestone" && activeTaskId && (
+            {actionStep && activeTaskId && (
               <button
                 type="button"
                 data-testid="drawer-mark-done-btn"
