@@ -130,18 +130,12 @@ async def search(req: SearchRequest) -> SearchResponse:
     for c in req.candidates:
         candidates_text += f"- taskId: {c.taskId}\n  title: {c.title}\n  summary: {c.summary}\n  keywords: {', '.join(c.keywords)}\n\n"
 
-    prompt = f"""
-Query: "{redacted_query}"
-Locale: {req.locale}
-
-Candidates:
-{candidates_text}
-
-Extract intent, check if civic, extract facts (use exact substring for evidence), mention locations, and score candidates 0.0 to 1.0.
-"""
+    with open(Path(__file__).parent.parent / "prompts" / "search_user.txt") as pf:
+        user_prompt_template = pf.read()
+    prompt = user_prompt_template.format(query=redacted_query, locale=req.locale, candidates_text=candidates_text)
 
     messages = [
-        {"role": "system", "content": "You are a civic procedure extraction assistant."},
+        {"role": "system", "content": open(Path(__file__).parent.parent / "prompts" / "search_system.txt").read().strip()},
         {"role": "user", "content": prompt},
     ]
 

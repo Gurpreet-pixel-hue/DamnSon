@@ -50,3 +50,4 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+services/intelligence/evals/reports/

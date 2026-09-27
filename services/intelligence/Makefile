@@ -17,4 +17,4 @@ ingest:
 	@echo "Ingestion not implemented yet"
 
 eval:
-	@echo "Evals not implemented yet"
+	uv run python src/civicweave_ai/evals/run.py

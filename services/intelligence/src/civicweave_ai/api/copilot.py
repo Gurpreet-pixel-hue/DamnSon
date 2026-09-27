@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -117,12 +118,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     context_text = "\n\n".join(f"--- Chunk ID: {c['id']} ---\nTitle: {c['title']}\nURL: {c['url']}\nText: {c['text']}" for c in chunk_map.values())
 
     # 4. LLM Generation & 2-Attempt Citation Repair
-    system_prompt = (
-        "You are a helpful civic assistant. Answer the user's question using ONLY the "
-        "provided text chunks. If the answer is not in the text, say 'I cannot find the "
-        "answer in the official documents.' You must cite your sources. For every claim, "
-        "provide an exact substring quote from the text and the chunkId it came from."
-    )
+    system_prompt = open(Path(__file__).parent.parent / "prompts" / "copilot_system.txt").read().strip()
 
     messages = [
         {"role": "system", "content": system_prompt},

@@ -1,0 +1,4 @@
+Context documents:
+{context_text}
+
+Question: {redacted_q}
