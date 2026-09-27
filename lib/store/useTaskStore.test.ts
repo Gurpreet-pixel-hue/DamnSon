@@ -198,3 +198,29 @@ describe("useTaskStore v2", () => {
     expect(store.getState().completedByTask["task-x"]).toEqual(["step-3"]);
   });
 });
+
+describe("useTaskStore documents held", () => {
+  it("toggles a held document per task", () => {
+    const store = createTaskStore(new MemoryStorage());
+    store.getState().toggleDocumentHeld("task-a", "pan-card-individual#1");
+    expect(store.getState().documentsHeldByTask["task-a"]).toEqual(["pan-card-individual#1"]);
+    store.getState().toggleDocumentHeld("task-a", "pan-card-individual#1");
+    expect(store.getState().documentsHeldByTask["task-a"]).toEqual([]);
+    expect(store.getState().documentsHeldByTask["task-b"]).toBeUndefined();
+  });
+
+  it("persists held documents and survives corrupted storage", async () => {
+    const memory = new MemoryStorage();
+    const first = createTaskStore(memory);
+    first.getState().toggleDocumentHeld("task-a", "office-address-proof");
+    const second = createTaskStore(memory);
+    await second.persist.rehydrate();
+    expect(second.getState().documentsHeldByTask["task-a"]).toEqual(["office-address-proof"]);
+
+    const broken = new MemoryStorage();
+    broken.setItem("damnson-progress-v2", JSON.stringify({ state: { documentsHeldByTask: "nope" }, version: 2 }));
+    const third = createTaskStore(broken);
+    await third.persist.rehydrate();
+    expect(third.getState().documentsHeldByTask).toEqual({});
+  });
+});

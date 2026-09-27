@@ -4,6 +4,7 @@ import React, { useEffect, useCallback } from "react";
 import type { ComposedJourney } from "@/lib/contract/compose";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { formatINR } from "@/lib/graph/summary";
+import { StepExplain } from "@/components/hud/StepExplain";
 
 export interface RightDrawerProps {
   journey?: ComposedJourney;
@@ -154,6 +155,8 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                 </div>
               </div>
             )}
+            {/* Explain mode: why it's here, dependencies, what it unlocks, official sources */}
+            {journey && <StepExplain journey={journey} stepId={step.id} />}
           </div>
 
           {/* Action button */}

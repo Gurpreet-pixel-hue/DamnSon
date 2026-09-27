@@ -1,0 +1,80 @@
+{
+  "about": "MCGM ward Water Works offices for the new water connection journey. Address and office timing are copied verbatim from each ward's official AEWW RTI Section 4 manual (portal.mcgm.gov.in / mcgm.gov.in). Hours are omitted where the capture was incomplete. mapCheckedOn = the Google Maps pin for this address was checked by eye and lands on the right ward office; omitted where Google could not place it.",
+  "offices": [
+    {
+      "ward": "A",
+      "office": "Assistant Engineer (Water Works), A Ward",
+      "address": "Office of Assistant Engineer (WW) ‘A’ Ward, 3rd Floor, ‘A’ Ward Building, 134-E, Shahid Bhagatsingh Road, Fort, Mumbai – 400 001.",
+      "source": {
+        "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(A-Ward)/RTI%20Manuals/RTI%20Manual%2017%20AEWW%20A%20Ward.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of A Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      }
+    },
+    {
+      "ward": "D",
+      "office": "Assistant Engineer (Water Works), D Ward",
+      "address": "Office of Assistant Engineer (WW)’D’ Ward, 1st Floor, ‘D’ Ward Building, Jobanputra Compound, Nana Chowk, Grant Road (West), Mumbai – 400 007.",
+      "hours": "08:00 a.m. to 12:00 noon and 2:30 P.M. to 05:30 p.m.(Monday to Friday) 08:00am to 11:30 am on Saturdays Visiting Hours :03:00 p.m. to 05:00 p.m. .(Monday to Friday)",
+      "source": {
+        "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(D%20Ward)/RTI%20Manuals/RTI%2017%20Manual%20AE%20WW%20D%20Ward.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of D Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      },
+      "mapCheckedOn": "2026-09-28"
+    },
+    {
+      "ward": "H/East",
+      "office": "Assistant Engineer (Water Works), H/East Ward",
+      "address": "Office of Assistant Commissioner H/East Ward, Ground Floor, Plot No. 137 T.P.S.5, Road No.2, Prabhat Colony, Santacruz(E), Mumbai-55",
+      "hours": "9.00 a.m. to 5.00 p.m.(Monday to Friday)",
+      "source": {
+        "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(HEast)%20Ward/RTI%20Manuals/AEWWHE.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of H/East Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      },
+      "mapCheckedOn": "2026-09-28"
+    },
+    {
+      "ward": "K/West",
+      "office": "Assistant Engineer (Water Works), K/West Ward",
+      "address": "Office of Assistant Engineer (WW)K/West, Paliram Road, K/West Ward Building, 4th floor, Andheri (West), Mumbai – 400 058.",
+      "source": {
+        "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(KWest-Ward)/RTI%20Manuals/WaterWorksDept.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of K/West Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      },
+      "mapCheckedOn": "2026-09-28"
+    },
+    {
+      "ward": "L",
+      "office": "Assistant Engineer (Water Works), L Ward",
+      "address": "Office of Assistant Engineer (Water Works) ‘L’ Ward, Laxman Yadav Market Bldg, 1st floor, S.G. Barve marg, Kurla (west), Mumbai – 400 070.",
+      "source": {
+        "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(L-Ward)/RTI%20Manuals/AEWW%20for%20L%20ward.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of L Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      }
+    },
+    {
+      "ward": "P/South",
+      "office": "Assistant Engineer (Water Works), P/South Ward",
+      "address": "Assistant Engineer Water Works P/South Ward office, Opp. Citi Centre, Near Ratna Hotel, S.V. Road, Goregaon(West), Mumbai – 400 104.",
+      "source": {
+        "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(P-South)%20Ward/RTI%20Manuals/Manual_17_AEWWPS%5B1%5D.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of P/South Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      }
+    },
+    {
+      "ward": "R/Central",
+      "office": "Assistant Engineer (Water Works), R/Central Ward",
+      "address": "Office of Assistant Engineer (W.W), R/Central, Gr.Floor, R/Central Ward Building, Chandavarkar Road, Borivali (W), Mumbai – 400 092.",
+      "source": {
+        "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(R-Central)/RTI%20Manuals/RTI%2017%20manual%20for%20AEWW%20RC%20ward.pdf",
+        "title": "Section 4 Manuals as per provision of RTI Act 2005 of R/Central Ward: Assistant Engineer Water Works",
+        "retrievedOn": "2026-09-28"
+      }
+    }
+  ]
+}

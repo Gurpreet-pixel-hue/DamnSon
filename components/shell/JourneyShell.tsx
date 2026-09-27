@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
+import type { FactKey, FactValue, Facts } from "@/lib/contract/facts";
+import { diffJourneys, type JourneyDiff } from "@/lib/graph/journeyDiff";
 import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { deriveSummaryValues } from "@/components/hud/SummaryBar";
+import { compareTotals, type TotalsChange } from "@/components/hud/totalsChange";
 import { VerificationBanner } from "@/components/hud/VerificationBanner";
+import { JourneyPanels } from "@/components/hud/JourneyPanels";
+import { ChangeToast } from "@/components/hud/ChangeToast";
 import { ConflictBanner } from "./ConflictBanner";
 import { TopBar } from "./TopBar";
 import { LeftRail } from "./LeftRail";
@@ -47,6 +52,34 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   }, [template, modules, facts]);
 
   const journey = composeResult.ok ? composeResult.journey : undefined;
+
+  // Answering or changing a fact: recompose once to report which stations were added / removed (PRD §5 F3)
+  const [lastChange, setLastChange] = useState<JourneyDiff | null>(null);
+  const [lastTotals, setLastTotals] = useState<TotalsChange[]>([]);
+  const [toastChange, setToastChange] = useState<JourneyDiff | null>(null);
+  const [changeVersion, setChangeVersion] = useState(0);
+  const applyFact = useCallback(
+    (fact: FactKey, value: FactValue | undefined) => {
+      const nextFacts: Facts = { ...facts };
+      if (value === undefined) delete nextFacts[fact];
+      else nextFacts[fact] = value;
+      const next = safeCompose(template, modules, nextFacts);
+      if (journey && next.ok) {
+        const diff = diffJourneys(journey, next.journey);
+        setLastChange(diff);
+        setLastTotals(
+          compareTotals(deriveSummaryValues(journey, completed), deriveSummaryValues(next.journey, completed))
+        );
+        setToastChange(diff);
+        setChangeVersion((v) => v + 1);
+      }
+      const store = useTaskStore.getState();
+      if (value === undefined) store.clearFact(taskId, fact);
+      else store.setFact(taskId, fact, value);
+    },
+    [completed, facts, journey, modules, taskId, template]
+  );
+  const dismissToast = useCallback(() => setToastChange(null), []);
 
   // Memoize MetroVM on (composed journey, completed)
   const metro = useMemo<MetroVM | null>(() => {
@@ -147,7 +180,21 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
       {/* Main Shell Row: Rail, Framed 3D Window, Docked Drawer */}
       <div className="flex-1 min-h-0 flex gap-4 relative">
         {/* Left Rail */}
-        <LeftRail />
+        <LeftRail questionCount={journey?.questions.length ?? 0} hasQuestions={template.questions.length > 0} />
+
+        {/* Docked side panel: questions, summary, what-if, documents */}
+        {journey && (
+          <JourneyPanels
+            journey={journey}
+            template={template}
+            facts={facts}
+            completed={completed}
+            summary={summary}
+            lastChange={lastChange}
+            lastTotals={lastTotals}
+            onFactChange={applyFact}
+          />
+        )}
 
         {/* Framed 3D Window Card */}
         <WindowCard metro={metro} />
@@ -155,6 +202,8 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         {/* Right Docked / Overlay Drawer (P11) */}
         <RightDrawer journey={journey} />
       </div>
+
+      <ChangeToast change={toastChange} version={changeVersion} onDismiss={dismissToast} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { parseFacts, type FactKey, type FactValue, type Facts } from "@/lib/cont
 
 const persistedProgressSchema = z.object({
   completedByTask: z.record(z.string(), z.array(z.string())).catch({}),
+  documentsHeldByTask: z.record(z.string(), z.array(z.string())).catch({}),
   factsByTask: z
     .record(z.string(), z.unknown())
     .transform((rec) => {
@@ -26,6 +27,8 @@ export interface TaskState {
   selectedStepId: string | null;
   factsByTask: Record<string, Facts>;
   completedByTask: Record<string, string[]>;
+  /** Document checklist keys the citizen already has, per task (kept on the device, PRD P6). */
+  documentsHeldByTask: Record<string, string[]>;
   setActiveTask: (taskId: string | null) => void;
   selectStep: (stepId: string | null) => void;
   setFact: (taskId: string, key: FactKey, value: FactValue) => void;
@@ -33,6 +36,7 @@ export interface TaskState {
   setFacts: (taskId: string, facts: Facts) => void;
   setCompleted: (taskId: string, stepIds: string[]) => void;
   toggleStepDone: (taskId: string, stepId: string) => void;
+  toggleDocumentHeld: (taskId: string, documentKey: string) => void;
 }
 
 const noopStorage: StateStorage = {
@@ -49,6 +53,7 @@ export function createTaskStore(customStorage?: StateStorage) {
         selectedStepId: null,
         factsByTask: {},
         completedByTask: {},
+        documentsHeldByTask: {},
         setActiveTask: (taskId) => set({ activeTaskId: taskId }),
         selectStep: (stepId) => set({ selectedStepId: stepId }),
         setFact: (taskId, key, value) =>
@@ -100,6 +105,16 @@ export function createTaskStore(customStorage?: StateStorage) {
               },
             };
           }),
+        toggleDocumentHeld: (taskId, documentKey) =>
+          set((state) => {
+            const held = state.documentsHeldByTask[taskId] ?? [];
+            const updated = held.includes(documentKey)
+              ? held.filter((key) => key !== documentKey)
+              : [...held, documentKey];
+            return {
+              documentsHeldByTask: { ...state.documentsHeldByTask, [taskId]: updated },
+            };
+          }),
       }),
       {
         name: "damnson-progress-v2",
@@ -112,6 +127,7 @@ export function createTaskStore(customStorage?: StateStorage) {
         partialize: (state) => ({
           factsByTask: state.factsByTask,
           completedByTask: state.completedByTask,
+          documentsHeldByTask: state.documentsHeldByTask,
         }),
         merge: (persisted, current) => {
           const parsed = persistedProgressSchema.safeParse(persisted ?? {});
@@ -123,7 +139,7 @@ export function createTaskStore(customStorage?: StateStorage) {
         },
         migrate: (persistedState: unknown, version: number) => {
           if (version < 2) {
-            return { factsByTask: {}, completedByTask: {} };
+            return { factsByTask: {}, completedByTask: {}, documentsHeldByTask: {} };
           }
           return persistedProgressSchema.parse(persistedState ?? {});
         },
