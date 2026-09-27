@@ -12,7 +12,9 @@
     "contract:schemas": "tsx scripts/contract-schemas.ts",
     "validate:seed": "tsx scripts/validate-seed.ts",
     "typecheck": "next typegen && tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "art:compose": "node art/compose.mjs",
+    "art:optimize": "node art/optimize.mjs"
   },
   "engines": {
     "node": ">=22.12.0",
@@ -41,6 +43,9 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "4.5.0",
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "24.19.0",
     "@types/react": "^19",
@@ -50,6 +55,7 @@
     "ajv-formats": "3.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "meshoptimizer": "1.2.0",
     "tailwindcss": "^4",
     "tsx": "4.23.15",
     "typescript": "^5",
