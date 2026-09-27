@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
 import { LandingSearch } from "@/components/landing/LandingSearch";
 import { ContinueCard } from "@/components/landing/ContinueCard";
+import { IntroWrapper } from "@/components/intro/IntroWrapper";
 import type { Question } from "@/lib/contract/schema";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,9 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] p-6 md:p-12 flex flex-col items-center">
+      {/* First-visit kinetic intro (§9.2) */}
+      <IntroWrapper />
+
       <div className="w-full max-w-4xl flex flex-col gap-10">
         {/* Continue Card (if saved progress exists) */}
         <ContinueCard templates={templates} />
