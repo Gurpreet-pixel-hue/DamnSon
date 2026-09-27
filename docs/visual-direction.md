@@ -528,6 +528,8 @@ Status: normative. Decided by Gurpreet after reviewing FE-3. Where §3 or §4 di
 
 ### 10.6 Labels: calm by default, stable while moving
 
+> **Superseded in part by §11 (2026-09-28).** "What shows by default" and the "Key steps / All" toggle are replaced by stage focus (§11.2). The hover, hysteresis, picking, same-frame projection and pixel-snapping rules below still apply.
+
 **What shows by default ("Key steps")**
 - **Full cards** only for next-up (available) stations, plus the selected, hovered and focused station.
 - **Every other station gets a 28 px state pin** (the icon circle from §4, with no text), placed at the tether top. Hover or focus shows its full card as a tooltip.
@@ -594,3 +596,159 @@ Cause, found in `LabelLayer.tsx:151`: `selectLabels()` is memoised on `hoveredSt
 | Frame triangles | ≤ 650k |
 | fps on a MacBook Air-class laptop | 60, with cars and people moving |
 | `public/models` + `public/thumbs` | ≤ 6 MB |
+
+## 11. Stage focus: one stage at a time (decided 2026-09-28)
+
+Status: normative. Decided by Gurpreet after reviewing FE-3.5 (PR #27). Where §4, §9.1 or §10 disagree, this section wins. It matches PRD §8.8, which already limits labels to "hovered/focused/next-up stations".
+
+**Why.** The first view of PR #27 shows 7 cards, stage chips, every beacon, traffic and a patchy, flickering grid, all at once. A citizen should see one thing first: what to do now. Everything else stays one click away.
+
+### 11.1 The model
+- **A stage is one layer of the journey**, the same columns the stage chips already name ("1 · START HERE", "2 · THEN", "4 · IN PARALLEL (5)").
+- **`focusStage`** is view state in `useViewStore`. It is never stored in progress and never goes in the share link.
+- **The current stage is derived.** `currentStage(metro)` is the lowest layer that still has an `available` step that `applies`. When every step is done, it is the last stage. This is a pure function in `lib/graph/stages.ts`, with tests.
+- **On load**, `focusStage = currentStage(metro)`.
+
+**How focus moves**
+- **Stage stepper**, bottom centre of the 3D window: `‹  Stage 2 of 5 · Then  ›` above one dot per stage:
+  - done: green with a check;
+  - focused: accent, filled;
+  - other: outline.
+  - Controls: the buttons, the `[` and `]` keys, and clicking a dot.
+- **Stage chips in the scene** are clickable and focus their stage.
+- **Clicking any station** (3D, 2D, card, tooltip) opens its drawer and focuses its stage.
+- **Mark as complete.** If the focused stage has no `available` step that applies left, focus auto-advances to `currentStage()` after 700 ms. Otherwise focus stays, and nothing else moves. Undo restores the previous `focusStage` too.
+- **Browsing ahead or back** with the stepper is allowed. While `focusStage ≠ currentStage`, a "Back to current step" button shows next to the stepper.
+- **Keyboard and 2D equivalents:**
+  - `[` / `]` move between stages; Tab cycles the focused stage's cards.
+  - The 2D view (FE-4) uses the same `focusStage`.
+
+### 11.2 What shows
+| Element | Focused stage | Every other stage |
+|---|---|---|
+| Station card (title and mode line) | Yes, for every station in the stage | Never |
+| Pins | None | None (pins are removed) |
+| Building and plaza | Full colour, beacon on | Instance colour 40 % toward `--cw-paper`, no beacon. Done stations keep a small green check disc on the plaza, as a 3D decal, not a DOM element |
+| Stage chip | Accent fill, bold | Done: green check. Others: muted outline. All chips are always visible: they are the route overview |
+| Routes | Incoming and outgoing routes at full width and colour, with pulses only on these | 50 % width, 35 % opacity, no pulses |
+| Hover on any station | One tooltip in place ("title · Stage n"). 60 ms enter delay, 200 ms leave delay. Nothing else changes | Same |
+
+**When a stage has many stations**
+- More than 4 stations: cards are compact (title on one line, 180 px wide, no mode line).
+- More than 8: cards only for the `available` ones, plus a "+N more" chip under the stage chip that lists the rest in the drawer.
+
+The "Labels: Key steps / All" footer toggle is removed.
+
+### 11.3 Camera
+- **Framing.** On load, and on every `focusStage` change, the camera frames the focused stage: its stations, their cards, and the next stage's chip. It never frames the whole city.
+  - Use `computeSafeFit` with the HUD and drawer insets.
+  - Glide 600 ms with ease-in-out; jump instantly under reduced motion.
+- **First paint.** The load-time fit is computed before the canvas is revealed, so the camera never jumps on load (§10.6).
+- **Whole route.** A "Whole route" button next to fullscreen fits all stations. In this view cards are hidden and only the stage chips and the stepper show. Pressing it again, or changing the stage, returns to stage framing.
+- **Drawer.** The drawer overlays the right side of the 3D window instead of resizing it (this amends §9.1): 380 px wide with a shadow. The canvas size never changes when the drawer opens or closes. The fit takes the drawer width as its right inset.
+- **Clicking a card in the focused stage** opens the drawer and does not move the camera, unless the station would sit under the drawer. In that case the camera pans only enough to clear the drawer.
+
+### 11.4 Cards that never jump
+**Root causes found in PR #27 (48f1773)**
+1. **CSS transitions fight the projector.** `LabelLayer.tsx` cards have `transition-all` and pins have `transition-transform`, while `LabelProjector` writes `style.transform` every frame. The browser animates every per-frame move over 150 ms, so labels lag, swim and stutter.
+2. **Slots are keyed by index** (`label-slot-${idx}`). When a selection re-orders `activeStations`, a DOM button switches to another station and animates across the screen.
+3. **Too much re-layout.** `resolveLabelCollisions` re-runs on every selection change and 250 ms after every camera change, so labels hop after each click and after each damping tail.
+4. **Hover scale on the moving element.** `scale-105` sits on the positioned element and compounds with the moving transform.
+5. **The canvas resizes.** Opening the drawer resizes the canvas (1172 → 795 px wide), which re-projects and re-lays out everything.
+
+**Rules**
+- **One wrapper per station.** Each card has one positioned wrapper with `key={station.id}`.
+  - The projector writes only `transform: translate3d(x, y, 0)` to it.
+  - The wrapper has no CSS transition on `transform`, `translate` or `scale`.
+  - Hover lift, border, shadow and done tint go on an inner element. That element may transition only `opacity`, `box-shadow`, `border-color` and `background-color`.
+- **Layout runs once per (focusStage, canvas size, camera arrived).**
+  - It produces a fixed screen offset per card, relative to its anchor.
+  - While the camera moves, offsets stay fixed and cards follow their anchors.
+  - Nothing re-lays out on click, hover, mark done, drawer open/close or camera damping.
+- **On a focus change:**
+  1. old cards fade out (120 ms);
+  2. the camera glides;
+  3. layout runs once;
+  4. new cards fade in (180 ms).
+- **Layout algorithm** (`layoutStageCards.ts`, pure, deterministic, ≤ 8 cards):
+  - sort the stage's stations by screen x;
+  - put each card 56 px above its anchor;
+  - on overlap with the previous card, try 56 px below, then push sideways by the overlap;
+  - clamp to the safe insets;
+  - draw a tether from the card edge to the anchor, with `pointer-events: none`.
+- **A card marked done stays in place** with the done tint until the stage advances. The others never reflow.
+- **Projection:**
+  - it runs at `useFrame` priority −1, after the controls update;
+  - positions are rounded to whole pixels;
+  - it skips the DOM write when the value hasn't changed.
+- **Hover.** Canvas hover and card hover share `hoveredStepId` (§10.6). Hovering a card never changes any other card.
+
+### 11.5 A calm city
+**Root causes found in PR #27 renders**
+1. **Z-fighting (the flashing).**
+   - Road tiles sit at y = 0.17 with their surface at local y ≈ 0, exactly on the land-slab top (0.17), which shows as shimmering stripes across the lower half at 1440×900.
+   - The plaza pad top (0.21) and the ring (0.211) also fight.
+   - The default camera near and far planes (0.1 and 2000) make both worse.
+2. **Lavender roads.** Road tiles keep Kenney's lavender atlas colour.
+3. **Patchy grid.** Isolated cells fall back to `tile-low` squares, so the grid reads as a patchy checkerboard.
+4. **Routes cut through blocks.** They are still Bézier curves at y = 0.19. §10.2 asked for lanes on the road.
+
+**Rules**
+- **Heights.** Flat layers are at least 0.01 apart:
+
+  | Layer | World y |
+  |---|---|
+  | Land top | 0.170 |
+  | Road surface | 0.180 (instance y = 0.180 − the tile's surface y) |
+  | Route lane | 0.195 |
+  | Plaza pad top | 0.210 |
+  | Rings and decals | 0.225 |
+  | Pulses | 0.240 |
+
+  - Every flat decal (roads, lanes, rings, check discs) also sets `polygonOffset: true` with factor and units of −1 per layer above land.
+  - Test: `heights.test.ts` asserts these constants are sorted, and that each pair is at least 0.01 apart.
+- **Camera.** `near = 1` and `far = 400`. Check that `computeSafeFit` distances stay inside.
+- **Road colours** come from the palette: `PALETTE.road` for the road surface and the kerb token for pavements. Bake them in `art/compose.mjs` or override the batch material. No lavender.
+- **Grid.**
+  - Streets are continuous lines on every 4th row and column (3 × 3 blocks).
+  - A road cell with no road neighbour is not placed, and there are no `tile-low` fallbacks.
+  - `roadGraph.test.ts` asserts: no `tile-low`; every road cell has at least one road neighbour; the street lines are continuous.
+- **Routes follow the streets** (`components/canvas/city/routeOnRoads.ts`):
+  - Find the path with BFS on the road graph, from the road cell touching station A's plaza to the one touching station B's.
+  - Build a polyline through the cell centres in the left lane (0.18 from the centre line), with corners rounded at r = 0.3.
+  - Render it as a flat 0.35-wide ribbon at y = 0.195, replacing the Bézier. Pulses follow the same polyline.
+  - Routes that share a cell are offset by 0.12 per route.
+  - Test: every route vertex lies on a road cell.
+- **Focus hierarchy.**
+  - City instances more than 10 cells from any focused-stage station lerp their colour 35 % toward `--cw-paper`, using `setColorAt` on focus change only.
+  - At most 10 cars. Pedestrian queues only at focused-stage offices.
+  - Reduced motion: no cars or people move.
+
+### 11.6 Budgets (enforced; these replace §10.8)
+PR #27 measured a demo scene of 472,562 triangles and a frame of 751,566. Example-startup measured 355,085 and stress 439,717. Each breaks §10.8, and the report said "Deviations: None". Reports list every budget with its measured value; a miss is a deviation.
+
+| Metric | Budget | Measured in |
+|---|---|---|
+| Scene triangles | ≤ 350k, target 300k | Whole-route view (the worst case) on demo, example-startup and stress |
+| Frame triangles | ≤ 650k | Same |
+| Scene draws | ≤ 36 | Same |
+| fps | 60 on a MacBook Air-class laptop, with cars moving | Same |
+
+Levers:
+- far-LOD variants for buildings beyond the focus radius;
+- lower-poly trees;
+- simpler pavement bevels on road tiles;
+- fewer and lower-poly cars.
+
+### 11.7 Proof
+- **Unit tests:**
+  - `stages.test.ts`: a fresh journey is at stage 1; after marking every stage-1 step that applies done, the current stage is the next layer with work; when everything is done, it is the last stage.
+  - `layoutStageCards.test.ts`: the same input gives the same output; only focused-stage stations get cards; changes to hover, selection or done state do not change any offset.
+- **Playwright capture** (`art/tools/capture-stage-focus.mjs`, run on a real GPU at 1440×900):
+  - **First view.** Cards visible = the number of stage-1 stations. There are no pins.
+  - **Hover.** Move in and out of a card and of its station, 10 times each at 150 ms. Sample every card rect on every animation frame. Every wrapper's displacement must be 0 px.
+  - **Click.** Click a card in the focused stage, then open and close the drawer. Every wrapper's displacement must be 0 px, and the canvas size must be unchanged.
+  - **Mark done.** Mark a step done in a stage that still has other steps. Every other wrapper's displacement must be 0 px. Then mark the last step in the stage done: focus advances and the new stage's cards appear.
+  - **Stepper.** Step through every stage and back.
+  - **Flicker.** Under reduced motion, orbit the camera 0.5° per frame for 20 frames. Save road close-up crops at three zoom levels for review.
+  - **Screenshots:** first view, each stage, whole route, road close-ups, mark done before and after, and the stepper.
