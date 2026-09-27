@@ -1,8 +1,8 @@
 # Review ownership, mirroring PRD §13.2. Last matching rule wins, so the broad lines come first
 # and the more specific ones below them.
 #
-# A handle that does not exist silently disables its rule, so the lines for Jai and Pruthviraj stay
-# commented out until their GitHub handles are confirmed. Uncomment them then.
+# A handle that does not exist silently disables its rule, so Jai's lines stay commented out until
+# he sends his GitHub handle. Uncomment them then.
 
 # Frontend — Gurpreet
 /app/                   @Gurpreet-pixel-hue
@@ -25,10 +25,10 @@
 # /prisma/migrations/*_knowledge/ @<jai-handle>
 
 # Data and verification — Pruthviraj
-# /data/seed/       @<pruthviraj-handle>
-# /data/sources/    @<pruthviraj-handle>
-# /data/gazetteer/  @<pruthviraj-handle>
-# /data/eval/       @<pruthviraj-handle>
+/data/seed/       @Pruthv-creates
+/data/sources/    @Pruthv-creates
+/data/gazetteer/  @Pruthv-creates
+/data/eval/       @Pruthv-creates
 
 # Shared contract: one frontend and one backend reviewer, by PR to main (§14)
 /lib/contract/   @Gurpreet-pixel-hue @divvyesk
