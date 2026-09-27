@@ -19,11 +19,7 @@ docs/frontend-spec.md holds the Civic Metro visual parameters.
 - Server components by default; three/R3F, React Flow, window, storage = client components loaded with
   next/dynamic(..., { ssr: false }). lib/server files start with import "server-only".
 - Folders: components/ui = shadcn only; hud, canvas (3D), graph-2d, admin; lib/contract shared contract;
-  lib/graph UI derivations (pure TS); lib/store zustand; lib/server backend; services/intelligence Python;
-  art/ pipeline for CC0 asset composition, atlas generation, and 3D optimization; public/models/ compressed GLBs.
-- Visual Direction: Light Civic theme (visual-direction.md v2) diorama with extruded board slab, coastal promenade,
-  roads & kerbs ribbon, BatchedMesh city fill and props, 13 archetype instanced stations, plaza status rings,
-  next-up beacons, screen-projected HTML label cards, layer stage headers, and legend.
+  lib/graph UI derivations (pure TS); lib/store zustand; lib/server backend; services/intelligence Python.
 - Graph data passes zod + the matching analyze*() before render, save or publish. Status, order, layers,
   positions and totals are derived, never stored. Official = isOfficialUrl() (.gov.in/.nic.in/vetted).
 - Real data only in data/seed; fixtures in data/fixtures are test-only. No personal data to LLMs.

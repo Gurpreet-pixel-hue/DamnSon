@@ -13,6 +13,22 @@ art/
 
 Committed outputs: `public/models/{stations,city,props}.glb` and `public/thumbs/*.webp`.
 
+## Pipeline & Atlas Architecture
+- **Atlas Layout (`art/out/atlas.png`)**: 1024×1536 texture map consisting of six 512² slots with 8 px edge-padded gutters to avoid mipmap/bilinear bleeding:
+  - Slot 0: `city-kit-commercial`
+  - Slot 1: `city-kit-suburban`
+  - Slot 2: `city-kit-industrial`
+  - Slot 3: `city-kit-roads`
+  - Slot 4: `car-kit`
+  - Slot 5: 64 swatches (8×8 grid of 64×64 px cells with 8 px inset margin) for flat-color primitives (nature kit trees/bushes, boats, stand-in accents).
+- **Diorama Scene Architecture**:
+  - `components/canvas/Board.tsx`: Extruded rounded diorama slab, sea basin along +z with dropped shore bank (0.15 height in slabSide color), animated coastal water shader.
+  - `components/canvas/CityBatches.tsx`: Two `THREE.BatchedMesh` instances for city buildings and props with single shared atlas material (`generateMipmaps = false`, `LinearFilter`).
+  - `components/canvas/Stations.tsx`: 13 archetype instanced meshes, plaza pads (r=1.6, h=0.04), plaza status rings, next-up beacons, and locked building multiply (0.9).
+  - `components/canvas/Tracks.tsx`: 4 batched line groups elevated at y=0.25 above roads with glowing white pulse spheres.
+  - `components/canvas/StageHeaders.tsx`: Derived layer headers along board back edge.
+  - `components/canvas/Legend.tsx`: Status indicator legend with dynamic Critical Path marker.
+
 Rebuild:
 1. `bash art/fetch-sources.sh`. Skip it if `art/src/` already exists.
 2. `npm run art:compose`: builds the atlas and composes the GLBs (FE-1V stage 1).

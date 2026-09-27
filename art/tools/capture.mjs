@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
-const REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-1v");
+const REVIEW_DIR = path.resolve(process.cwd(), "art/out/review");
 const ARTIFACTS_DIR = "/Users/shridhartawate/.gemini/antigravity/brain/36d77528-1f30-4659-bc8a-479ce47b7084";
 
 if (!fs.existsSync(REVIEW_DIR)) {
