@@ -1,0 +1,753 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "mcgm-new-water-connection",
+  "version": 1,
+  "title": "New water connection (MCGM)",
+  "summary": "Apply through a licensed plumber in your ward; after scrutiny, site visit and sanction the ward issues the Permission Form (P Form); after compliance the meter is connected and the connection released.",
+  "authority": {
+    "slug": "mcgm",
+    "name": "Municipal Corporation of Greater Mumbai: Hydraulic Engineer's Department",
+    "tier": "municipal",
+    "officialUrl": "https://portal.mcgm.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "mcgm-dward-ww-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(D%20Ward)/RTI%20Manuals/RTI%2017%20Manual%20AE%20WW%20D%20Ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of 'D' Ward: Assistant Engineer Water Work Department",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-dyhe-city-ch9",
+      "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Hydrallic%20Engineer/RTI%20Manuals/Deputy%20Hydraulic%20Engineer%20(City)/RTI_Hydraulic%20Engineer_02_E09.pdf",
+      "title": "Chapter 9 (Manual 8): Procedure followed in decision making process, Dy. H.E. (City)",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-a-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(A-Ward)/RTI%20Manuals/RTI%20Manual%2017%20AEWW%20A%20Ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of 'A' Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-k-west-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(KWest-Ward)/RTI%20Manuals/WaterWorksDept.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of K/West Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-p-south-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(P-South)%20Ward/RTI%20Manuals/Manual_17_AEWWPS%5B1%5D.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of P/South Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-r-central-manual",
+      "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(R-Central)/RTI%20Manuals/RTI%2017%20manual%20for%20AEWW%20RC%20ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of R/Central Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-h-east-manual",
+      "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(HEast)%20Ward/RTI%20Manuals/AEWWHE.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of H/East Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-l-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(L-Ward)/RTI%20Manuals/AEWW%20for%20L%20ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of L Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "apply",
+      "title": "Apply through a licensed plumber",
+      "description": "Standard application forms are available in the wards; the application is submitted online in your ward through a Licensed Plumber, with the requisite documents. The JE/SE (Distribution) scrutinises it and writes to the applicant.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Hydraulic Engineer's Department: Assistant Engineer (Water Works), ward office",
+      "mode": "online",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [
+        {
+          "documentTypeId": "he-department-noc",
+          "name": "NOC from the Hydraulic Engineer's Department",
+          "note": "Planned building (category C)."
+        },
+        {
+          "documentTypeId": "approved-building-plans",
+          "name": "Copy of plans approved by the Planning Authority",
+          "note": "Planned building (category C)."
+        },
+        {
+          "documentTypeId": "iod-amended-plans-cc",
+          "name": "Copy of I.O.D. / amended plans / C.C.",
+          "note": "Planned building (category C)."
+        },
+        {
+          "documentTypeId": "occupation-or-completion-certificate",
+          "name": "Copy of Occupation Certificate / Building Completion Certificate",
+          "note": "Planned building (category C)."
+        },
+        {
+          "documentTypeId": "other-applicable-noc",
+          "name": "Copy of any other applicable NOC",
+          "note": "Planned building (category C), wherever applicable."
+        },
+        {
+          "documentTypeId": "rent-receipt",
+          "name": "Copy of rent receipt (if the applicant is a tenant)",
+          "note": "Commercial use (category E)."
+        },
+        {
+          "documentTypeId": "assessment-bill",
+          "name": "Copy of Assessment Bill",
+          "note": "Commercial use (category E)."
+        },
+        {
+          "documentTypeId": "mcgm-trade-licence",
+          "name": "Copy of valid licence to run the trade, issued by the MCGM",
+          "note": "Commercial use (category E)."
+        },
+        {
+          "documentTypeId": "activity-and-staff-details",
+          "name": "Nature of activity and staff engaged in the establishment",
+          "note": "Commercial use (category E)."
+        },
+        {
+          "documentTypeId": "owner-or-society-noc",
+          "name": "NOC from the owner / society (if the applicant is not the owner)",
+          "note": "Commercial use (category E)."
+        }
+      ],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 15,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Scrutiny of Application: 15 days (then letter to party: 2 days)."
+        },
+        "conditional": [
+          {
+            "condition": "Letter to the applicant after scrutiny",
+            "duration": {
+              "kind": "range",
+              "minDays": 0,
+              "maxDays": 2,
+              "dayType": "calendar"
+            },
+            "sourceRef": "mcgm-dward-ww-manual"
+          }
+        ]
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "pay-scrutiny-fee",
+      "title": "Reply to the letter and pay the scrutiny fee",
+      "description": "Comply with the letter from the ward (the 'Dhakka' letter) and pay the scrutiny fee online; the applicant has 30 days.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Applicant (with the licensed plumber)",
+      "mode": "online",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown",
+          "note": "Applicant's action: compliance within 30 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "site-visit",
+      "title": "Site visit",
+      "description": "After compliance with the letter, the JE/SE (Distribution) visits the site and files a report.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Hydraulic Engineer's Department: Assistant Engineer (Water Works), ward office",
+      "mode": "in_person",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 7,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "After compliance of Dakka letter site visit report: 7 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "sanction",
+      "title": "Sanction by the competent authority",
+      "description": "The JE/SE puts up a proposal; the AEWW approves, rejects or forwards it; higher authorities (EEWW / Dy HE / HE / DMC) decide depending on the powers vested in them.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Hydraulic Engineer's Department",
+      "mode": "online",
+      "officeType": "municipal_hq",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 15,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "After site visit put up proposal to higher authority for sanction: 15 days."
+        },
+        "conditional": [
+          {
+            "condition": "Decision or forwarding by the AEWW",
+            "duration": {
+              "kind": "range",
+              "minDays": 0,
+              "maxDays": 5,
+              "dayType": "calendar"
+            },
+            "sourceRef": "mcgm-dward-ww-manual"
+          },
+          {
+            "condition": "Approval by a higher competent authority (EEWW / Dy HE / HE / DMC), per level",
+            "duration": {
+              "kind": "range",
+              "minDays": 0,
+              "maxDays": 7,
+              "dayType": "calendar"
+            },
+            "sourceRef": "mcgm-dward-ww-manual"
+          }
+        ]
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "permission-form",
+      "title": "Receive the Permission Form (P Form) and C Form",
+      "description": "After approval the ward prepares and signs the Permission Form (P Form), which lists the approvals and conditions, and issues it with the connection form (C form) to the plumber / applicant.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Hydraulic Engineer's Department: Assistant Engineer (Water Works), ward office",
+      "mode": "in_person",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "mcgm-permission-form",
+          "name": "Permission Form (P Form)"
+        },
+        {
+          "documentTypeId": "mcgm-connection-form",
+          "name": "Connection form (C form)"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 7,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Preparation of Permission Form (P Form): 7 days; signing: 7 days; issue with C form: 2 days."
+        },
+        "conditional": [
+          {
+            "condition": "Signing of the P Form by the AEWW",
+            "duration": {
+              "kind": "range",
+              "minDays": 0,
+              "maxDays": 7,
+              "dayType": "calendar"
+            },
+            "sourceRef": "mcgm-dward-ww-manual"
+          },
+          {
+            "condition": "Issue of the P Form with the C form",
+            "duration": {
+              "kind": "range",
+              "minDays": 0,
+              "maxDays": 2,
+              "dayType": "calendar"
+            },
+            "sourceRef": "mcgm-dward-ww-manual"
+          }
+        ]
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "comply-p-form",
+      "title": "Comply with the P Form and C Form conditions",
+      "description": "The plumber / applicant completes the conditions listed in the P Form and C Form; this must be done within one year.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Applicant (with the licensed plumber)",
+      "mode": "in_person",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [
+        {
+          "documentTypeId": "mcgm-permission-form",
+          "name": "Permission Form (P Form)"
+        },
+        {
+          "documentTypeId": "mcgm-connection-form",
+          "name": "Connection form (C form)"
+        }
+      ],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown",
+          "note": "Applicant's action: compliance within one year."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "road-opening-permit",
+      "title": "Road opening permit",
+      "description": "The road opening permit for laying the connection is issued by the AE (Maintenance).",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Assistant Engineer (Maintenance)",
+      "mode": "in_person",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 15,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Road Opening permit: 15 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "meter-card",
+      "title": "Meter card prepared",
+      "description": "The Meter Inspector / Meter Supervisor prepares the meter card.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "Meter Inspector / Meter Supervisor",
+      "mode": "online",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 10,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Preparation of Meter Card: 10 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "meter-connection",
+      "title": "Water meter physically connected",
+      "description": "The SE / JE (Maintenance) physically connects the water meter at the premises.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "SE / JE (Maintenance)",
+      "mode": "in_person",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 7,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Physical connection of water meter: 7 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "government",
+      "id": "ccn-number",
+      "title": "CCN number generated",
+      "description": "The CCN number is generated and the meter reading card updated.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mcgm",
+      "department": "SE (Maintenance) / SE (Distribution)",
+      "mode": "online",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "ccn-number",
+          "name": "CCN number"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "Amount not stated in the reviewed MCGM sources."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": {
+            "minDays": 0,
+            "maxDays": 10,
+            "dayType": "calendar"
+          },
+          "sourceRef": "mcgm-dward-ww-manual",
+          "wording": "Generation of CCN Number and Updating of Meter Reading Card: 10 days."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27",
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+      }
+    },
+    {
+      "kind": "milestone",
+      "id": "released",
+      "title": "Water connection released",
+      "description": "After compliance with the P Form conditions, the water connection is released to the applicant.",
+      "requirement": {
+        "kind": "mandatory"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-apply-pay-scrutiny-fee",
+      "from": "apply",
+      "to": "pay-scrutiny-fee",
+      "kind": "requires"
+    },
+    {
+      "id": "e-pay-scrutiny-fee-site-visit",
+      "from": "pay-scrutiny-fee",
+      "to": "site-visit",
+      "kind": "requires"
+    },
+    {
+      "id": "e-site-visit-sanction",
+      "from": "site-visit",
+      "to": "sanction",
+      "kind": "requires"
+    },
+    {
+      "id": "e-sanction-permission-form",
+      "from": "sanction",
+      "to": "permission-form",
+      "kind": "requires"
+    },
+    {
+      "id": "e-permission-form-comply-p-form",
+      "from": "permission-form",
+      "to": "comply-p-form",
+      "kind": "requires"
+    },
+    {
+      "id": "e-comply-p-form-road-opening-permit",
+      "from": "comply-p-form",
+      "to": "road-opening-permit",
+      "kind": "requires"
+    },
+    {
+      "id": "e-road-opening-permit-meter-card",
+      "from": "road-opening-permit",
+      "to": "meter-card",
+      "kind": "requires"
+    },
+    {
+      "id": "e-meter-card-meter-connection",
+      "from": "meter-card",
+      "to": "meter-connection",
+      "kind": "requires"
+    },
+    {
+      "id": "e-meter-connection-ccn-number",
+      "from": "meter-connection",
+      "to": "ccn-number",
+      "kind": "requires"
+    },
+    {
+      "id": "e-ccn-number-released",
+      "from": "ccn-number",
+      "to": "released",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": [
+    "apply"
+  ],
+  "exitSteps": [
+    "released"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T21:00:00+05:30"
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "mca-spice-plus",
+  "version": 1,
+  "title": "Company incorporation (SPICe+)",
+  "summary": "Reserve the name and incorporate the company through SPICe+. The same filing allots PAN, TAN, DINs, EPFO and ESIC numbers and Maharashtra Professional Tax (MCA FAQ 38–39).",
+  "authority": {
+    "slug": "mca",
+    "name": "Ministry of Corporate Affairs",
+    "tier": "central",
+    "officialUrl": "https://www.mca.gov.in/"
+  },
+  "eligibility": [
+    {
+      "text": "Every company incorporated with effect from 23rd February, 2020 is required to make an application for reservation of name and incorporation through the web service SPICe+.",
+      "sourceRef": "mca-faqs"
+    }
+  ],
+  "sources": [
+    {
+      "id": "mca-part-a",
+      "url": "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe+Part%20A.pdf",
+      "title": "Instruction Kit for webform SPICe+ Part A (Name Reservation)",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    },
+    {
+      "id": "mca-part-b",
+      "url": "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe%20+%20Part%20B.pdf",
+      "title": "Instruction Kit for Form No. SPICe + Part B",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    },
+    {
+      "id": "mca-faqs",
+      "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+      "title": "FAQs on Incorporation and Allied Matters",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    },
+    {
+      "id": "pib-spice",
+      "url": "https://www.pib.gov.in/PressReleaseIframePage.aspx?PRID=1656755",
+      "title": "SPICe+ Portal deployed by MCA",
+      "kind": "other",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "file",
+      "title": "File SPICe+ (name reservation and incorporation)",
+      "description": "Fill SPICe+ Part A (name) and Part B (incorporation), file the linked forms (e-MOA, e-AOA, AGILE-PRO-S), affix the DSCs, upload and pay. AGILE-PRO-S also covers EPFO, ESIC and Maharashtra Professional Tax, and optionally GSTIN.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "mca",
+      "department": "Ministry of Corporate Affairs / Central Registration Centre",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": {
+        "name": "MCA SPICe+",
+        "url": "https://www.mca.gov.in/content/mca/global/en/mca/e-filing/incorporation-change-services/spice.html"
+      },
+      "forms": [
+        {
+          "name": "SPICe+ Part A (Name Reservation)"
+        },
+        {
+          "name": "SPICe+ Part B (Integrated Incorporation Form)",
+          "code": "INC-32"
+        },
+        {
+          "name": "e-MOA",
+          "code": "INC-33"
+        },
+        {
+          "name": "e-AOA",
+          "code": "INC-34"
+        },
+        {
+          "name": "AGILE-PRO-S"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "pan-card-individual",
+          "name": "Director PAN (or Voter ID, Passport or Driving Licence number if no PAN)",
+          "perPerson": {
+            "fact": "company.founders_count",
+            "label": "Director"
+          },
+          "note": "Entered in Part B and verified against the PAN database; can be fetched from DigiLocker."
+        },
+        {
+          "documentTypeId": "digital-signature-certificate",
+          "name": "Digital signature certificate (DSC)",
+          "perPerson": {
+            "fact": "company.founders_count",
+            "label": "Director"
+          },
+          "note": "Must be registered on the MCA portal and valid (not expired or revoked)."
+        },
+        {
+          "documentTypeId": "registered-office-proof",
+          "name": "Registered office address proof (utility bill)",
+          "acceptedFormats": [
+            "pdf",
+            "jpg"
+          ],
+          "maxSizeKB": 2048,
+          "note": "Must match the address in the form; English translation if the bill is in a vernacular language."
+        },
+        {
+          "documentTypeId": "owner-noc",
+          "name": "NOC from the owner of the premises",
+          "acceptedFormats": [
+            "pdf",
+            "jpg"
+          ],
+          "maxSizeKB": 2048,
+          "note": "Must name the proposed company and be given by the owner."
+        },
+        {
+          "documentTypeId": "lease-or-rent-agreement",
+          "name": "Lease deed or rent agreement (rented premises)",
+          "acceptedFormats": [
+            "pdf",
+            "jpg"
+          ],
+          "maxSizeKB": 2048
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "certificate-of-incorporation",
+          "name": "Certificate of Incorporation (with CIN)"
+        },
+        {
+          "documentTypeId": "company-pan",
+          "name": "Company PAN"
+        },
+        {
+          "documentTypeId": "company-tan",
+          "name": "Company TAN"
+        },
+        {
+          "documentTypeId": "din-letter",
+          "name": "DIN letter (directors without a DIN)"
+        },
+        {
+          "documentTypeId": "epfo-registration-number",
+          "name": "EPFO registration number"
+        },
+        {
+          "documentTypeId": "esic-registration-number",
+          "name": "ESIC registration number"
+        },
+        {
+          "documentTypeId": "pt-registration-maharashtra",
+          "name": "Professional Tax PTEC / PTRC (Maharashtra)"
+        }
+      ],
+      "fee": {
+        "kind": "variable",
+        "note": "Depends on authorised share capital; stamp duty differs by state. Zero filing fee up to ₹15,00,000 authorised capital. PAN ₹66, TAN ₹65. ₹1,000 if the name is reserved separately (Part A).",
+        "recurrence": "one_time",
+        "sourceRef": "mca-faqs"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown",
+          "note": "No processing time is stated in the reviewed MCA sources (Part A and Part B are processed in Non-STP mode)."
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mca-part-a",
+        "mca-part-b",
+        "mca-faqs",
+        "pib-spice"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, MCA FAQs Q29: \"The Fees depend upon the Authorised Share Capital of Company. Stamp duty rates may differ for different states.\" Part B kit §2.1.1: \"PAN/TAN and CIN shall be allocated\"."
+      }
+    },
+    {
+      "kind": "milestone",
+      "id": "incorporated",
+      "title": "Company incorporated",
+      "description": "Certificate of Incorporation issued with CIN; PAN and TAN allotted; DINs issued to directors who did not have one.",
+      "requirement": {
+        "kind": "mandatory"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-file-incorporated",
+      "from": "file",
+      "to": "incorporated",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": [
+    "file"
+  ],
+  "exitSteps": [
+    "incorporated"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-28T12:00:00+05:30"
+  }
+}
