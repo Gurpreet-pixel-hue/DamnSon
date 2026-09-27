@@ -1,0 +1,99 @@
+{
+  "source": "https://mahadma.maharashtra.gov.in/en/list-of-corporation-2/",
+  "places": [
+    {
+      "state": "Maharashtra",
+      "aliases": [
+        "Maharashtra",
+        "महाराष्ट्र"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Mumbai",
+      "localBody": "Municipal Corporation of Greater Mumbai",
+      "aliases": [
+        "Mumbai",
+        "Bombay",
+        "Greater Mumbai",
+        "Brihanmumbai",
+        "Municipal Corporation of Greater Mumbai",
+        "Brihanmumbai Municipal Corporation",
+        "Brihanmumbai Mahanagarpalika",
+        "MCGM",
+        "BMC",
+        "मुंबई",
+        "मुम्बई",
+        "बृहन्मुंबई",
+        "बृहन्मुंबई महानगरपालिका"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Pune",
+      "localBody": "Pune Municipal Corporation",
+      "aliases": [
+        "Pune",
+        "Poona",
+        "Pune Municipal Corporation",
+        "PMC",
+        "पुणे",
+        "पुणे महानगरपालिका",
+        "पुण्यात",
+        "पुण्यातील"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Thane",
+      "localBody": "Thane Municipal Corporation",
+      "aliases": [
+        "Thane",
+        "Thana",
+        "Thane Municipal Corporation",
+        "TMC",
+        "ठाणे",
+        "ठाणे महानगरपालिका",
+        "ठाण्यात",
+        "ठाण्यातील"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Nagpur",
+      "localBody": "Nagpur Municipal Corporation",
+      "aliases": [
+        "Nagpur",
+        "Nagpur Municipal Corporation",
+        "नागपूर",
+        "नागपुर",
+        "नागपूर महानगरपालिका"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Nashik",
+      "localBody": "Nashik Municipal Corporation",
+      "aliases": [
+        "Nashik",
+        "Nasik",
+        "Nashik Municipal Corporation",
+        "नाशिक",
+        "नासिक",
+        "नाशिक महानगरपालिका"
+      ]
+    },
+    {
+      "state": "Maharashtra",
+      "city": "Navi Mumbai",
+      "localBody": "Navi Mumbai Municipal Corporation",
+      "aliases": [
+        "Navi Mumbai",
+        "Navi Mumbai Municipal Corporation",
+        "NMMC",
+        "नवी मुंबई",
+        "नवी मुंबई महानगरपालिका"
+      ]
+    }
+  ]
+}
