@@ -94,27 +94,6 @@ function createPRNG(seed: number) {
   };
 }
 
-/**
- * Point on cubic Bezier curve
- */
-function cubicBezierPoint(
-  p0: [number, number],
-  p1: [number, number],
-  p2: [number, number],
-  p3: [number, number],
-  t: number
-): [number, number] {
-  const mt = 1 - t;
-  const mt2 = mt * mt;
-  const mt3 = mt2 * mt;
-  const t2 = t * t;
-  const t3 = t2 * t;
-
-  return [
-    mt3 * p0[0] + 3 * mt2 * t * p1[0] + 3 * mt * t2 * p2[0] + t3 * p3[0],
-    mt3 * p0[1] + 3 * mt2 * t * p1[1] + 3 * mt * t2 * p2[1] + t3 * p3[1],
-  ];
-}
 
 export function computeBoardBounds(stations: StationLocation[]): BoardBounds {
   if (stations.length === 0) {
@@ -187,27 +166,23 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
     const p0: [number, number] = [pStart[0] + 0.7, pStart[2]];
     const p3: [number, number] = [pEnd[0] - 0.7, pEnd[2]];
-    const dx = p3[0] - p0[0];
-    const p1: [number, number] = [p0[0] + dx * 0.4, p0[1]];
-    const p2: [number, number] = [p0[0] + dx * 0.6, p3[1]];
+    const c0 = Math.floor((p0[0] - bounds.minX) / cellSize);
+    const r0 = Math.floor((p0[1] - bounds.minZ) / cellSize);
+    const c1 = Math.floor((p3[0] - bounds.minX) / cellSize);
+    const r1 = Math.floor((p3[1] - bounds.minZ) / cellSize);
 
-    const SAMPLES = 60;
-    let prev = p0;
-    for (let i = 0; i <= SAMPLES; i++) {
-      const curr = cubicBezierPoint(p0, p1, p2, p3, i / SAMPLES);
-      const dist = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
-      const subSteps = Math.max(1, Math.ceil(dist / (cellSize * 0.25)));
-      for (let s = 0; s <= subSteps; s++) {
-        const tSub = s / subSteps;
-        const sx = prev[0] + (curr[0] - prev[0]) * tSub;
-        const sz = prev[1] + (curr[1] - prev[1]) * tSub;
-        const c = Math.floor((sx - bounds.minX) / cellSize);
-        const r = Math.floor((sz - bounds.minZ) / cellSize);
-        if (r >= 0 && r < rows && c >= 0 && c < cols) {
-          isCorridor[r]![c] = true;
-        }
+    // Manhattan orthogonal path: horizontal then vertical, ensuring 4-connected cells
+    const stepC = c1 >= c0 ? 1 : -1;
+    for (let c = c0; c !== c1 + stepC; c += stepC) {
+      if (r0 >= 0 && r0 < rows && c >= 0 && c < cols) {
+        isCorridor[r0]![c] = true;
       }
-      prev = curr;
+    }
+    const stepR = r1 >= r0 ? 1 : -1;
+    for (let r = r0; r !== r1 + stepR; r += stepR) {
+      if (r >= 0 && r < rows && c1 >= 0 && c1 < cols) {
+        isCorridor[r]![c1] = true;
+      }
     }
   }
 

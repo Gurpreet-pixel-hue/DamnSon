@@ -106,7 +106,32 @@ async function buildAtlas() {
 
   // Slots 0..4 with 8px edge-padded gutter
   for (const p of packs) {
-    const padded = await sharp(p.file)
+    let img;
+    if (p.name === "roads") {
+      // §11.5: Road colours from palette: PALETTE.road (#D6CCBA) and PALETTE.roadEdge (#C4B8A2), no lavender
+      const { data, info } = await sharp(p.file).raw().toBuffer({ resolveWithObject: true });
+      for (let i = 0; i < data.length; i += info.channels) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (b > r + 5 && b > g + 2 && r > 40 && r < 240) {
+          const lum = (r + g + b) / 3;
+          if (lum > 170) {
+            // Kerb / pavement: PALETTE.roadEdge #C4B8A2
+            data[i] = 196;
+            data[i + 1] = 184;
+            data[i + 2] = 162;
+          } else {
+            // Road surface: PALETTE.road #D6CCBA
+            data[i] = 214;
+            data[i + 1] = 204;
+            data[i + 2] = 186;
+          }
+        }
+      }
+      img = sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).png();
+    } else {
+      img = sharp(p.file);
+    }
+    const padded = await img
       .resize(496, 496)
       .extend({ top: 8, bottom: 8, left: 8, right: 8, extendWith: "copy" })
       .toBuffer();
@@ -1155,7 +1180,6 @@ async function main() {
     { name: "road-crossroad", file: "road-crossroad.glb" },
     { name: "road-end", file: "road-end.glb" },
     { name: "road-side", file: "road-side.glb" },
-    { name: "tile-low", file: "tile-low.glb" },
   ];
 
   for (const r of roadList) {

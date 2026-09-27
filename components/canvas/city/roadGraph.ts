@@ -6,13 +6,14 @@
  * verifies station plaza adjacency, and provides closed keep-left driving loops for cars.
  */
 
+import { ROAD_INSTANCE_Y } from "../heights";
+
 export type RoadTileKind =
   | "road-straight"
   | "road-bend"
   | "road-intersection"
   | "road-crossroad"
-  | "road-end"
-  | "tile-low";
+  | "road-end";
 
 export interface RoadCell {
   r: number;
@@ -90,7 +91,7 @@ export function selectRoadTile(n: {
   south: boolean;
   east: boolean;
   west: boolean;
-}): { tile: RoadTileKind; rotationY: number } {
+}): { tile: RoadTileKind; rotationY: number } | null {
   const count = (n.north ? 1 : 0) + (n.south ? 1 : 0) + (n.east ? 1 : 0) + (n.west ? 1 : 0);
 
   if (count === 4) {
@@ -120,8 +121,8 @@ export function selectRoadTile(n: {
     if (n.south) return { tile: "road-end", rotationY: (3 * Math.PI) / 2 };
   }
 
-  // Isolated or fallback tile
-  return { tile: "tile-low", rotationY: 0 };
+  // Count === 0: isolated cell with no road neighbours -> not placed, no tile-low fallback per §11.5
+  return null;
 }
 
 /**
@@ -156,10 +157,17 @@ export function buildRoadGraph(options: BuildRoadGraphOptions): RoadGraph {
       if (hasRoadNeighbour) break;
     }
 
-    // If no road touches the plaza perimeter, connect the nearest candidate
+    // If no road touches the plaza perimeter, connect candidate straight to nearest street grid line
     if (!hasRoadNeighbour && candidates.length > 0) {
       const chosen = candidates[0]!;
       cells[chosen.r]![chosen.c] = "road";
+      // Connect along row to nearest col % 4 === 0 grid line
+      const targetC = Math.round(chosen.c / 4) * 4;
+      const stepC = targetC > chosen.c ? 1 : -1;
+      for (let c = chosen.c; c !== targetC; c += stepC) {
+        if (c >= 0 && c < cols) cells[chosen.r]![c] = "road";
+      }
+      if (targetC >= 0 && targetC < cols) cells[chosen.r]![targetC] = "road";
     }
   }
 
@@ -177,15 +185,21 @@ export function buildRoadGraph(options: BuildRoadGraphOptions): RoadGraph {
       const west = c > 0 && cells[r]?.[c - 1] === "road";
 
       const neighbours = { north, south, east, west };
-      const { tile, rotationY } = selectRoadTile(neighbours);
+      const tileInfo = selectRoadTile(neighbours);
+      if (!tileInfo) {
+        // Isolated cell with no road neighbours: do not place per §11.5
+        cells[r]![c] = "empty";
+        continue;
+      }
 
+      const { tile, rotationY } = tileInfo;
       const cx = bounds.minX + (c + 0.5) * cellSize;
       const cz = bounds.minZ + (r + 0.5) * cellSize;
 
       const cell: RoadCell = {
         r,
         c,
-        position: [cx, 0.17, cz],
+        position: [cx, ROAD_INSTANCE_Y, cz],
         tile,
         rotationY,
         neighbours,

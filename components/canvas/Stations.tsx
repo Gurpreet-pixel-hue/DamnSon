@@ -12,6 +12,7 @@ import {
   getStationGeometries,
 } from "./stationGeometries";
 import { PALETTE } from "./palette";
+import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 
@@ -161,6 +162,9 @@ export function Stations({ stations }: StationsProps) {
         color: PALETTE.plaza,
         roughness: 0.9,
         metalness: 0.05,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.plazaPad.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.plazaPad.units,
       }),
     []
   );
@@ -184,6 +188,9 @@ export function Stations({ stations }: StationsProps) {
       new THREE.MeshBasicMaterial({
         toneMapped: false,
         side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
       }),
     []
   );
@@ -340,7 +347,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.19, z); // Pad center at 0.19 on y=0.17 land -> top is 0.21
+        _tempObj.position.set(x, PLAZA_PAD_CENTER_Y, z); // Pad center at 0.190 -> top is 0.210 (§11.5)
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -350,7 +357,7 @@ export function Stations({ stations }: StationsProps) {
       padMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 2. Update status rings (toneMapped=false at 1.4x, sitting on plaza pad)
+    // 2. Update status rings (toneMapped=false at 1.4x, sitting on plaza pad at y = 0.225 per §11.5)
     const ringMesh = ringMeshRef.current;
     if (ringMesh && stations.length > 0) {
       for (let i = 0; i < stations.length; i++) {
@@ -358,7 +365,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.211, z);
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -377,7 +384,7 @@ export function Stations({ stations }: StationsProps) {
       }
     }
 
-    // 3. Update next-up beacons (sitting on plaza pad)
+    // 3. Update next-up beacons (sitting on plaza pad at y = 0.225 per §11.5)
     const beaconMesh = beaconMeshRef.current;
     if (beaconMesh && nextUpStations.length > 0) {
       for (let i = 0; i < nextUpStations.length; i++) {
@@ -385,7 +392,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.211, z);
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();

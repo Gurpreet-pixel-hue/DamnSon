@@ -695,14 +695,6 @@ export const ROAD_KINDS: readonly ModelKindInfo[] = [
     "depth": 1.31,
     "triangles": 44,
     "minY": 0
-  },
-  {
-    "name": "tile-low",
-    "width": 1,
-    "height": 0.02,
-    "depth": 1,
-    "triangles": 12,
-    "minY": 0
   }
 ] as const;
 export const CAR_KINDS: readonly ModelKindInfo[] = [
@@ -877,7 +869,6 @@ export const TRIANGLES_BY_KIND: Record<string, number> = {
   "road-crossroad": 116,
   "road-end": 42,
   "road-side": 44,
-  "tile-low": 12,
   "sedan": 1664,
   "taxi": 1712,
   "van": 1718,

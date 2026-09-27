@@ -4,6 +4,7 @@ import { useMemo, useRef, useLayoutEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { PALETTE } from "./palette";
+import { HEIGHTS } from "./heights";
 import type { CityPlan } from "./city/planCity";
 
 interface BoardProps {
@@ -80,7 +81,7 @@ export function Board({ plan }: BoardProps) {
       bevelEnabled: false,
     });
     geom.rotateX(Math.PI / 2);
-    geom.translate(0, 0.17, 0); // Land top at y = 0.17
+    geom.translate(0, HEIGHTS.landTop, 0); // Land top at y = 0.170 (§11.5)
     return geom;
   }, [bounds, promenadeZ]);
 

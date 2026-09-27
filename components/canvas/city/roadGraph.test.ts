@@ -45,6 +45,9 @@ describe("Road Graph Generator (visual-direction §10.2)", () => {
       tile: "road-end",
       rotationY: 0,
     });
+
+    // 0 neighbours -> null (no tile-low fallback per §11.5)
+    expect(selectRoadTile({ north: false, south: false, east: false, west: false })).toBeNull();
   });
 
   it("builds a connected road graph from a planCity grid", () => {
@@ -131,6 +134,65 @@ describe("Road Graph Generator (visual-direction §10.2)", () => {
         const p2 = loop.waypoints[(i + 1) % loop.waypoints.length]!;
         const dist = Math.hypot(p2.x - p1.x, p2.z - p1.z);
         expect(dist, "Adjacent waypoints must not be identical").toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("ensures no tile-low, every road cell has >= 1 neighbour, and street lines are continuous (§11.5)", () => {
+    const demoStations = [
+      { id: "s1", position3D: [-12, 0, -4] as [number, number, number] },
+      { id: "s2", position3D: [-4, 0, 2] as [number, number, number] },
+      { id: "s3", position3D: [6, 0, -2] as [number, number, number] },
+      { id: "s4", position3D: [14, 0, 6] as [number, number, number] },
+    ];
+    const demoTracks = [
+      { id: "t1", from: "s1", to: "s2" },
+      { id: "t2", from: "s2", to: "s3" },
+      { id: "t3", from: "s3", to: "s4" },
+    ];
+
+    const plan = planCity({
+      taskId: "continuous-grid-check",
+      stations: demoStations,
+      tracks: demoTracks,
+    });
+
+    const graph = buildRoadGraph({
+      bounds: plan.bounds,
+      cellSize: plan.cellGrid.cellSize,
+      rows: plan.cellGrid.rows,
+      cols: plan.cellGrid.cols,
+      cells: plan.cellGrid.cells,
+      stations: demoStations,
+    });
+
+    // 1. No tile-low in the entire graph
+    const hasTileLow = graph.roadCells.some((c) => (c.tile as string) === "tile-low");
+    expect(hasTileLow, "Road graph must not contain any tile-low fallbacks (§11.5)").toBe(false);
+
+    // 2. Every placed road cell has at least 1 neighbour (no isolated cells)
+    for (const c of graph.roadCells) {
+      const n = c.neighbours;
+      const count = (n.north ? 1 : 0) + (n.south ? 1 : 0) + (n.east ? 1 : 0) + (n.west ? 1 : 0);
+      expect(
+        count,
+        `Road cell at [r=${c.r}, c=${c.c}] must have at least 1 road neighbour (found ${count})`
+      ).toBeGreaterThanOrEqual(1);
+    }
+
+    // 3. Streets are continuous lines on every 4th row (within land up to promenadeZ)
+    const maxLandRow = Math.floor((plan.promenadeZ - plan.bounds.minZ) / plan.cellGrid.cellSize);
+    for (let r = 0; r <= maxLandRow; r += 4) {
+      const rowCells = graph.roadCells.filter((c) => c.r === r);
+      expect(rowCells.length, `Street row ${r} must contain road cells`).toBeGreaterThan(0);
+      rowCells.sort((a, b) => a.c - b.c);
+      for (let i = 1; i < rowCells.length; i++) {
+        const prev = rowCells[i - 1]!;
+        const curr = rowCells[i]!;
+        if (curr.c === prev.c + 1) {
+          expect(curr.neighbours.west, `Cell [${r}, ${curr.c}] must connect west to [${r}, ${prev.c}]`).toBe(true);
+          expect(prev.neighbours.east, `Cell [${r}, ${prev.c}] must connect east to [${r}, ${curr.c}]`).toBe(true);
+        }
       }
     }
   });

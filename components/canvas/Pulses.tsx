@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeTrackCurves, type TrackCurveData } from "./Tracks";
+import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
 
 interface PulsesProps {
   metro: MetroVM;
@@ -59,6 +60,9 @@ export function Pulses({ metro }: PulsesProps) {
       new THREE.MeshBasicMaterial({
         color: "#FFFFFF",
         toneMapped: false,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.pulses.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.pulses.units,
       }),
     []
   );
@@ -84,7 +88,7 @@ export function Pulses({ metro }: PulsesProps) {
       const p1 = lut.points[i1];
       if (p0 && p1) {
         const x = p0[0] + frac * (p1[0] - p0[0]);
-        const y = p0[1] + frac * (p1[1] - p0[1]) + 0.02;
+        const y = HEIGHTS.pulses; // 0.240 (§11.5)
         const z = p0[2] + frac * (p1[2] - p0[2]);
 
         _tempObj.position.set(x, y, z);

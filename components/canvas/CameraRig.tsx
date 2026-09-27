@@ -30,6 +30,13 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     const controls = controlsRef.current;
     if (!controls) return;
 
+    const camera = controls.camera;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.near = 1;
+      camera.far = 400;
+      camera.updateProjectionMatrix();
+    }
+
     const updateFog = () => {
       const parentScene = (controls.camera as THREE.Camera & { parent?: { fog?: THREE.Fog } }).parent;
       const fog = parentScene?.fog;

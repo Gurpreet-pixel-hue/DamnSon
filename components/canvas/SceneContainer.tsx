@@ -78,7 +78,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       <Canvas
         dpr={dpr}
         shadows={{ type: THREE.PCFShadowMap }}
-        camera={{ position: [20, 22, 25], fov: 28 }}
+        camera={{ position: [20, 22, 25], fov: 28, near: 1, far: 400 }}
         style={{ background: PALETTE.background }}
         gl={{
           antialias: true,

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import type { MetroVM, StationVM, TrackVM } from "@/lib/graph/viewModel";
 import { PALETTE } from "./palette";
+import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
 import { useViewStore } from "@/lib/store/useViewStore";
 
 export interface TrackCurveData {
@@ -42,21 +43,21 @@ export function computeTrackCurves(metro: MetroVM): {
     const toStation = stationMap.get(track.to);
     if (!fromStation || !toStation) continue;
 
-    // Route painted as surface lanes on the road at y = 0.19 (§10.2)
+    // Route painted as surface lanes on the road at y = 0.195 (§11.5)
     const p0 = new THREE.Vector3(
       fromStation.position3D[0] + 0.7,
-      0.19,
+      HEIGHTS.routeLane,
       fromStation.position3D[2]
     );
     const p3 = new THREE.Vector3(
       toStation.position3D[0] - 0.7,
-      0.19,
+      HEIGHTS.routeLane,
       toStation.position3D[2]
     );
 
     const deltaX = p3.x - p0.x;
-    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, 0.19, p0.z);
-    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, 0.19, p3.z);
+    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, HEIGHTS.routeLane, p0.z);
+    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, HEIGHTS.routeLane, p3.z);
 
     const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
     const points = curve.getPoints(23); // 24 points
@@ -122,6 +123,9 @@ export function Tracks({ metro }: TracksProps) {
           points={normalSegments}
           color={PALETTE.trackNormal}
           lineWidth={4}
+          polygonOffset
+          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
+          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
         />
       )}
 
@@ -132,6 +136,9 @@ export function Tracks({ metro }: TracksProps) {
           points={doneSegments}
           color={PALETTE.done}
           lineWidth={4}
+          polygonOffset
+          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
+          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
         />
       )}
 
@@ -142,6 +149,9 @@ export function Tracks({ metro }: TracksProps) {
           points={nextUpSegments}
           color={PALETTE.available}
           lineWidth={5}
+          polygonOffset
+          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
+          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
         />
       )}
 
@@ -152,6 +162,9 @@ export function Tracks({ metro }: TracksProps) {
           points={criticalSegments}
           color={criticalPathOn ? PALETTE.critical : PALETTE.normalTrack}
           lineWidth={criticalPathOn ? 6 : 4}
+          polygonOffset
+          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
+          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
         />
       )}
 
@@ -166,6 +179,9 @@ export function Tracks({ metro }: TracksProps) {
           dashScale={2}
           dashSize={0.4}
           gapSize={0.2}
+          polygonOffset
+          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
+          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
         />
       )}
     </group>

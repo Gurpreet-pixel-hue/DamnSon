@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import type { CityPlan } from "./planCity";
 
+import { POLYGON_OFFSETS } from "../heights";
+
 interface RoadsProps {
   plan: CityPlan;
 }
@@ -29,13 +31,16 @@ export function Roads({ plan }: RoadsProps) {
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         if (!atlasMaterial && child.material) {
-          const mat = child.material as THREE.MeshStandardMaterial;
+          const mat = (child.material as THREE.MeshStandardMaterial).clone();
           if (mat.map) {
             mat.map.generateMipmaps = false;
             mat.map.minFilter = THREE.LinearFilter;
             mat.map.magFilter = THREE.LinearFilter;
             mat.map.needsUpdate = true;
           }
+          mat.polygonOffset = true;
+          mat.polygonOffsetFactor = POLYGON_OFFSETS.road.factor;
+          mat.polygonOffsetUnits = POLYGON_OFFSETS.road.units;
           atlasMaterial = mat;
         }
         if (!geomMap.has(child.name)) {
