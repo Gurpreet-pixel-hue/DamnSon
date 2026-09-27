@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 3,
+  "taskId": "stress-25-synthetic",
+  "revision": 1,
+  "title": "[Synthetic] Stress 25-Node Benchmark",
+  "summary": "Synthetic stress benchmark graph featuring 25 steps, all 12 office types, a milestone, and 7 layers.",
+  "jurisdiction": {
+    "country": "IN",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "localBody": "Example Municipal Corporation"
+  },
+  "category": "business_and_trade",
+  "keywords": ["synthetic", "stress", "benchmark"],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "questions": [],
+  "modules": [
+    {
+      "moduleId": "stress-alpha",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Phase alpha of 25-step stress graph."
+    },
+    {
+      "moduleId": "stress-beta",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Phase beta of 25-step stress graph."
+    }
+  ],
+  "links": [
+    {
+      "id": "l-alpha-beta",
+      "fromModule": "stress-alpha",
+      "toModule": "stress-beta",
+      "kind": "requires"
+    }
+  ],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}

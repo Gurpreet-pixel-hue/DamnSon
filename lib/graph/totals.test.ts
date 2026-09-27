@@ -1,143 +1,148 @@
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { summarizeFees, summarizeTime, toCalendarDays } from "./totals";
-import { resolvePath } from "./resolvePath";
-import { civicTaskGraphSchema, type CivicTaskGraph } from "./schema";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import {
+  journeyTemplateSchema,
+  approvalModuleSchema,
+} from "@/lib/contract/schema";
+import { composeJourney } from "@/lib/contract/compose";
+import {
+  toCalendarDays,
+  summarizeFees,
+  summarizeTime,
+} from "./totals";
 
-function loadExample(): CivicTaskGraph {
-  const filePath = path.resolve(
-    process.cwd(),
-    "data/fixtures/valid/example-graph.json"
+function loadExampleStartupJourney() {
+  const template = journeyTemplateSchema.parse(
+    readTemplateFixture("example-startup")
   );
-  return civicTaskGraphSchema.parse(
-    JSON.parse(fs.readFileSync(filePath, "utf8"))
+  const moduleNames = [
+    "ex-directors",
+    "ex-incorporation",
+    "ex-banking",
+    "ex-tax",
+    "ex-food",
+    "ex-recognition",
+    "ex-local",
+  ];
+  const modules = moduleNames.map((name) =>
+    approvalModuleSchema.parse(readModuleFixture(name))
   );
+  const facts = {
+    "business.sector": "it_saas",
+    "company.founders_count": 2,
+    "employees.count": 5,
+  };
+  const journey = composeJourney(template, modules, facts);
+  return { journey };
 }
 
-describe("totals", () => {
-  describe("toCalendarDays", () => {
-    it("converts working days to calendar days by rounding up (days * 7 / 5)", () => {
-      expect(toCalendarDays(0, "working")).toBe(0);
-      expect(toCalendarDays(1, "working")).toBe(2);
-      expect(toCalendarDays(2, "working")).toBe(3);
-      expect(toCalendarDays(3, "working")).toBe(5);
-      expect(toCalendarDays(7, "working")).toBe(10);
-    });
-
-    it("returns calendar days unchanged", () => {
-      expect(toCalendarDays(5, "calendar")).toBe(5);
-      expect(toCalendarDays(10, "calendar")).toBe(10);
-    });
+describe("totals derivations on ComposedJourney", () => {
+  it("converts working days to calendar days correctly", () => {
+    expect(toCalendarDays(1, "working")).toBe(2);
+    expect(toCalendarDays(2, "working")).toBe(3);
+    expect(toCalendarDays(5, "working")).toBe(7);
+    expect(toCalendarDays(10, "calendar")).toBe(10);
   });
 
   describe("summarizeFees", () => {
-    it("matches exact expectations for {} with none completed", () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, {});
-      const fees = summarizeFees(resolved, new Set());
+    it("computes fee summary when no steps are completed", () => {
+      const { journey } = loadExampleStartupJourney();
+      const summary = summarizeFees(journey, new Set());
 
-      expect(fees).toEqual({
-        minINR: 600,
-        maxINR: 1600,
-        unconfirmedCount: 1,
-        undecidedCount: 1,
-      });
-    });
-
-    it('matches exact expectations for {"large-premises": false} with none completed', () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, { "large-premises": false });
-      const fees = summarizeFees(resolved, new Set());
-
-      expect(fees).toEqual({
-        minINR: 600,
-        maxINR: 1600,
-        unconfirmedCount: 0,
-        undecidedCount: 0,
-      });
-    });
-
-    it('matches exact expectations for {"large-premises": true} with none completed', () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, { "large-premises": true });
-      const fees = summarizeFees(resolved, new Set());
-
-      expect(fees).toEqual({
-        minINR: 600,
-        maxINR: 1600,
-        unconfirmedCount: 1,
-        undecidedCount: 0,
-      });
-    });
-
-    it('matches exact expectations for {"large-premises": false} with {apply-online} completed', () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, { "large-premises": false });
-      const fees = summarizeFees(resolved, new Set(["apply-online"]));
-
-      expect(fees).toEqual({
+      expect(summary).toEqual({
         minINR: 500,
         maxINR: 1500,
-        unconfirmedCount: 0,
-        undecidedCount: 0,
+        unconfirmedCount: 2,
+        mayApplyCount: 1,
+      });
+    });
+
+    it("computes fee summary when incorporation file is completed", () => {
+      const { journey } = loadExampleStartupJourney();
+      const completed = new Set([
+        "ex-directors.kyc.1",
+        "ex-directors.kyc.2",
+        "ex-incorporation.file",
+      ]);
+      const summary = summarizeFees(journey, completed);
+
+      expect(summary).toEqual({
+        minINR: 0,
+        maxINR: 0,
+        unconfirmedCount: 2,
+        mayApplyCount: 1,
       });
     });
   });
 
   describe("summarizeTime", () => {
-    it("matches exact expectations for {} with none completed", () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, {});
-      const time = summarizeTime(resolved, new Set());
+    const expectedCriticalStepIds = [
+      "ex-directors.kyc.1",
+      "ex-incorporation.file",
+      "ex-incorporation.incorporated",
+      "ex-food.apply",
+    ];
 
-      expect(time).toEqual({
-        minDays: 7,
-        maxDays: 15,
-        unknownCount: 1,
-        criticalStepIds: [
-          "apply-online",
-          "site-inspection",
-          "licence-issued",
-        ],
-      });
-    });
+    it("computes time summary when no steps are completed", () => {
+      const { journey } = loadExampleStartupJourney();
+      const summary = summarizeTime(journey, new Set());
 
-    it('matches exact expectations for {"large-premises": false} with none completed', () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, { "large-premises": false });
-      const time = summarizeTime(resolved, new Set());
-
-      expect(time).toEqual({
-        minDays: 7,
-        maxDays: 15,
-        unknownCount: 0,
-        criticalStepIds: [
-          "apply-online",
-          "site-inspection",
-          "licence-issued",
-        ],
-      });
-    });
-
-    it('matches exact expectations for {"large-premises": false} with {apply-online, site-inspection} completed', () => {
-      const graph = loadExample();
-      const resolved = resolvePath(graph, { "large-premises": false });
-      const time = summarizeTime(
-        resolved,
-        new Set(["apply-online", "site-inspection"])
-      );
-
-      expect(time).toEqual({
+      expect(summary.criticalStepIds).toEqual(expectedCriticalStepIds);
+      expect(summary).toEqual({
         minDays: 2,
-        maxDays: 3,
-        unknownCount: 0,
-        criticalStepIds: [
-          "apply-online",
-          "site-inspection",
-          "licence-issued",
-        ],
+        maxDays: 9,
+        openEnded: true,
+        unknownCount: 2,
+        criticalStepIds: expectedCriticalStepIds,
+        relativeTo: "ex-incorporation.file",
+        relative: {
+          minDays: 2,
+          maxDays: 7,
+          openEnded: true,
+        },
       });
+    });
+
+    it("computes time summary when kyc steps are completed", () => {
+      const { journey } = loadExampleStartupJourney();
+      const completed = new Set(["ex-directors.kyc.1", "ex-directors.kyc.2"]);
+      const summary = summarizeTime(journey, completed);
+
+      expect(summary.criticalStepIds).toEqual(expectedCriticalStepIds);
+      expect(summary).toEqual({
+        minDays: 2,
+        maxDays: 7,
+        openEnded: true,
+        unknownCount: 2,
+        criticalStepIds: expectedCriticalStepIds,
+        relativeTo: "ex-incorporation.file",
+        relative: {
+          minDays: 2,
+          maxDays: 7,
+          openEnded: true,
+        },
+      });
+    });
+
+    it("computes time summary when incorporation is completed", () => {
+      const { journey } = loadExampleStartupJourney();
+      const completed = new Set([
+        "ex-directors.kyc.1",
+        "ex-directors.kyc.2",
+        "ex-incorporation.file",
+      ]);
+      const summary = summarizeTime(journey, completed);
+
+      expect(summary.criticalStepIds).toEqual(expectedCriticalStepIds);
+      expect(summary).toEqual({
+        minDays: 2,
+        maxDays: 7,
+        openEnded: true,
+        unknownCount: 2,
+        criticalStepIds: expectedCriticalStepIds,
+        relativeTo: null,
+      });
+      expect(summary.relative).toBeUndefined();
     });
   });
 });

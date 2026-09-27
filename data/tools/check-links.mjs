@@ -1,6 +1,7 @@
 // data/tools/check-links.mjs: checks every link in the seed data (DA-7, PRD §15).
 // Collects sources[].url, applicationPortal.url and forms[].url from data/seed/**/*.json,
-// requests each (HEAD, falling back to GET; 15 s timeout) and prints url · status · final URL.
+// requests each (HEAD, falling back to GET; 15 s timeout; at most 1 request per second per host)
+// and prints url · status · final URL.
 // Exits 1 if any link fails. Run: node data/tools/check-links.mjs
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -8,7 +9,8 @@ import { join, relative } from "node:path";
 const SEED_DIR = join(process.cwd(), "data", "seed");
 const USER_AGENT = "CivicWeaveBot/1.0 (link check; https://github.com/Gurpreet-pixel-hue/DamnSon)";
 const TIMEOUT_MS = 15_000;
-const PAUSE_MS = 500; // polite pause between requests
+const MIN_GAP_MS = 1_000; // at most 1 request per second per host (PRD §9.2)
+const lastRequestAt = new Map();
 
 function jsonFiles(dir) {
   let out = [];
@@ -47,7 +49,16 @@ function addLink(links, url, file) {
   links.get(url).add(file);
 }
 
+/** Waits until at least MIN_GAP_MS has passed since the previous request to the same host. */
+async function waitForHost(url) {
+  const host = new URL(url).host;
+  const wait = (lastRequestAt.get(host) ?? 0) + MIN_GAP_MS - Date.now();
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  lastRequestAt.set(host, Date.now());
+}
+
 async function request(url, method) {
+  await waitForHost(url);
   const res = await fetch(url, {
     method,
     redirect: "follow",
@@ -93,7 +104,6 @@ for (const [url, files] of links) {
     if (result.status === 403) console.log("      403: the site may block automated requests; open the link in a browser to confirm");
     console.log(`      used in: ${[...files].join(", ")}`);
   }
-  await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
 }
 
 console.log(`\n${links.size} links checked, ${failures} failed.`);
