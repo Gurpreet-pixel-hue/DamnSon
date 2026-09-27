@@ -797,3 +797,93 @@ Levers:
   - maximum tether length (≤ 140 px);
   - the focused station's anchor inside the safe rect (true).
 
+
+## 12. Stage navigation and big parallel stages (decided 2026-09-28)
+
+Status: normative. Decided by Gurpreet after using FE-3.5 on real data.
+- On start-business-mumbai, stage 4 has **15 parallel stations** with no answers, or 10 with typical answers.
+- The camera pulls back or pans to fit them, the in-world stage pills leave the screen, and there is no quick way to walk through the options.
+
+Where §11 disagrees, this section wins.
+
+### 12.1 Keyboard (one map for 3D and 2D; replaces frontend-spec "Keyboard" and §11.1 `[` / `]`)
+| Key | Action |
+|---|---|
+| ← / → | Previous / next stage. Focus lands on the first station of that stage |
+| ↑ / ↓ | Previous / next station within the focused stage, in tray order (§12.3). The camera glides to it, and its card shows. With the drawer open, the drawer follows |
+| Enter | Open the drawer for the focused station |
+| Space | Toggle done (same rules as the drawer button) |
+| Esc | Close the drawer. Pressed again, it returns to the stage overview |
+| Home / End | First / last stage |
+| `C` | Back to the current stage |
+| `[` / `]` | Kept as aliases for ← / → |
+
+- Keys act only when focus is not in a text input, select or the drawer's scrollable text.
+- Focus is mirrored in `useViewStore.focusedStepId`, so 3D, 2D and the tray stay in sync.
+- A visually hidden live region announces "Stage 4 of 7, In parallel, 15 steps. Step 3 of 15: Apply for GST registration, available".
+- A small "Keys" hint (? icon) in the window footer lists this table.
+
+### 12.2 Stage bar (always visible; replaces the stepper dots and the in-world chip row)
+- **Placement.** The bottom-centre stepper becomes a **stage bar**: one pill per stage (`1 Start here`, `2 Then`, `4 In parallel · 15`…). It is HUD (DOM), so it never leaves the screen when the camera moves.
+- **Pill states:**
+  - done: green with a check;
+  - current: blue ring;
+  - focused: accent fill;
+  - future: outline.
+- **Clicking a pill** focuses that stage.
+- **Many stages.** With more than 7 stages, pills outside the focused ±2 collapse to numbers. The bar scrolls horizontally inside its own box, never the page.
+- **In-world chips:**
+  - Only the **focused** stage's chip remains in the 3D scene.
+  - If its anchor projects outside the safe rect, it pins to the nearest window edge with a chevron pointing toward the stations, so it never disappears.
+  - The "next stage" chip moves into the stage bar.
+- **Existing controls keep working:** "Back to current step", Whole route, and the §11.3 bottom inset (now measured from the bar).
+
+### 12.3 Parallel stage tray (stages with more than 4 stations)
+**The tray**
+- A 300 px panel **overlays the left edge of the 3D window**, like the drawer on the right. It never resizes the canvas (§11.4).
+- Title: "Stage 4 · 15 things you can do in parallel".
+- Filter chips: All / Available / Online / In person / May apply, each with a count.
+
+**Rows**
+- Rows are grouped by module (module title as the group header, e.g. "Professional Tax", "EPFO", "FSSAI"), in template order.
+- Each row shows a state icon, the number `4.1`…`4.15`, the title, a mode chip, and the fee hint (honest-tile rules, §FE-4 fixes).
+
+**Interaction**
+- Hovering a row highlights its station in 3D.
+- Clicking a row, or ↑ / ↓, selects it: the camera glides to frame **that station plus its plaza** (framing distance ≤ 24), and its card shows.
+- The tray shows "3 of 15" with ‹ ›.
+
+**Numbered markers in 3D**
+- In a big stage, every station gets a **numbered disc marker** (a 3D decal on its plaza, instanced, 1 draw) matching the tray numbers, so the list and the map connect at a glance.
+- Only the selected and hovered stations show full cards. Replace §11.2's "+N more" with the tray.
+
+**Opening and closing**
+- The tray opens automatically when the focused stage has more than 4 stations, and collapses to a tab ("15 steps ›") when the drawer is open.
+- It closes with Esc or its × button.
+- The 2D view uses the same tray and selection.
+
+### 12.4 Route declutter (stage view)
+- Show only the routes **into and out of the focused stage**, plus the path from the current stage to it.
+- Hide all other routes in stage view; Whole route shows everything.
+- In a big stage, fan-out routes from the previous milestone bundle into one trunk that splits near the stations (edge bundling by sharing the road path), instead of 15 separate dashed lines.
+
+### 12.5 Later (P1, after 12.1–12.4)
+- **Module districts.** Place a big stage's stations by module on adjacent blocks, with a soft ground tint and a small district label ("Labour registrations", "Food licence"). 15 parallel steps then read as about 6 groups.
+- **Online hub.** Group online-only steps in one "Online services" plaza near the start, instead of scattering kiosks across the city. They have no physical location.
+- **Minimap.** A 140×90 px SVG in the window corner, drawn from `position2D`, with a viewport rectangle and stage colours. Clicking it pans.
+- **"You are here" marker.** A small citizen figure at the current stage's plaza, which walks along the route to the next stage on mark done. Disabled under reduced motion.
+
+### 12.6 Model upgrades (FE-8 Stage 2 heroes; Blender, procedural, no downloads, ≤ 6k triangles each, palette colours, baked AO)
+- **Distinct silhouettes per `officeType`:**
+  - company registry: tower with portico;
+  - tax office: glass-front block with a queue canopy;
+  - labour office: two-storey block with a flag;
+  - food safety: low block with a rooftop kitchen vent;
+  - ward office: heritage-style block with a dome (generic, not a real building);
+  - bank: columns plus a vault door;
+  - post office: red-trim block.
+- **Sign plates** use icon glyphs (building, rupee, plate, drop), not text.
+- **Online portal:** replace the black billboard with a compact floating device (laptop or phone plus an orbiting ring, ≤ 800 triangles), tinted by state.
+- **Milestones:** a gateway arch at the milestone plaza ("Company incorporated"), so stage boundaries read as passing through a gate.
+- **People:** ≤ 150 triangles, with a 2-frame vertex-shader walk, instanced.
+- **Budgets:** §11.6 still applies. Hero upgrades must stay within 350k scene triangles in whole-route view.
