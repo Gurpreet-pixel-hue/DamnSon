@@ -22,6 +22,7 @@ import { PALETTE } from "./palette";
 export interface SceneDebugMetrics {
   sceneDraws: number;
   frameCalls: number;
+  triangles: number;
   fps: number;
 }
 
@@ -29,6 +30,7 @@ export interface SceneDebugMetrics {
 export let currentDebugMetrics: SceneDebugMetrics = {
   sceneDraws: 0,
   frameCalls: 0,
+  triangles: 0,
   fps: 60,
 };
 
@@ -46,15 +48,20 @@ function DebugCollector() {
   const fpsRef = useRef(60);
   const sceneDrawsRef = useRef(0);
   const lastCallsRef = useRef(0);
+  const lastTrianglesRef = useRef(0);
 
   // Priority -1 ensures this runs before rendering passes
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
 
-    // 1. Read previous frame's total calls from gl.info, then reset
+    // 1. Read previous frame's total calls & triangles from gl.info, then reset
     const calls = state.gl.info.render.calls;
+    const triangles = state.gl.info.render.triangles;
     if (calls > 0) {
       lastCallsRef.current = calls;
+    }
+    if (triangles > 0) {
+      lastTrianglesRef.current = triangles;
     }
     state.gl.info.reset();
 
@@ -88,6 +95,7 @@ function DebugCollector() {
       currentDebugMetrics = {
         sceneDraws: sceneDrawsRef.current,
         frameCalls: lastCallsRef.current,
+        triangles: lastTrianglesRef.current,
         fps: fpsRef.current,
       };
       listeners.forEach((cb) => cb(currentDebugMetrics));

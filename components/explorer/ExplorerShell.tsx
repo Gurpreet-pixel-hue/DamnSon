@@ -91,6 +91,11 @@ function DebugOverlay() {
       </div>
       <div className="h-3 w-px bg-[var(--cw-border)]" />
       <div>
+        <span className="text-[var(--cw-text-muted)]">triangles:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.triangles.toLocaleString()}</span>
+      </div>
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
+      <div>
         <span className="text-[var(--cw-text-muted)]">fps:</span>{" "}
         <span className="font-semibold text-[#1E7F3B]">{metrics.fps}</span>
       </div>
