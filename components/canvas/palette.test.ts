@@ -12,15 +12,18 @@ describe("palette tokens consistency with app/globals.css", () => {
     const tokenMapping: Record<string, keyof typeof PALETTE> = {
       "--cw-background": "background",
       "--cw-surface": "surface",
+      "--cw-surface-muted": "surfaceMuted",
       "--cw-border": "border",
       "--cw-text": "text",
       "--cw-text-muted": "textMuted",
+      "--cw-brand": "brand",
       "--cw-available": "available",
       "--cw-done": "done",
       "--cw-locked": "locked",
       "--cw-undecided": "undecided",
-      "--cw-error": "error",
+      "--cw-attention": "attention",
       "--cw-critical": "critical",
+      "--cw-error": "error",
     };
 
     for (const [cssVar, paletteKey] of Object.entries(tokenMapping)) {
@@ -41,8 +44,19 @@ describe("palette tokens consistency with app/globals.css", () => {
   });
 
   it("verifies scene-only colors exist in PALETTE", () => {
-    expect(PALETTE.ground).toBe("#0c0c0f");
-    expect(PALETTE.stationBase).toBe("#3f3f46");
-    expect(PALETTE.normalTrack).toBe("#3f3f46");
+    expect(PALETTE.seaDeep).toBe("#4E97AE");
+    expect(PALETTE.seaShallow).toBe("#8CC3D1");
+    expect(PALETTE.land).toBe("#EADFC8");
+    expect(PALETTE.park).toBe("#B7CF95");
+    expect(PALETTE.road).toBe("#D6CCBA");
+    expect(PALETTE.roadEdge).toBe("#C4B8A2");
+    expect(PALETTE.plaza).toBe("#F2EBDD");
+    expect(PALETTE.slabSide).toBe("#D9C9A8");
+    expect(PALETTE.sky).toBe("#F3ECDF");
+    expect(PALETTE.fog).toBe("#F3ECDF");
+    expect(PALETTE.sun).toBe("#FFE6C0");
+    expect(PALETTE.hemiSky).toBe("#FFF6E8");
+    expect(PALETTE.hemiGround).toBe("#C9B794");
+    expect(PALETTE.trackNormal).toBe("#9AA3AD");
   });
 });

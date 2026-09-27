@@ -20,29 +20,39 @@ export function ViewModeToggle() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-zinc-950/80 p-1 shadow-2xl backdrop-blur-md">
+      <div className="flex items-center gap-1 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-1 shadow-[0_2px_8px_rgb(0_0_0/0.08)]">
         <Toggle
           pressed={criticalPathOn}
           onPressedChange={toggleCriticalPath}
           size="sm"
           aria-label="Toggle Critical Path"
-          className="text-xs data-[state=on]:bg-cyan-500/20 data-[state=on]:text-cyan-300 text-zinc-400 hover:text-zinc-200"
+          className="text-xs data-[state=on]:bg-[#D92D20]/15 data-[state=on]:text-[#D92D20] text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
         >
           Critical Path
         </Toggle>
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/80 p-1 shadow-2xl backdrop-blur-md">
+      <div className="flex items-center gap-2 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-1 shadow-[0_2px_8px_rgb(0_0_0/0.08)]">
         <ToggleGroup
           type="single"
           value={viewMode}
           onValueChange={handleValueChange}
           className="gap-1"
         >
-          <ToggleGroupItem value="3d" aria-label="3D View" size="sm">
+          <ToggleGroupItem
+            value="3d"
+            aria-label="3D View"
+            size="sm"
+            className="data-[state=on]:bg-[var(--cw-surface-muted)] data-[state=on]:text-[var(--cw-text)] text-[var(--cw-text-muted)]"
+          >
             3D
           </ToggleGroupItem>
-          <ToggleGroupItem value="2d" aria-label="2D View" size="sm">
+          <ToggleGroupItem
+            value="2d"
+            aria-label="2D View"
+            size="sm"
+            className="data-[state=on]:bg-[var(--cw-surface-muted)] data-[state=on]:text-[var(--cw-text)] text-[var(--cw-text-muted)]"
+          >
             2D
           </ToggleGroupItem>
         </ToggleGroup>

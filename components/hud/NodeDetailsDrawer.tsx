@@ -18,19 +18,19 @@ export function NodeDetailsDrawer() {
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && selectStep(null)}>
-      <SheetContent side="right" className="border-white/10 bg-zinc-950 text-zinc-100">
+      <SheetContent side="right" className="border-l border-[var(--cw-border)] bg-[var(--cw-surface)] text-[var(--cw-text)]">
         <SheetHeader>
           <div className="flex items-center justify-between">
-            <SheetTitle>Step Details</SheetTitle>
-            <Badge variant="outline" className="text-[10px] text-zinc-400">
+            <SheetTitle className="text-[var(--cw-text)]">Step Details</SheetTitle>
+            <Badge variant="outline" className="text-[10px] text-[var(--cw-text-muted)] border-[var(--cw-border)]">
               Placeholder
             </Badge>
           </div>
-          <SheetDescription className="text-zinc-400">
+          <SheetDescription className="text-[var(--cw-text-muted)]">
             Selected Step: {selectedStepId ?? "None"}
           </SheetDescription>
         </SheetHeader>
-        <div className="p-4 text-xs text-zinc-500">
+        <div className="p-4 text-xs text-[var(--cw-text-muted)]">
           Step inspection drawer will display official forms, fees, and documents in Milestone 3.
         </div>
       </SheetContent>

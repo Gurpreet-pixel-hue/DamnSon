@@ -22,7 +22,7 @@ const SceneContainer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-[#09090b] text-sm text-zinc-500">
+      <div className="flex h-full w-full items-center justify-center bg-[var(--cw-background)] text-sm text-[var(--cw-text-muted)]">
         Loading 3D Canvas...
       </div>
     ),
@@ -34,7 +34,7 @@ const FlowchartView = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-[#09090b] text-sm text-zinc-500">
+      <div className="flex h-full w-full items-center justify-center bg-[var(--cw-background)] text-sm text-[var(--cw-text-muted)]">
         Loading 2D Flowchart...
       </div>
     ),
@@ -78,21 +78,21 @@ function DebugOverlay() {
   return (
     <div
       data-testid="debug-overlay"
-      className="pointer-events-auto absolute bottom-4 left-4 z-30 flex items-center gap-3 rounded-lg border border-cyan-500/30 bg-zinc-950/90 px-3 py-2 font-mono text-xs text-cyan-300 shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto absolute bottom-4 left-4 z-30 flex items-center gap-3 rounded-lg border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-2 font-mono text-xs text-[var(--cw-text)] shadow-lg backdrop-blur-md"
     >
       <div>
-        <span className="text-zinc-500">scene draws:</span>{" "}
-        <span className="font-semibold text-zinc-100">{metrics.sceneDraws}</span>
+        <span className="text-[var(--cw-text-muted)]">scene draws:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.sceneDraws}</span>
       </div>
-      <div className="h-3 w-px bg-white/20" />
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
       <div>
-        <span className="text-zinc-500">frame calls:</span>{" "}
-        <span className="font-semibold text-zinc-100">{metrics.frameCalls}</span>
+        <span className="text-[var(--cw-text-muted)]">frame calls:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.frameCalls}</span>
       </div>
-      <div className="h-3 w-px bg-white/20" />
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
       <div>
-        <span className="text-zinc-500">fps:</span>{" "}
-        <span className="font-semibold text-emerald-400">{metrics.fps}</span>
+        <span className="text-[var(--cw-text-muted)]">fps:</span>{" "}
+        <span className="font-semibold text-[#1E7F3B]">{metrics.fps}</span>
       </div>
     </div>
   );
@@ -159,7 +159,7 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
   }, [journey, completed]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#09090b]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[var(--cw-background)]">
       {/* Top HUD Overlay */}
       <header className="pointer-events-none absolute top-4 inset-x-4 z-20 flex items-center justify-between gap-4">
         <div className="pointer-events-auto flex-1 max-w-xl">
@@ -174,9 +174,9 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
       {webglFallbackReason && (
         <div
           data-testid="webgl-fallback-notice"
-          className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-zinc-950/90 px-4 py-2 text-xs font-medium text-amber-300 shadow-2xl backdrop-blur-md"
+          className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-[var(--cw-undecided)]/40 bg-[var(--cw-surface)] px-4 py-2 text-xs font-medium text-[var(--cw-undecided)] shadow-md"
         >
-          <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[var(--cw-undecided)] animate-pulse" />
           <span>{webglFallbackReason}</span>
         </div>
       )}
@@ -193,24 +193,24 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
             data-testid="composition-error"
             className="flex h-full w-full flex-col items-center justify-center p-6 text-center"
           >
-            <div className="max-w-md rounded-2xl border border-red-500/30 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-red-400">
+            <div className="max-w-md rounded-2xl border border-[var(--cw-error)]/30 bg-[var(--cw-surface)] p-8 shadow-md">
+              <h2 className="text-lg font-semibold text-[var(--cw-error)]">
                 Journey Composition Failed
               </h2>
               {composeResult.message ? (
-                <p className="mt-2 text-xs font-mono text-zinc-300 break-words">
+                <p className="mt-2 text-xs font-mono text-[var(--cw-text-muted)] break-words">
                   {composeResult.message}
                 </p>
               ) : (
-                <p className="mt-2 text-xs text-zinc-400">
+                <p className="mt-2 text-xs text-[var(--cw-text-muted)]">
                   The civic procedure could not be assembled due to contract validation errors:
                 </p>
               )}
-              <ul className="mt-4 space-y-1 text-xs font-mono text-amber-300">
+              <ul className="mt-4 space-y-1 text-xs font-mono text-[var(--cw-undecided)]">
                 {composeResult.codes?.map((code, idx) => (
                   <li
                     key={idx}
-                    className="rounded border border-red-500/20 bg-red-950/40 px-2 py-1"
+                    className="rounded border border-[var(--cw-error)]/20 bg-[var(--cw-surface-muted)] px-2 py-1 text-[var(--cw-error)]"
                   >
                     {code}
                   </li>
@@ -220,11 +220,11 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
           </div>
         ) : !initialBundle || !metro ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center">
-            <div className="max-w-md rounded-2xl border border-white/10 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-zinc-100">
+            <div className="max-w-md rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-8 shadow-md">
+              <h2 className="text-lg font-semibold text-[var(--cw-text)]">
                 No published journeys yet
               </h2>
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-[var(--cw-text-muted)]">
                 Search or load a verified municipal journey from the repository
                 to begin exploring the Civic Metro.
               </p>

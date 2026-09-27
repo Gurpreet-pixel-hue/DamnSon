@@ -6,21 +6,42 @@
  * No raw hex values outside this file (PRD §11.6).
  */
 export const PALETTE = {
-  background: "#09090b",
-  surface: "#18181b",
-  border: "#27272a",
-  text: "#fafafa",
-  textMuted: "#a1a1aa",
-  available: "#22d3ee",
-  done: "#34d399",
-  locked: "#52525b",
-  undecided: "#fbbf24",
-  error: "#f87171",
-  critical: "#67e8f9",
-  // Scene-only colours from the spec:
-  ground: "#0c0c0f",
-  stationBase: "#3f3f46",
-  normalTrack: "#3f3f46",
+  background: "#F5EFE3",
+  surface: "#FFFFFF",
+  surfaceMuted: "#FBF7EF",
+  border: "#E4DACA",
+  text: "#1D1A16",
+  textMuted: "#5E574D",
+  brand: "#B3261E",
+  done: "#1E7F3B",
+  available: "#1F63D6",
+  locked: "#6B7078",
+  undecided: "#B45309",
+  attention: "#D97706",
+  critical: "#D92D20",
+  error: "#B42318",
+
+  // Scene-only colours from docs/visual-direction.md §2:
+  seaDeep: "#4E97AE",
+  seaShallow: "#8CC3D1",
+  land: "#EADFC8",
+  park: "#B7CF95",
+  road: "#D6CCBA",
+  roadEdge: "#C4B8A2",
+  plaza: "#F2EBDD",
+  slabSide: "#D9C9A8",
+  sky: "#F3ECDF",
+  fog: "#F3ECDF",
+  sun: "#FFE6C0",
+  hemiSky: "#FFF6E8",
+  hemiGround: "#C9B794",
+  trackNormal: "#9AA3AD",
+
+  // Aliases for legacy scene components
+  ground: "#EADFC8",
+  stationBase: "#F2EBDD",
+  normalTrack: "#9AA3AD",
 } as const;
 
 export type PaletteKey = keyof typeof PALETTE;
+
