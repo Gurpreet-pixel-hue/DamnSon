@@ -63,6 +63,13 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
     }
   }, [supported, setViewMode, setWebglFallbackReason]);
 
+  const isUnmountingRef = useRef(false);
+  useEffect(() => {
+    return () => {
+      isUnmountingRef.current = true;
+    };
+  }, []);
+
   if (!supported) {
     return null;
   }
@@ -86,6 +93,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
             gl.info.autoReset = false;
           }
           gl.domElement.addEventListener("webglcontextlost", (event) => {
+            if (isUnmountingRef.current) return;
             event.preventDefault();
             setViewMode("2d");
             setWebglFallbackReason(

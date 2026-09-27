@@ -18,7 +18,8 @@ export function FactCard({
   modules,
   className = "",
 }: FactCardProps) {
-  const activeTaskId = useTaskStore((s) => s.activeTaskId);
+  const storeActiveTaskId = useTaskStore((s) => s.activeTaskId);
+  const targetTaskId = storeActiveTaskId ?? template.taskId;
   const factsByTask = useTaskStore((s) => s.factsByTask);
   const setFact = useTaskStore((s) => s.setFact);
   const clearFact = useTaskStore((s) => s.clearFact);
@@ -26,8 +27,8 @@ export function FactCard({
   const [expandedKey, setExpandedKey] = useState<FactKey | null>(null);
 
   const currentFacts = useMemo(
-    () => (activeTaskId ? factsByTask[activeTaskId] ?? {} : {}),
-    [activeTaskId, factsByTask]
+    () => (targetTaskId ? factsByTask[targetTaskId] ?? {} : {}),
+    [targetTaskId, factsByTask]
   );
 
   // Scope: only facts used by template & modules (Amendment 4)
@@ -42,13 +43,13 @@ export function FactCard({
   );
 
   const handleValueChange = (key: FactKey, value: FactValue) => {
-    if (!activeTaskId) return;
-    setFact(activeTaskId, key, value);
+    if (!targetTaskId) return;
+    setFact(targetTaskId, key, value);
   };
 
   const handleClear = (key: FactKey) => {
-    if (!activeTaskId) return;
-    clearFact(activeTaskId, key);
+    if (!targetTaskId) return;
+    clearFact(targetTaskId, key);
   };
 
   return (

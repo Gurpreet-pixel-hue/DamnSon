@@ -246,7 +246,10 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
             <button
               type="button"
               data-testid="footer-toggle-3d"
-              onClick={() => setViewMode("3d")}
+              onClick={() => {
+                useViewStore.getState().setWebglFallbackReason(null);
+                setViewMode("3d");
+              }}
               className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
                 viewMode === "3d"
                   ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
@@ -258,7 +261,10 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
             <button
               type="button"
               data-testid="footer-toggle-2d"
-              onClick={() => setViewMode("2d")}
+              onClick={() => {
+                useViewStore.getState().setWebglFallbackReason(null);
+                setViewMode("2d");
+              }}
               className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
                 viewMode === "2d"
                   ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"

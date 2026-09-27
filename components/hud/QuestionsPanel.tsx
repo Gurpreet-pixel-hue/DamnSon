@@ -11,7 +11,8 @@ export interface QuestionsPanelProps {
 }
 
 export function QuestionsPanel({ journey, className = "" }: QuestionsPanelProps) {
-  const activeTaskId = useTaskStore((s) => s.activeTaskId);
+  const storeActiveTaskId = useTaskStore((s) => s.activeTaskId);
+  const targetTaskId = storeActiveTaskId ?? journey.taskId;
   const setFact = useTaskStore((s) => s.setFact);
   const [showMore, setShowMore] = useState(false);
 
@@ -22,8 +23,8 @@ export function QuestionsPanel({ journey, className = "" }: QuestionsPanelProps)
   const remainingQuestions = questions.slice(3);
 
   const handleAnswer = (fact: FactKey, value: FactValue) => {
-    if (!activeTaskId) return;
-    setFact(activeTaskId, fact, value);
+    if (!targetTaskId) return;
+    setFact(targetTaskId, fact, value);
   };
 
   return (
