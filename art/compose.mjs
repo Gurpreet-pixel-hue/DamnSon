@@ -3,7 +3,8 @@ import path from "node:path";
 import sharp from "sharp";
 import { Document, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { joinPrimitives } from "@gltf-transform/functions";
+import { joinPrimitives, weld, simplify } from "@gltf-transform/functions";
+import { MeshoptSimplifier } from "meshoptimizer";
 import draco3d from "draco3d";
 
 const ROOT = process.cwd();
@@ -70,6 +71,22 @@ const SWATCH_COLORS = [
 ];
 
 const SWATCH_UV_MAP = new Map();
+const SIGN_UV_MAP = new Map();
+
+const SIGN_SLOTS = [
+  { key: "municipal_hq", text: "CIVIC CENTRE" },
+  { key: "ward_office", text: "WARD OFFICE" },
+  { key: "revenue_office", text: "REVENUE OFFICE" },
+  { key: "labour_department", text: "LABOUR OFFICE" },
+  { key: "fire_services", text: "FIRE STATION" },
+  { key: "police", text: "POLICE STATION" },
+  { key: "health_department", text: "HEALTH OFFICE" },
+  { key: "utility_provider", text: "UTILITY OFFICE" },
+  { key: "pollution_control_board", text: "ENVIRONMENT BOARD" },
+  { key: "court_or_notary", text: "COURT · NOTARY" },
+  { key: "other", text: "OFFICE" },
+  { key: "online_portal", text: "MONITOR" },
+];
 
 // ---------------------------------------------------------------------------
 // 2. Build Atlas Image (1024x1536)
@@ -96,37 +113,34 @@ async function buildAtlas() {
     composites.push({ input: padded, left: p.left, top: p.top });
   }
 
-  // Slot 5 (Slot 6 in 1-based indexing): Swatch grid (8 columns x 8 rows of 62x62 pixels)
+  // Slot 5 (Slot 6 in 1-based indexing): Swatches (y: 0..127) and Sign Plates (y: 128..511)
   const slotW = 512;
   const slotH = 512;
-  const cellW = 62;
-  const cellH = 62;
   const swatchRaw = Buffer.alloc(slotW * slotH * 4, 255);
 
-  // Fill cells and compute UVs
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const idx = r * 8 + c;
+  // Top 128 px: 16 cols x 4 rows of 32x32 color swatches
+  const swatchCols = 16;
+  const swatchCellSize = 32;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < swatchCols; c++) {
+      const idx = r * swatchCols + c;
       const color = SWATCH_COLORS[idx] || { r: 255, g: 255, b: 255 };
 
-      // Fill cell pixels within 8px margin
-      for (let y = 0; y < cellH; y++) {
-        for (let x = 0; x < cellW; x++) {
-          const px = 8 + c * cellW + x;
-          const py = 8 + r * cellH + y;
-          if (px < slotW && py < slotH) {
-            const offset = (py * slotW + px) * 4;
-            swatchRaw[offset] = color.r;
-            swatchRaw[offset + 1] = color.g;
-            swatchRaw[offset + 2] = color.b;
-            swatchRaw[offset + 3] = 255;
-          }
+      for (let y = 0; y < swatchCellSize; y++) {
+        for (let x = 0; x < swatchCellSize; x++) {
+          const px = c * swatchCellSize + x;
+          const py = r * swatchCellSize + y;
+          const offset = (py * slotW + px) * 4;
+          swatchRaw[offset] = color.r;
+          swatchRaw[offset + 1] = color.g;
+          swatchRaw[offset + 2] = color.b;
+          swatchRaw[offset + 3] = 255;
         }
       }
 
-      // UV center coordinate in the 1024x1536 atlas
-      const cx = 8 + (c + 0.5) * cellW;
-      const cy = 8 + (r + 0.5) * cellH;
+      // UV center coordinate in 1024x1536 atlas
+      const cx = (c + 0.5) * swatchCellSize;
+      const cy = (r + 0.5) * swatchCellSize;
       const u = (512 + cx) / 1024;
       const v = (1024 + cy) / 1536;
 
@@ -135,20 +149,51 @@ async function buildAtlas() {
     }
   }
 
-  // Pad the 8px edges of slot 5 with the border pixels
-  for (let y = 0; y < slotH; y++) {
-    const srcY = Math.min(Math.max(y, 8), 503);
-    for (let x = 0; x < slotW; x++) {
-      const srcX = Math.min(Math.max(x, 8), 503);
-      if (srcX !== x || srcY !== y) {
-        const destOffset = (y * slotW + x) * 4;
-        const srcOffset = (srcY * slotW + srcX) * 4;
-        swatchRaw[destOffset] = swatchRaw[srcOffset];
-        swatchRaw[destOffset + 1] = swatchRaw[srcOffset + 1];
-        swatchRaw[destOffset + 2] = swatchRaw[srcOffset + 2];
-        swatchRaw[destOffset + 3] = 255;
+  // Bottom 384 px (y = 128..511): 12 slots of 256x64 px (2 cols x 6 rows)
+  for (let i = 0; i < SIGN_SLOTS.length; i++) {
+    const slot = SIGN_SLOTS[i];
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const slotLeft = col * 256;
+    const slotTop = 128 + row * 64;
+
+    let svg;
+    if (slot.key === "online_portal") {
+      svg = `<svg width="256" height="64" xmlns="http://www.w3.org/2000/svg">
+        <rect width="256" height="64" fill="#0A0F1D"/>
+        <rect x="58" y="6" width="140" height="42" rx="4" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+        <rect x="64" y="11" width="128" height="32" rx="2" fill="#0284C7"/>
+        <polygon points="120,18 120,34 125,29 131,35 134,32 128,26 135,26" fill="#FFFFFF"/>
+        <rect x="122" y="48" width="12" height="6" fill="#64748B"/>
+        <rect x="112" y="54" width="32" height="4" rx="2" fill="#94A3B8"/>
+      </svg>`;
+    } else {
+      svg = `<svg width="256" height="64" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="252" height="60" rx="4" fill="#F4EFE6" stroke="#C8BEAF" stroke-width="3"/>
+        <text x="128" y="38" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="#1E293B" text-anchor="middle" dominant-baseline="middle" letter-spacing="1.5">${slot.text}</text>
+      </svg>`;
+    }
+
+    const rendered = await sharp(Buffer.from(svg)).raw().toBuffer();
+
+    for (let y = 0; y < 64; y++) {
+      for (let x = 0; x < 256; x++) {
+        const destOffset = ((slotTop + y) * slotW + (slotLeft + x)) * 4;
+        const srcOffset = (y * 256 + x) * 4;
+        swatchRaw[destOffset] = rendered[srcOffset];
+        swatchRaw[destOffset + 1] = rendered[srcOffset + 1];
+        swatchRaw[destOffset + 2] = rendered[srcOffset + 2];
+        swatchRaw[destOffset + 3] = rendered[srcOffset + 3];
       }
     }
+
+    // Exact UV rectangle in 1024x1536 atlas with 2px inset
+    const uMin = (512 + slotLeft + 2) / 1024;
+    const uMax = (512 + slotLeft + 254) / 1024;
+    const vMin = (1024 + slotTop + 2) / 1536;
+    const vMax = (1024 + slotTop + 62) / 1536;
+
+    SIGN_UV_MAP.set(slot.key, { uMin, uMax, vMin, vMax });
   }
 
   composites.push({
@@ -295,8 +340,24 @@ function createTargetPrimitive(srcPrim, targetDoc, targetBuffer, targetMat, slot
 }
 
 // ---------------------------------------------------------------------------
-// 5. Create Procedural Primitives
+// 5. Procedural Primitives & Grounding
 // ---------------------------------------------------------------------------
+function groundPrimitive(prim) {
+  const posAcc = prim.getAttribute("POSITION");
+  const posArr = new Float32Array(posAcc.getArray());
+  let minY = Infinity;
+  for (let i = 1; i < posArr.length; i += 3) {
+    if (posArr[i] < minY) minY = posArr[i];
+  }
+  if (Math.abs(minY) > 0.0001) {
+    for (let i = 1; i < posArr.length; i += 3) {
+      posArr[i] -= minY;
+    }
+    posAcc.setArray(posArr);
+  }
+  return minY;
+}
+
 function createBoxPrimitive(doc, buffer, material, min, max, uv) {
   const [x0, y0, z0] = min;
   const [x1, y1, z1] = max;
@@ -338,15 +399,173 @@ function createBoxPrimitive(doc, buffer, material, min, max, uv) {
     indices.push(o, o + 1, o + 2, o, o + 2, o + 3);
   }
 
-  const prim = doc.createPrimitive()
+  return doc.createPrimitive()
     .setMaterial(material)
     .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(positions)).setBuffer(buffer))
     .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(normals)).setBuffer(buffer))
     .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uvs)).setBuffer(buffer))
     .setAttribute("COLOR_0", doc.createAccessor().setType("VEC3").setArray(new Float32Array(colors)).setBuffer(buffer))
     .setIndices(doc.createAccessor().setType("SCALAR").setArray(new Uint16Array(indices)).setBuffer(buffer));
+}
 
-  return prim;
+function createSignPlateBox(doc, buffer, material, min, max, signUV, creamUV) {
+  const [x0, y0, z0] = min;
+  const [x1, y1, z1] = max;
+
+  const positions = [
+    // Front (+Z) - samples sign plate UV
+    x0, y0, z1,  x1, y0, z1,  x1, y1, z1,  x0, y1, z1,
+    // Back (-Z)
+    x1, y0, z0,  x0, y0, z0,  x0, y1, z0,  x1, y1, z0,
+    // Top (+Y)
+    x0, y1, z1,  x1, y1, z1,  x1, y1, z0,  x0, y1, z0,
+    // Bottom (-Y)
+    x0, y0, z0,  x1, y0, z0,  x1, y0, z1,  x0, y0, z1,
+    // Right (+X)
+    x1, y0, z1,  x1, y0, z0,  x1, y1, z0,  x1, y1, z1,
+    // Left (-X)
+    x0, y0, z0,  x0, y0, z1,  x0, y1, z1,  x0, y1, z0
+  ];
+
+  const normals = [
+    0, 0, 1,  0, 0, 1,  0, 0, 1,  0, 0, 1,
+    0, 0,-1,  0, 0,-1,  0, 0,-1,  0, 0,-1,
+    0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,
+    0,-1, 0,  0,-1, 0,  0,-1, 0,  0,-1, 0,
+    1, 0, 0,  1, 0, 0,  1, 0, 0,  1, 0, 0,
+   -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0
+  ];
+
+  const uvs = [
+    // Front (+Z): bottom-left, bottom-right, top-right, top-left
+    signUV.uMin, signUV.vMax,
+    signUV.uMax, signUV.vMax,
+    signUV.uMax, signUV.vMin,
+    signUV.uMin, signUV.vMin,
+  ];
+
+  // 5 remaining faces: cream swatch UV
+  for (let i = 0; i < 20; i++) {
+    uvs.push(creamUV[0], creamUV[1]);
+  }
+
+  const colors = new Float32Array(24 * 3).fill(1);
+  const indices = [];
+  for (let f = 0; f < 6; f++) {
+    const o = f * 4;
+    indices.push(o, o + 1, o + 2, o, o + 2, o + 3);
+  }
+
+  return doc.createPrimitive()
+    .setMaterial(material)
+    .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(positions)).setBuffer(buffer))
+    .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(normals)).setBuffer(buffer))
+    .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uvs)).setBuffer(buffer))
+    .setAttribute("COLOR_0", doc.createAccessor().setType("VEC3").setArray(colors).setBuffer(buffer))
+    .setIndices(doc.createAccessor().setType("SCALAR").setArray(new Uint16Array(indices)).setBuffer(buffer));
+}
+
+function createCylinderPrimitive(doc, buffer, material, r, height, segments, uv, baseCenter = [0, 0, 0]) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+  const [bx, by, bz] = baseCenter;
+
+  // Side quads
+  for (let i = 0; i < segments; i++) {
+    const th0 = (i / segments) * Math.PI * 2;
+    const th1 = ((i + 1) / segments) * Math.PI * 2;
+    const c0 = Math.cos(th0), s0 = Math.sin(th0);
+    const c1 = Math.cos(th1), s1 = Math.sin(th1);
+
+    const o = positions.length / 3;
+    positions.push(
+      bx + r * c0, by,          bz + r * s0,
+      bx + r * c1, by,          bz + r * s1,
+      bx + r * c1, by + height, bz + r * s1,
+      bx + r * c0, by + height, bz + r * s0
+    );
+    normals.push(
+      c0, 0, s0,
+      c1, 0, s1,
+      c1, 0, s1,
+      c0, 0, s0
+    );
+    for (let k = 0; k < 4; k++) uvs.push(uv[0], uv[1]);
+    indices.push(o, o + 1, o + 2, o, o + 2, o + 3);
+  }
+
+  // Top cap
+  const topCenterIdx = positions.length / 3;
+  positions.push(bx, by + height, bz);
+  normals.push(0, 1, 0);
+  uvs.push(uv[0], uv[1]);
+
+  for (let i = 0; i < segments; i++) {
+    const th = (i / segments) * Math.PI * 2;
+    positions.push(bx + r * Math.cos(th), by + height, bz + r * Math.sin(th));
+    normals.push(0, 1, 0);
+    uvs.push(uv[0], uv[1]);
+  }
+  for (let i = 0; i < segments; i++) {
+    const next = (i + 1) % segments;
+    indices.push(topCenterIdx, topCenterIdx + 1 + i, topCenterIdx + 1 + next);
+  }
+
+  const colors = new Float32Array((positions.length / 3) * 3).fill(1);
+  return doc.createPrimitive()
+    .setMaterial(material)
+    .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(positions)).setBuffer(buffer))
+    .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(normals)).setBuffer(buffer))
+    .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uvs)).setBuffer(buffer))
+    .setAttribute("COLOR_0", doc.createAccessor().setType("VEC3").setArray(colors).setBuffer(buffer))
+    .setIndices(doc.createAccessor().setType("SCALAR").setArray(new Uint16Array(indices)).setBuffer(buffer));
+}
+
+function createDomePrimitive(doc, buffer, material, r, height, segments, rings, uv, center = [0, 0, 0]) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+  const [cx, cy, cz] = center;
+
+  for (let ring = 0; ring <= rings; ring++) {
+    const phi = (ring / rings) * (Math.PI / 2);
+    const sinPhi = Math.sin(phi);
+    const cosPhi = Math.cos(phi);
+    const y = cy + height * cosPhi;
+    const ringR = r * sinPhi;
+
+    for (let seg = 0; seg <= segments; seg++) {
+      const theta = (seg / segments) * Math.PI * 2;
+      const x = cx + ringR * Math.cos(theta);
+      const z = cz + ringR * Math.sin(theta);
+      positions.push(x, y, z);
+      normals.push(sinPhi * Math.cos(theta), cosPhi, sinPhi * Math.sin(theta));
+      uvs.push(uv[0], uv[1]);
+    }
+  }
+
+  for (let ring = 0; ring < rings; ring++) {
+    for (let seg = 0; seg < segments; seg++) {
+      const a = ring * (segments + 1) + seg;
+      const b = a + 1;
+      const c = (ring + 1) * (segments + 1) + seg;
+      const d = c + 1;
+      indices.push(a, c, b);
+      indices.push(b, c, d);
+    }
+  }
+
+  const colors = new Float32Array((positions.length / 3) * 3).fill(1);
+  return doc.createPrimitive()
+    .setMaterial(material)
+    .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(positions)).setBuffer(buffer))
+    .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(normals)).setBuffer(buffer))
+    .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uvs)).setBuffer(buffer))
+    .setAttribute("COLOR_0", doc.createAccessor().setType("VEC3").setArray(colors).setBuffer(buffer))
+    .setIndices(doc.createAccessor().setType("SCALAR").setArray(new Uint16Array(indices)).setBuffer(buffer));
 }
 
 function createRingPrismPrimitive(doc, buffer, material, rIn, rOut, height, segments, uv) {
@@ -397,19 +616,17 @@ function createRingPrismPrimitive(doc, buffer, material, rIn, rOut, height, segm
     indices.push(oOut, oOut + 1, oOut + 2, oOut, oOut + 2, oOut + 3);
   }
 
-  const prim = doc.createPrimitive()
+  return doc.createPrimitive()
     .setMaterial(material)
     .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(positions)).setBuffer(buffer))
     .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(normals)).setBuffer(buffer))
     .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uvs)).setBuffer(buffer))
     .setAttribute("COLOR_0", doc.createAccessor().setType("VEC3").setArray(new Float32Array(colors)).setBuffer(buffer))
     .setIndices(doc.createAccessor().setType("SCALAR").setArray(new Uint32Array(indices)).setBuffer(buffer));
-
-  return prim;
 }
 
 // ---------------------------------------------------------------------------
-// 6. Create Base Document with Single Atlas Material
+// 6. Base Document Factory
 // ---------------------------------------------------------------------------
 function createBaseDocument(atlasBuffer) {
   const doc = new Document();
@@ -430,7 +647,7 @@ function createBaseDocument(atlasBuffer) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Compose Stations, City, Props
+// 7. Compose All GLBs
 // ---------------------------------------------------------------------------
 async function main() {
   const atlasPath = await buildAtlas();
@@ -443,7 +660,6 @@ async function main() {
       "draco3d.encoder": await draco3d.createEncoderModule(),
     });
 
-  // Helper to load and clone primitives from a source GLB/GLTF into targetDoc
   async function loadSourcePrimitives(relPath, slotIdx, defaultUV = null, transform = null, targetDoc, targetBuffer, targetMat) {
     const fullPath = path.join(SRC_DIR, relPath);
     const srcDoc = await io.read(fullPath);
@@ -458,6 +674,17 @@ async function main() {
     return primitives;
   }
 
+  const uvCream = SWATCH_UV_MAP.get("plaza_cream") || [0.5, 0.5];
+  const uvConcrete = SWATCH_UV_MAP.get("concrete_warm") || [0.5, 0.5];
+  const uvIron = SWATCH_UV_MAP.get("iron_dark") || [0.5, 0.5];
+  const uvDark = SWATCH_UV_MAP.get("wood_dark") || [0.5, 0.5];
+
+  const allTrianglesByKind = {};
+  const stationMetadataList = [];
+  const roadMetadataList = [];
+  const carMetadataList = [];
+  const cityKindsMetadata = [];
+
   // -------------------------------------------------------------------------
   // Compose stations.glb
   // -------------------------------------------------------------------------
@@ -467,120 +694,270 @@ async function main() {
   const stationsMat = stationsBase.material;
   const stationsBuffer = stationsBase.buffer;
 
-  const stationConfigs = [
-    {
-      name: "municipal_hq",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-n.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
-    },
-    {
-      name: "ward_office",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-f.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
-    },
-    {
-      name: "fire_services",
-      sources: [
-        { path: "kenney-city-kit-industrial/building-a.glb", slot: 2, transform: { scale: [0.95, 0.95, 0.95], translate: [0, 0, -0.2] } },
-        { path: "kenney-car-kit/firetruck.glb", slot: 4, transform: { scale: [0.35, 0.35, 0.35], translate: [0.45, 0, 0.9], rotY: Math.PI } }
-      ]
-    },
-    {
-      name: "health_department",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-h.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, -0.2] } },
-        { path: "kenney-car-kit/ambulance.glb", slot: 4, transform: { scale: [0.35, 0.35, 0.35], translate: [0.45, 0, 0.9], rotY: Math.PI } }
-      ]
-    },
-    {
-      name: "revenue_office",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-b.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
-    },
-    {
-      name: "labour_department",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-d.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
-    },
-    {
-      name: "police",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-c.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, -0.2] } },
-        { path: "kenney-car-kit/police.glb", slot: 4, transform: { scale: [0.35, 0.35, 0.35], translate: [0.4, 0, 0.85], rotY: Math.PI } }
-      ]
-    },
-    {
-      name: "pollution_control_board",
-      sources: [
-        { path: "kenney-city-kit-industrial/building-b.glb", slot: 2, transform: { scale: [0.95, 0.95, 0.95], translate: [-0.2, 0, 0] } },
-        { path: "kenney-city-kit-industrial/chimney-large.glb", slot: 2, transform: { scale: [0.7, 0.7, 0.7], translate: [0.9, 0, 0.2] } }
-      ]
-    },
-    {
-      name: "utility_provider",
-      sources: [
-        { path: "kenney-city-kit-industrial/water-tower.glb", slot: 2, transform: { scale: [0.95, 0.95, 0.95], translate: [-0.3, 0, 0] } },
-        { path: "kenney-city-kit-industrial/detail-tank.glb", slot: 2, transform: { scale: [0.6, 0.6, 0.6], translate: [0.65, 0, 0.25] } }
-      ]
-    },
-    {
-      name: "court_or_notary",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-a.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
-    },
-    {
-      name: "other",
-      sources: [
-        { path: "kenney-city-kit-commercial/building-e.glb", slot: 0, transform: { scale: [1, 1, 1], translate: [0, 0, 0] } }
-      ]
+  // 1. municipal_hq
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-n.glb", 0, null, { scale: [1, 1, 1], translate: [0, 0, -0.15] }, stationsDoc, stationsBuffer, stationsMat);
+    // 3 steps
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.7, 0, 0.7], [0.7, 0.08, 1.05], uvCream));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.6, 0.08, 0.7], [0.6, 0.16, 1.0], uvCream));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.5, 0.16, 0.7], [0.5, 0.24, 0.95], uvCream));
+    // 4 columns
+    for (const colX of [-0.45, -0.15, 0.15, 0.45]) {
+      prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.045, 1.1, 8, uvCream, [colX, 0.24, 0.82]));
     }
-  ];
+    // Entablature
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.55, 1.34, 0.72], [0.55, 1.46, 0.92], uvCream));
+    // Drum & Dome
+    prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.42, 0.35, 12, uvConcrete, [0, 2.2, -0.15]));
+    prims.push(createDomePrimitive(stationsDoc, stationsBuffer, stationsMat, 0.4, 0.5, 12, 6, uvCream, [0, 2.55, -0.15]));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("municipal_hq");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.48, 0.92], [0.45, 1.72, 0.94], signUV, uvCream));
 
-  for (const cfg of stationConfigs) {
-    const prims = [];
-    for (const src of cfg.sources) {
-      const srcPrims = await loadSourcePrimitives(src.path, src.slot, null, src.transform, stationsDoc, stationsBuffer, stationsMat);
-      prims.push(...srcPrims);
-    }
-    const joined = prims.length > 1 ? joinPrimitives(prims) : prims[0];
-    const mesh = stationsDoc.createMesh(cfg.name).addPrimitive(joined);
-    const node = stationsDoc.createNode(cfg.name).setMesh(mesh);
-    stationsBase.scene.addChild(node);
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("municipal_hq").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("municipal_hq").setMesh(mesh));
   }
 
-  // 12. online_portal: procedural glass pavilion with emissive blue screen quad
+  // 2. ward_office
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-f.glb", 0, null, null, stationsDoc, stationsBuffer, stationsMat);
+    // Clock tower on roof
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.15, 2.2, 0.15], [0.65, 3.1, 0.65], uvConcrete));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.1, 3.1, 0.1], [0.7, 3.45, 0.7], uvCream));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("ward_office");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.4, 0.95, 0.82], [0.4, 1.17, 0.84], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("ward_office").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("ward_office").setMesh(mesh));
+  }
+
+  // 3. revenue_office
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-b.glb", 0, null, null, stationsDoc, stationsBuffer, stationsMat);
+    // 4 columns
+    for (const colX of [-0.5, -0.17, 0.17, 0.5]) {
+      prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.045, 1.35, 8, uvCream, [colX, 0, 0.82]));
+    }
+    // Pediment overhang
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.58, 1.35, 0.72], [0.58, 1.48, 0.92], uvCream));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("revenue_office");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.5, 0.90], [0.45, 1.72, 0.92], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("revenue_office").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("revenue_office").setMesh(mesh));
+  }
+
+  // 4. labour_department
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-d.glb", 0, null, null, stationsDoc, stationsBuffer, stationsMat);
+    // Rooftop structure to reach height >= 1.6
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.35, 1.37, -0.35], [0.35, 1.82, 0.35], uvConcrete));
+    // Wide awning
+    const awningPrims = await loadSourcePrimitives("kenney-city-kit-commercial/detail-awning-wide.glb", 0, null, { scale: [1, 1, 1], translate: [0, 0.8, 0.84] }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...awningPrims);
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("labour_department");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.15, 0.82], [0.45, 1.37, 0.84], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("labour_department").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("labour_department").setMesh(mesh));
+  }
+
+  // 5. fire_services
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-industrial/building-a.glb", 2, null, { scale: [0.95, 0.95, 0.95], translate: [-0.15, 0, -0.15] }, stationsDoc, stationsBuffer, stationsMat);
+    // Drill tower
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.75, 0, -0.75], [-0.35, 3.2, -0.35], uvIron));
+    // Garage door panels (dark)
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.65, 0.02, 0.78], [-0.15, 0.75, 0.80], uvDark));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.05, 0.02, 0.78], [0.45, 0.75, 0.80], uvDark));
+    // Parked firetruck
+    const carPrims = await loadSourcePrimitives("kenney-car-kit/firetruck.glb", 4, null, { scale: [0.35, 0.35, 0.35], translate: [0.55, 0, 0.8], rotY: Math.PI }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...carPrims);
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("fire_services");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 0.95, 0.80], [0.45, 1.17, 0.82], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("fire_services").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("fire_services").setMesh(mesh));
+  }
+
+  // 6. police
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-c.glb", 0, null, { scale: [1, 1, 1], translate: [-0.15, 0, -0.15] }, stationsDoc, stationsBuffer, stationsMat);
+    // Rooftop equipment / radio mast to reach height >= 1.6
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.35, 1.38, -0.35], [0.1, 1.78, 0.15], uvConcrete));
+    prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.02, 0.5, 6, uvIron, [0.25, 1.38, -0.2]));
+    // Parked police car
+    const carPrims = await loadSourcePrimitives("kenney-car-kit/police.glb", 4, null, { scale: [0.35, 0.35, 0.35], translate: [0.5, 0, 0.8], rotY: Math.PI }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...carPrims);
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("police");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.05, 0.80], [0.45, 1.27, 0.82], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("police").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("police").setMesh(mesh));
+  }
+
+  // 7. health_department
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-h.glb", 0, null, { scale: [1, 1, 1], translate: [-0.15, 0, -0.15] }, stationsDoc, stationsBuffer, stationsMat);
+    // Rooftop lantern structure to reach height >= 1.6
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.35, 1.43, -0.35], [0.35, 1.82, 0.35], uvConcrete));
+    // Ambulance canopy
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.2, 0.85, 0.35], [0.85, 0.9, 1.15], uvConcrete));
+    prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.03, 0.85, 6, uvIron, [0.8, 0, 1.1]));
+    // Parked ambulance
+    const carPrims = await loadSourcePrimitives("kenney-car-kit/ambulance.glb", 4, null, { scale: [0.35, 0.35, 0.35], translate: [0.5, 0, 0.8], rotY: Math.PI }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...carPrims);
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("health_department");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.1, 0.80], [0.45, 1.32, 0.82], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("health_department").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("health_department").setMesh(mesh));
+  }
+
+  // 8. utility_provider
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-industrial/water-tower.glb", 2, null, { scale: [0.75, 0.75, 0.75], translate: [-0.4, 0, -0.2] }, stationsDoc, stationsBuffer, stationsMat);
+    const tankPrims = await loadSourcePrimitives("kenney-city-kit-industrial/detail-tank.glb", 2, null, { scale: [0.6, 0.6, 0.6], translate: [0.55, 0, 0.3] }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...tankPrims);
+    // Substation office box
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.15, 0, -0.6], [0.85, 0.9, 0.0], uvConcrete));
+    // Connecting pipe
+    prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.04, 0.6, 6, uvIron, [0.1, 0.2, -0.1]));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("utility_provider");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [0.2, 0.65, 0.02], [0.8, 0.87, 0.04], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("utility_provider").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("utility_provider").setMesh(mesh));
+  }
+
+  // 9. pollution_control_board
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-industrial/building-b.glb", 2, null, { scale: [0.95, 0.95, 0.95], translate: [-0.15, 0, 0] }, stationsDoc, stationsBuffer, stationsMat);
+    const chimPrims = await loadSourcePrimitives("kenney-city-kit-industrial/chimney-large.glb", 2, null, { scale: [0.65, 0.65, 0.65], translate: [0.8, 0, 0.1] }, stationsDoc, stationsBuffer, stationsMat);
+    prims.push(...chimPrims);
+    // Roof garden green slab
+    const uvGreen = SWATCH_UV_MAP.get("nature_green_dark") || uvCream;
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.65, 1.82, -0.55], [0.35, 1.86, 0.55], uvGreen));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("pollution_control_board");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.1, 0.82], [0.45, 1.32, 0.84], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("pollution_control_board").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("pollution_control_board").setMesh(mesh));
+  }
+
+  // 10. court_or_notary
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-a.glb", 0, null, null, stationsDoc, stationsBuffer, stationsMat);
+    // 3 wide steps
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.8, 0, 0.7], [0.8, 0.08, 1.1], uvCream));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.7, 0.08, 0.7], [0.7, 0.16, 1.05], uvCream));
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.6, 0.16, 0.7], [0.6, 0.24, 1.0], uvCream));
+    // 4 classical columns
+    for (const colX of [-0.5, -0.17, 0.17, 0.5]) {
+      prims.push(createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.045, 1.25, 8, uvCream, [colX, 0.24, 0.85]));
+    }
+    // Pediment overhang
+    prims.push(createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.6, 1.49, 0.75], [0.6, 1.62, 0.95], uvCream));
+    // Sign plate
+    const signUV = SIGN_UV_MAP.get("court_or_notary");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.45, 1.64, 0.93], [0.45, 1.86, 0.95], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("court_or_notary").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("court_or_notary").setMesh(mesh));
+  }
+
+  // 11. other
+  {
+    const prims = await loadSourcePrimitives("kenney-city-kit-commercial/building-e.glb", 0, null, null, stationsDoc, stationsBuffer, stationsMat);
+    const signUV = SIGN_UV_MAP.get("other");
+    prims.push(createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.35, 1.05, 0.82], [0.35, 1.27, 0.84], signUV, uvCream));
+
+    const joined = joinPrimitives(prims);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("other").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("other").setMesh(mesh));
+  }
+
+  // 12. online_portal (Online kiosk per visual-direction §10.5)
   {
     const uvBase = SWATCH_UV_MAP.get("portal_glass");
-    const uvPost = SWATCH_UV_MAP.get("iron_dark");
-    const uvRoof = SWATCH_UV_MAP.get("concrete_warm");
-    const uvScreen = SWATCH_UV_MAP.get("portal_screen");
+    const uvBeam = SWATCH_UV_MAP.get("portal_screen");
+    const signUV = SIGN_UV_MAP.get("online_portal");
 
-    const pFoundation = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.8, 0, -0.8], [0.8, 0.08, 0.8], uvBase);
-    const pPost1 = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.72, 0.08, -0.72], [-0.64, 1.4, -0.64], uvPost);
-    const pPost2 = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.64, 0.08, -0.72], [0.72, 1.4, -0.64], uvPost);
-    const pPost3 = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.72, 0.08, 0.64], [-0.64, 1.4, 0.72], uvPost);
-    const pPost4 = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [0.64, 0.08, 0.64], [0.72, 1.4, 0.72], uvPost);
-    const pRoof = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.8, 1.4, -0.8], [0.8, 1.5, 0.8], uvRoof);
-    const pScreen = createBoxPrimitive(stationsDoc, stationsBuffer, stationsMat, [-0.45, 0.45, -0.03], [0.45, 1.15, 0.03], uvScreen);
+    // Plaza base ring at y=0..0.06
+    const pBase = createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.6, 0.06, 16, uvBase);
+    // Light beam cylinder from ground to floating screen
+    const pBeam = createCylinderPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.06, 1.64, 12, uvBeam, [0, 0.06, 0]);
+    // Floating screen slab: 1.6 x 1.0 x 0.12 at y = 1.7..2.7 (center y=2.2)
+    const pScreen = createSignPlateBox(stationsDoc, stationsBuffer, stationsMat, [-0.8, 1.7, -0.06], [0.8, 2.7, 0.06], signUV, uvBase);
 
-    const joinedPortal = joinPrimitives([pFoundation, pPost1, pPost2, pPost3, pPost4, pRoof, pScreen]);
-    const mesh = stationsDoc.createMesh("online_portal").addPrimitive(joinedPortal);
-    const node = stationsDoc.createNode("online_portal").setMesh(mesh);
-    stationsBase.scene.addChild(node);
+    const joined = joinPrimitives([pBase, pBeam, pScreen]);
+    groundPrimitive(joined);
+    const mesh = stationsDoc.createMesh("online_portal").addPrimitive(joined);
+    stationsBase.scene.addChild(stationsDoc.createNode("online_portal").setMesh(mesh));
   }
 
-  // 13. milestone: procedural interchange plaza ring
+  // 13. milestone (Interchange plaza ring)
   {
     const uvRing = SWATCH_UV_MAP.get("track_normal");
     const ringPrim = createRingPrismPrimitive(stationsDoc, stationsBuffer, stationsMat, 0.85, 1.25, 0.12, 16, uvRing);
+    groundPrimitive(ringPrim);
     const mesh = stationsDoc.createMesh("milestone").addPrimitive(ringPrim);
-    const node = stationsDoc.createNode("milestone").setMesh(mesh);
-    stationsBase.scene.addChild(node);
+    stationsBase.scene.addChild(stationsDoc.createNode("milestone").setMesh(mesh));
+  }
+
+  // Measure and register stations
+  for (const mesh of stationsDoc.getRoot().listMeshes()) {
+    const name = mesh.getName();
+    const prim = mesh.listPrimitives()[0];
+    const posArr = prim.getAttribute("POSITION").getArray();
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < posArr.length; i += 3) {
+      minX = Math.min(minX, posArr[i]);
+      minY = Math.min(minY, posArr[i + 1]);
+      minZ = Math.min(minZ, posArr[i + 2]);
+      maxX = Math.max(maxX, posArr[i]);
+      maxY = Math.max(maxY, posArr[i + 1]);
+      maxZ = Math.max(maxZ, posArr[i + 2]);
+    }
+    const width = +(maxX - minX).toFixed(2);
+    const height = +(maxY - minY).toFixed(2);
+    const depth = +(maxZ - minZ).toFixed(2);
+    const indices = prim.getIndices();
+    const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
+
+    allTrianglesByKind[name] = triangles;
+    stationMetadataList.push({ name, width, height, depth, triangles, minY: +minY.toFixed(4) });
+    console.log(`Station composite '${name}': ${width}x${height}x${depth}, ${triangles} tris, minY=${minY.toFixed(4)}`);
   }
 
   const stationsPath = path.join(OUT_DIR, "stations.glb");
@@ -588,7 +965,7 @@ async function main() {
   console.log(`Saved stations.glb: ${stationsPath} (${(fs.statSync(stationsPath).size / 1024).toFixed(1)} KB)`);
 
   // -------------------------------------------------------------------------
-  // Compose city.glb (18 building archetypes: low, mid, tall)
+  // Compose city.glb (18 building archetypes: low, mid, tall, low-detail)
   // -------------------------------------------------------------------------
   console.log("Composing art/out/city.glb...");
   const cityBase = createBaseDocument(atlasBuffer);
@@ -647,16 +1024,13 @@ async function main() {
     { name: "tall-skyscraper-c", path: "kenney-city-kit-commercial/building-skyscraper-c.glb", slot: 0, tier: "tall" },
   ];
 
-  const cityKindsMetadata = [];
-
   for (const b of cityBuildingList) {
     const prims = await loadSourcePrimitives(b.path, b.slot, null, null, cityDoc, cityBuffer, cityMat);
     const joined = prims.length > 1 ? joinPrimitives(prims) : prims[0];
+    groundPrimitive(joined);
     const mesh = cityDoc.createMesh(b.name).addPrimitive(joined);
-    const node = cityDoc.createNode(b.name).setMesh(mesh);
-    cityBase.scene.addChild(node);
+    cityBase.scene.addChild(cityDoc.createNode(b.name).setMesh(mesh));
 
-    // Calculate real bounding box
     const posArr = joined.getAttribute("POSITION").getArray();
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -677,6 +1051,7 @@ async function main() {
     const indices = joined.getIndices();
     const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
 
+    allTrianglesByKind[b.name] = triangles;
     cityKindsMetadata.push({
       name: b.name,
       tier,
@@ -693,7 +1068,7 @@ async function main() {
   console.log(`Saved city.glb: ${cityPath} (${(fs.statSync(cityPath).size / 1024).toFixed(1)} KB)`);
 
   // -------------------------------------------------------------------------
-  // Compose props.glb (13 nature & road & boat props)
+  // Compose props.glb (Nature, street furniture, boats)
   // -------------------------------------------------------------------------
   console.log("Composing art/out/props.glb...");
   const propsBase = createBaseDocument(atlasBuffer);
@@ -714,6 +1089,7 @@ async function main() {
     // Road props
     { name: "prop-light-single", path: "kenney-city-kit-roads/light-curved.glb", slot: 3, tier: "prop" },
     { name: "prop-light-double", path: "kenney-city-kit-roads/light-curved-double.glb", slot: 3, tier: "prop" },
+    { name: "prop-light-square", path: "kenney-city-kit-roads/light-square.glb", slot: 3, tier: "prop" },
     { name: "prop-barrier", path: "kenney-city-kit-roads/road-straight-barrier.glb", slot: 3, tier: "prop" },
     { name: "prop-traffic-light", path: "kenney-city-kit-roads/traffic-light.glb", slot: 3, tier: "prop" },
 
@@ -725,11 +1101,10 @@ async function main() {
   for (const p of propList) {
     const prims = await loadSourcePrimitives(p.path, p.slot, p.defaultUV, null, propsDoc, propsBuffer, propsMat);
     const joined = prims.length > 1 ? joinPrimitives(prims) : prims[0];
+    groundPrimitive(joined);
     const mesh = propsDoc.createMesh(p.name).addPrimitive(joined);
-    const node = propsDoc.createNode(p.name).setMesh(mesh);
-    propsBase.scene.addChild(node);
+    propsBase.scene.addChild(propsDoc.createNode(p.name).setMesh(mesh));
 
-    // Calculate real bounding box
     const posArr = joined.getAttribute("POSITION").getArray();
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -748,6 +1123,7 @@ async function main() {
     const indices = joined.getIndices();
     const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
 
+    allTrianglesByKind[p.name] = triangles;
     cityKindsMetadata.push({
       name: p.name,
       tier: p.tier,
@@ -764,7 +1140,130 @@ async function main() {
   console.log(`Saved props.glb: ${propsPath} (${(fs.statSync(propsPath).size / 1024).toFixed(1)} KB)`);
 
   // -------------------------------------------------------------------------
-  // 8. Generate components/canvas/city/cityKinds.ts (Amendment D3)
+  // Compose roads.glb (Road tiles for street grid per §10.2)
+  // -------------------------------------------------------------------------
+  console.log("Composing art/out/roads.glb...");
+  const roadsBase = createBaseDocument(atlasBuffer);
+  const roadsDoc = roadsBase.doc;
+  const roadsMat = roadsBase.material;
+  const roadsBuffer = roadsBase.buffer;
+
+  const roadList = [
+    { name: "road-straight", file: "road-straight.glb" },
+    { name: "road-bend", file: "road-bend.glb" },
+    { name: "road-intersection", file: "road-intersection.glb" },
+    { name: "road-crossroad", file: "road-crossroad.glb" },
+    { name: "road-end", file: "road-end.glb" },
+    { name: "road-side", file: "road-side.glb" },
+    { name: "tile-low", file: "tile-low.glb" },
+  ];
+
+  for (const r of roadList) {
+    const prims = await loadSourcePrimitives(`kenney-city-kit-roads/${r.file}`, 3, null, null, roadsDoc, roadsBuffer, roadsMat);
+    const joined = prims.length > 1 ? joinPrimitives(prims) : prims[0];
+    groundPrimitive(joined);
+    const mesh = roadsDoc.createMesh(r.name).addPrimitive(joined);
+    roadsBase.scene.addChild(roadsDoc.createNode(r.name).setMesh(mesh));
+
+    const posArr = joined.getAttribute("POSITION").getArray();
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < posArr.length; i += 3) {
+      minX = Math.min(minX, posArr[i]);
+      minY = Math.min(minY, posArr[i + 1]);
+      minZ = Math.min(minZ, posArr[i + 2]);
+      maxX = Math.max(maxX, posArr[i]);
+      maxY = Math.max(maxY, posArr[i + 1]);
+      maxZ = Math.max(maxZ, posArr[i + 2]);
+    }
+    const width = +(maxX - minX).toFixed(2);
+    const height = +(maxY - minY).toFixed(2);
+    const depth = +(maxZ - minZ).toFixed(2);
+    const indices = joined.getIndices();
+    const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
+
+    allTrianglesByKind[r.name] = triangles;
+    roadMetadataList.push({ name: r.name, width, height, depth, triangles, minY: +minY.toFixed(4) });
+  }
+
+  const roadsPath = path.join(OUT_DIR, "roads.glb");
+  await io.write(roadsPath, roadsDoc);
+  console.log(`Saved roads.glb: ${roadsPath} (${(fs.statSync(roadsPath).size / 1024).toFixed(1)} KB)`);
+
+  // -------------------------------------------------------------------------
+  // Compose cars.glb (Cars & service vehicles per §10.3)
+  // -------------------------------------------------------------------------
+  console.log("Composing art/out/cars.glb...");
+  const carsBase = createBaseDocument(atlasBuffer);
+  const carsDoc = carsBase.doc;
+  const carsMat = carsBase.material;
+  const carsBuffer = carsBase.buffer;
+
+  const carList = [
+    { name: "sedan", file: "sedan.glb" },
+    { name: "taxi", file: "taxi.glb" },
+    { name: "van", file: "van.glb" },
+    { name: "suv", file: "suv.glb" },
+    { name: "hatchback-sports", file: "hatchback-sports.glb" },
+    { name: "delivery", file: "delivery.glb" },
+    { name: "truck", file: "truck.glb" },
+    { name: "garbage-truck", file: "garbage-truck.glb" },
+    { name: "firetruck", file: "firetruck.glb" },
+    { name: "police", file: "police.glb" },
+    { name: "ambulance", file: "ambulance.glb" },
+  ];
+
+  let totalCarTris = 0;
+  for (const c of carList) {
+    const prims = await loadSourcePrimitives(`kenney-car-kit/${c.file}`, 4, null, null, carsDoc, carsBuffer, carsMat);
+    const joined = prims.length > 1 ? joinPrimitives(prims) : prims[0];
+    groundPrimitive(joined);
+    const mesh = carsDoc.createMesh(c.name).addPrimitive(joined);
+    carsBase.scene.addChild(carsDoc.createNode(c.name).setMesh(mesh));
+
+    const posArr = joined.getAttribute("POSITION").getArray();
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < posArr.length; i += 3) {
+      minX = Math.min(minX, posArr[i]);
+      minY = Math.min(minY, posArr[i + 1]);
+      minZ = Math.min(minZ, posArr[i + 2]);
+      maxX = Math.max(maxX, posArr[i]);
+      maxY = Math.max(maxY, posArr[i + 1]);
+      maxZ = Math.max(maxZ, posArr[i + 2]);
+    }
+    const width = +(maxX - minX).toFixed(2);
+    const height = +(maxY - minY).toFixed(2);
+    const depth = +(maxZ - minZ).toFixed(2);
+    const indices = joined.getIndices();
+    const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
+
+    totalCarTris += triangles;
+    allTrianglesByKind[c.name] = triangles;
+    carMetadataList.push({ name: c.name, width, height, depth, triangles, minY: +minY.toFixed(4) });
+  }
+
+  // Simplify cars to guarantee budget <= 25k triangles
+  await carsDoc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.85, error: 0.01 }));
+
+  // Re-read triangle count after simplification
+  totalCarTris = 0;
+  for (const mesh of carsDoc.getRoot().listMeshes()) {
+    const prim = mesh.listPrimitives()[0];
+    const tris = Math.floor(prim.getIndices().getCount() / 3);
+    allTrianglesByKind[mesh.getName()] = tris;
+    const meta = carMetadataList.find((m) => m.name === mesh.getName());
+    if (meta) meta.triangles = tris;
+    totalCarTris += tris;
+  }
+  console.log(`Cars total triangles after simplification: ${totalCarTris} (budget <= 25000)`);
+
+  const carsPath = path.join(OUT_DIR, "cars.glb");
+  await io.write(carsPath, carsDoc);
+  console.log(`Saved cars.glb: ${carsPath} (${(fs.statSync(carsPath).size / 1024).toFixed(1)} KB)`);
+
+  // -------------------------------------------------------------------------
+  // 8. Generate components/canvas/city/cityKinds.ts
   // -------------------------------------------------------------------------
   console.log("Generating components/canvas/city/cityKinds.ts...");
   const cityKindsDir = path.join(ROOT, "components/canvas/city");
@@ -773,9 +1272,8 @@ async function main() {
   }
 
   const cityKindsTsContent = `/**
- * City and Props Archetype Definitions (Generated by art/compose.mjs)
- *
- * Ground truth real bounding boxes, tiers, and footprints per visual-direction §3 and Amendment D3.
+ * City, Props, Road, Car and Station Archetype Definitions
+ * (Generated by art/compose.mjs per visual-direction §10.1, §10.5)
  */
 
 export type CityTier = "low" | "mid" | "tall" | "tree" | "prop";
@@ -791,15 +1289,26 @@ export interface CityKindInfo {
   triangles: number;
 }
 
+export interface ModelKindInfo {
+  name: string;
+  width: number;
+  height: number;
+  depth: number;
+  triangles: number;
+  minY: number;
+}
+
 export const CITY_KINDS: readonly CityKindInfo[] = ${JSON.stringify(cityKindsMetadata, null, 2)} as const;
+
+export const STATION_KINDS: readonly ModelKindInfo[] = ${JSON.stringify(stationMetadataList, null, 2)} as const;
+export const ROAD_KINDS: readonly ModelKindInfo[] = ${JSON.stringify(roadMetadataList, null, 2)} as const;
+export const CAR_KINDS: readonly ModelKindInfo[] = ${JSON.stringify(carMetadataList, null, 2)} as const;
 
 export const CITY_KINDS_BY_NAME: Record<string, CityKindInfo> = Object.fromEntries(
   CITY_KINDS.map((k) => [k.name, k])
 );
 
-export const TRIANGLES_BY_KIND: Record<string, number> = Object.fromEntries(
-  CITY_KINDS.map((k) => [k.name, k.triangles])
-);
+export const TRIANGLES_BY_KIND: Record<string, number> = ${JSON.stringify(allTrianglesByKind, null, 2)};
 
 export function getCityKind(name: string): CityKindInfo | undefined {
   return CITY_KINDS_BY_NAME[name];
