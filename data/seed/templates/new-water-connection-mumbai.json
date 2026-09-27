@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 3,
+  "taskId": "new-water-connection-mumbai",
+  "revision": 1,
+  "title": "New water connection in Mumbai",
+  "summary": "Get a new water connection from the Municipal Corporation of Greater Mumbai for a building or commercial premises.",
+  "jurisdiction": {
+    "country": "IN",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "localBody": "Municipal Corporation of Greater Mumbai"
+  },
+  "category": "utilities",
+  "keywords": [
+    "new water connection",
+    "water connection mumbai",
+    "bmc water connection",
+    "mcgm water",
+    "नवीन पाणी जोडणी",
+    "नया पानी कनेक्शन"
+  ],
+  "sources": [],
+  "questions": [],
+  "modules": [
+    {
+      "moduleId": "mcgm-new-water-connection",
+      "version": 1,
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Every new water connection in Mumbai goes through the ward's water works office"
+    }
+  ],
+  "links": [],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T21:00:00+05:30"
+  }
+}
