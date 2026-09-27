@@ -32,11 +32,7 @@ def verify(authorization_header: str, secret: str, now: int) -> None:
     if exp > now + 120:
         raise TokenError("exp too far ahead")
 
-    expected = (
-        hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256)
-        .hexdigest()
-        .lower()
-    )
+    expected = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
 
     if not hmac.compare_digest(expected, sig.lower()):
         raise TokenError("signature mismatch")

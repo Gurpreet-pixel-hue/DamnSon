@@ -88,22 +88,17 @@ def generate_json(task: str, messages: list[dict[str, str]], schema: Type[T]) ->
         try:
             result_text = ""
             if provider_name == "gemini":
-                result_text = gemini.call(
-                    messages, schema, settings.gemini_fast_model, temperature, timeout
-                )
+                result_text = gemini.call(messages, schema, settings.gemini_fast_model, temperature, timeout)
             elif provider_name == "groq":
-                result_text = groq.call(
-                    messages, schema, settings.groq_fast_model, temperature, timeout
-                )
+                result_text = groq.call(messages, schema, settings.groq_fast_model, temperature, timeout)
             elif provider_name == "local":
-                result_text = local.call(
-                    messages, schema, settings.local_fast_model, temperature, timeout
-                )
+                result_text = local.call(messages, schema, settings.local_fast_model, temperature, timeout)
 
             if result_text:
                 breaker.record_success()
                 return schema.model_validate_json(result_text)
-        except Exception:
+        except Exception as e:
+            print(f"Provider {provider_name} failed with: {e}")
             breaker.record_failure()
 
     raise NoProviderAvailable("All providers failed or are open")

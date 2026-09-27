@@ -30,9 +30,7 @@ def call(
         role = "user" if m["role"] == "user" else "assistant"
         if m["role"] == "system":
             role = "system"
-        groq_messages.append(
-            cast(ChatCompletionMessageParam, {"role": role, "content": m["content"]})
-        )
+        groq_messages.append(cast(ChatCompletionMessageParam, {"role": role, "content": m["content"]}))
 
     try:
         resp = client.chat.completions.create(
