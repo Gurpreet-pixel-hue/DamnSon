@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { canMarkDone } from "@/lib/graph/progress";
 
 export function useSceneKeyboard(metro: MetroVM) {
   useEffect(() => {
@@ -115,8 +116,11 @@ export function useSceneKeyboard(metro: MetroVM) {
         }
       } else if (e.key === " " || e.code === "Space") {
         if (focusedStepId && activeTaskId) {
-          e.preventDefault();
-          toggleStepDone(activeTaskId, focusedStepId);
+          const current = metro.stations.find((s) => s.id === focusedStepId);
+          if (current && canMarkDone(current.kind)) {
+            e.preventDefault();
+            toggleStepDone(activeTaskId, focusedStepId);
+          }
         }
       }
     }
