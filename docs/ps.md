@@ -1,3 +1,5 @@
+> Superseded where it differs by docs/prd/CivicWeave-PRD.md (v1.1). docs/frontend-spec.md stays normative for Civic Metro parameters.
+
 # Problem Statement — PSWB 02: Municipal Bureaucracy Path Visualizer
 
 **Source:** *PS Internal Hackathon 2026* (Computer Engineering Department, Internal Hackathon 2026-27), Web Based Category, ID PSWB 02.
