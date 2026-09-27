@@ -154,6 +154,7 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
     errorCodes?: string[];
   }>(() => {
     if (!initialBundle) return { ok: true };
+    void templateRevision;
     try {
       const journey = composeJourney(
         initialBundle.template,

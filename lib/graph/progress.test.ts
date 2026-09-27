@@ -3,8 +3,6 @@ import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadF
 import {
   journeyTemplateSchema,
   approvalModuleSchema,
-  type JourneyTemplate,
-  type ApprovalModule,
 } from "@/lib/contract/schema";
 import { composeJourney } from "@/lib/contract/compose";
 import { analyzeJourney } from "@/lib/contract/analyze";
