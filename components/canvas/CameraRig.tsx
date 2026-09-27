@@ -6,6 +6,7 @@ import { CameraControls } from "@react-three/drei";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { deriveStageHeaders } from "./StageHeaders";
 import type { BoardBounds } from "./city/planCity";
 
 interface CameraRigProps {
@@ -24,7 +25,30 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
-  // Compute station bounding box for fitToBox
+  // F1: Fog scales with camera distance: on every CameraControls update (0 allocations)
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const updateFog = () => {
+      const parentScene = (controls.camera as THREE.Camera & { parent?: { fog?: THREE.Fog } }).parent;
+      const fog = parentScene?.fog;
+      if (fog && "near" in fog) {
+        const dist = controls.distance;
+        fog.near = dist * 1.3;
+        fog.far = dist * 3.2;
+      }
+    };
+
+    controls.addEventListener("update", updateFog);
+    updateFog();
+
+    return () => {
+      controls.removeEventListener("update", updateFog);
+    };
+  }, []);
+
+  // Compute bounding box encompassing stations, pins, card anchors, and stage headers (F4)
   const stationBoundingBox = useMemo(() => {
     const box = new THREE.Box3();
     if (metro.stations.length === 0) {
@@ -32,18 +56,24 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
       return box;
     }
     for (const station of metro.stations) {
-      box.expandByPoint(
-        new THREE.Vector3(
-          station.position3D[0],
-          station.position3D[1],
-          station.position3D[2]
-        )
-      );
+      const [x, y, z] = station.position3D;
+      // Station base
+      box.expandByPoint(new THREE.Vector3(x, y, z));
+      // Pin top
+      box.expandByPoint(new THREE.Vector3(x, y + 1.8, z));
+      // Card anchor
+      box.expandByPoint(new THREE.Vector3(x, y + 2.8, z));
     }
-    // E7: station bounds plus 3 units of margin
-    box.expandByScalar(3);
+    // Stage headers
+    const headers = deriveStageHeaders(metro);
+    for (const h of headers) {
+      box.expandByPoint(new THREE.Vector3(h.x, 0.57, h.z));
+      box.expandByPoint(new THREE.Vector3(h.x, 2.0, h.z));
+    }
+    // Margin for card and header extents in screen space
+    box.expandByScalar(3.5);
     return box;
-  }, [metro.stations]);
+  }, [metro]);
 
   // Set boundary on board bounds
   useEffect(() => {
@@ -62,19 +92,20 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     if (!controls) return;
 
     const enableTransition = !prefersReducedMotion;
-    // visual-direction §5: fitToBox over station bounds with padding 1.2
-    void controls.fitToBox(stationBoundingBox, enableTransition, {
-      paddingLeft: 1.2,
-      paddingRight: 1.2,
-      paddingTop: 1.2,
-      paddingBottom: 1.2,
+    // F4: Fit inside safe area (insets: 24 px left/right, 110 px top, 120 px bottom)
+    void controls.fitToBox(stationBoundingBox, false, {
+      paddingLeft: 2.2,
+      paddingRight: 2.2,
+      paddingTop: 3.2,
+      paddingBottom: 3.0,
+    }).then(() => {
+      // F4: Initial azimuth -15°, polar 50°
+      void controls.rotateTo(
+        (-15 * Math.PI) / 180,
+        (50 * Math.PI) / 180,
+        enableTransition
+      );
     });
-    // visual-direction §5: initial azimuth -35°, polar 52°
-    void controls.rotateTo(
-      (-35 * Math.PI) / 180,
-      (52 * Math.PI) / 180,
-      enableTransition
-    );
   }, [stationBoundingBox, prefersReducedMotion]);
 
   // Initial fitToBox

@@ -10,6 +10,7 @@ import { deriveStageHeaders } from "../StageHeaders";
 export interface LabelProjectorProps {
   metro: MetroVM;
   slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
+  pinSlotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
   selectionRef?: React.RefObject<StationVM[]>;
 }
 
@@ -23,6 +24,7 @@ const EMPTY_STATIONS: StationVM[] = [];
 export function LabelProjector({
   metro,
   slotsRef,
+  pinSlotsRef,
   selectionRef,
 }: LabelProjectorProps) {
   const { camera, size } = useThree();
@@ -95,7 +97,8 @@ export function LabelProjector({
     }
 
     const slots = slotsRef.current;
-    if (!slots) return;
+    const pinSlots = pinSlotsRef.current;
+    if (!slots || !pinSlots) return;
 
     camera.getWorldPosition(scratchCamPos);
     camera.getWorldDirection(scratchCamForward);
@@ -123,6 +126,56 @@ export function LabelProjector({
       });
     }
 
+    // 1. Project Pins (F3: always visible for every station, never culled)
+    if (pinSlots) {
+      const stationCount = metro.stations.length;
+      for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
+        const pinEl = pinSlots[i];
+        if (!pinEl) continue;
+
+        if (i >= stationCount) {
+          pinEl.style.visibility = "hidden";
+          continue;
+        }
+
+        const station = metro.stations[i];
+        if (!station) {
+          pinEl.style.visibility = "hidden";
+          continue;
+        }
+
+        scratchVec.set(
+          station.position3D[0],
+          station.position3D[1] + 0.8,
+          station.position3D[2]
+        );
+
+        scratchCamToStation.subVectors(scratchVec, scratchCamPos);
+        if (scratchCamToStation.dot(scratchCamForward) <= 0) {
+          pinEl.style.visibility = "hidden";
+          continue;
+        }
+
+        scratchVec.project(camera);
+        const screenX = scratchVec.x * halfW + halfW;
+        const screenY = -scratchVec.y * halfH + halfH;
+
+        if (
+          screenX < -40 ||
+          screenX > size.width + 40 ||
+          screenY < -40 ||
+          screenY > size.height + 40
+        ) {
+          pinEl.style.visibility = "hidden";
+          continue;
+        }
+
+        pinEl.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -100%)`;
+        pinEl.style.visibility = "visible";
+      }
+    }
+
+    // 2. Project Cards (greedy collision culling against stage headers and cards)
     for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
       const el = slots[i];
       if (!el) continue;

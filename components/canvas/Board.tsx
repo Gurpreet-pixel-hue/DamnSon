@@ -49,7 +49,7 @@ void main() {
 `;
 
 export function Board({ plan }: BoardProps) {
-  const { bounds, promenadeZ, roadSegments } = plan;
+  const { bounds, promenadeZ } = plan;
   const shadowLightRef = useRef<THREE.DirectionalLight>(null);
   const waterMaterialRef = useRef<THREE.ShaderMaterial>(null);
 
@@ -168,64 +168,34 @@ export function Board({ plan }: BoardProps) {
     }
   });
 
-  // 3. Roads & Kerbs Mesh
-  const { roadGeometry, kerbGeometry } = useMemo(() => {
+  // 3. Street Cells Mesh (cell-aligned per F2, same road material)
+  const roadGeometry = useMemo(() => {
+    const { cells, cellSize, cols, rows } = plan.cellGrid;
     const roadPositions: number[] = [];
     const roadNormals: number[] = [];
     const roadIndices: number[] = [];
 
-    const kerbPositions: number[] = [];
-    const kerbNormals: number[] = [];
-    const kerbIndices: number[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (cells[r]?.[c] === "road") {
+          const x0 = bounds.minX + c * cellSize;
+          const x1 = x0 + cellSize;
+          const z0 = bounds.minZ + r * cellSize;
+          const z1 = z0 + cellSize;
+          const y = 0.171; // Just above land slab top at y = 0.170
 
-    function addRibbonSegment(
-      p1: [number, number],
-      p2: [number, number],
-      width: number,
-      y: number,
-      posArr: number[],
-      normArr: number[],
-      idxArr: number[]
-    ) {
-      const dx = p2[0] - p1[0];
-      const dz = p2[1] - p1[1];
-      const len = Math.hypot(dx, dz);
-      if (len === 0) return;
-
-      const nx = (-dz / len) * (width / 2);
-      const nz = (dx / len) * (width / 2);
-
-      const o = posArr.length / 3;
-      posArr.push(
-        p1[0] - nx, y, p1[1] - nz,
-        p1[0] + nx, y, p1[1] + nz,
-        p2[0] + nx, y, p2[1] + nz,
-        p2[0] - nx, y, p2[1] - nz
-      );
-      for (let k = 0; k < 4; k++) {
-        normArr.push(0, 1, 0);
-      }
-      idxArr.push(o, o + 1, o + 2, o, o + 2, o + 3);
-    }
-
-    // A. Track roads (width 1.1) and kerbs (width 0.1 on both sides) at y = 0.172
-    for (const seg of roadSegments) {
-      addRibbonSegment(seg.from, seg.to, 1.1, 0.172, roadPositions, roadNormals, roadIndices);
-
-      // Kerb left
-      const dx = seg.to[0] - seg.from[0];
-      const dz = seg.to[1] - seg.from[1];
-      const len = Math.hypot(dx, dz);
-      if (len > 0) {
-        const nx = (-dz / len);
-        const nz = (dx / len);
-        const leftP1: [number, number] = [seg.from[0] - nx * 0.58, seg.from[1] - nz * 0.58];
-        const leftP2: [number, number] = [seg.to[0] - nx * 0.58, seg.to[1] - nz * 0.58];
-        addRibbonSegment(leftP1, leftP2, 0.1, 0.175, kerbPositions, kerbNormals, kerbIndices);
-
-        const rightP1: [number, number] = [seg.from[0] + nx * 0.58, seg.from[1] + nz * 0.58];
-        const rightP2: [number, number] = [seg.to[0] + nx * 0.58, seg.to[1] + nz * 0.58];
-        addRibbonSegment(rightP1, rightP2, 0.1, 0.175, kerbPositions, kerbNormals, kerbIndices);
+          const o = roadPositions.length / 3;
+          roadPositions.push(
+            x0, y, z0,
+            x1, y, z0,
+            x1, y, z1,
+            x0, y, z1
+          );
+          for (let k = 0; k < 4; k++) {
+            roadNormals.push(0, 1, 0);
+          }
+          roadIndices.push(o, o + 1, o + 2, o, o + 2, o + 3);
+        }
       }
     }
 
@@ -234,29 +204,14 @@ export function Board({ plan }: BoardProps) {
     rGeom.setAttribute("normal", new THREE.Float32BufferAttribute(roadNormals, 3));
     rGeom.setIndex(roadIndices);
 
-    const kGeom = new THREE.BufferGeometry();
-    kGeom.setAttribute("position", new THREE.Float32BufferAttribute(kerbPositions, 3));
-    kGeom.setAttribute("normal", new THREE.Float32BufferAttribute(kerbNormals, 3));
-    kGeom.setIndex(kerbIndices);
-
-    return { roadGeometry: rGeom, kerbGeometry: kGeom };
-  }, [roadSegments]);
+    return rGeom;
+  }, [plan.cellGrid, bounds.minX, bounds.minZ]);
 
   const roadMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: PALETTE.road,
         roughness: 0.9,
-        metalness: 0.05,
-      }),
-    []
-  );
-
-  const kerbMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: PALETTE.roadEdge,
-        roughness: 0.85,
         metalness: 0.05,
       }),
     []
@@ -328,20 +283,11 @@ export function Board({ plan }: BoardProps) {
         ]}
       />
 
-      {/* Roads ribbon (width 1.1, y 0.02) */}
+      {/* Cell-aligned streets (PALETTE.road, y = 0.171) */}
       {roadGeometry && (
         <mesh
           geometry={roadGeometry}
           material={roadMaterial}
-          receiveShadow
-        />
-      )}
-
-      {/* Kerbs */}
-      {kerbGeometry && (
-        <mesh
-          geometry={kerbGeometry}
-          material={kerbMaterial}
           receiveShadow
         />
       )}

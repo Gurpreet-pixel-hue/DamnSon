@@ -11,7 +11,7 @@ if (!fs.existsSync(REVIEW_DIR)) {
 }
 
 async function main() {
-  console.log("=== Starting FE-1V Stage 1 Screenshot & Metrics Capture (1440x900) ===");
+  console.log("=== Starting FE-1V Stage 1 Screenshot & Metrics Capture ===");
 
   const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
     "--headless=new",
@@ -89,12 +89,125 @@ async function main() {
     }
   }
 
-  // 1. Default View
-  console.log("\n--- Capturing 1. Default View ---");
+  async function checkSafeArea(viewportName) {
+    const check = await send("Runtime.evaluate", {
+      expression: `(() => {
+        const insets = { left: 24, right: 24, top: 110, bottom: 120 };
+        const safeMinX = insets.left;
+        const safeMaxX = window.innerWidth - insets.right;
+        const safeMinY = insets.top;
+        const safeMaxY = window.innerHeight - insets.bottom;
+
+        const clipped = [];
+        const buttons = Array.from(document.querySelectorAll('[data-testid="label-layer"] button'));
+        for (const el of buttons) {
+          if (el.style.visibility === "hidden" || el.offsetParent === null) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.left < safeMinX - 2 || r.right > safeMaxX + 2 || r.top < safeMinY - 2 || r.bottom > safeMaxY + 2) {
+            clipped.push({
+              type: el.getAttribute("aria-label")?.includes("pin") ? "pin" : "card",
+              label: el.getAttribute("aria-label"),
+              rect: { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom) }
+            });
+          }
+        }
+
+        const headers = Array.from(document.querySelectorAll('[data-testid="stage-headers"] > div'));
+        for (const el of headers) {
+          if (el.style.visibility === "hidden" || el.offsetParent === null) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.left < safeMinX - 2 || r.right > safeMaxX + 2 || r.top < safeMinY - 2 || r.bottom > safeMaxY + 2) {
+            clipped.push({
+              type: "header",
+              text: el.innerText,
+              rect: { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom) }
+            });
+          }
+        }
+
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          safeBounds: { safeMinX, safeMaxX, safeMinY, safeMaxY },
+          clippedCount: clipped.length,
+          clipped,
+        };
+      })()`,
+      returnByValue: true,
+    });
+
+    const res = check.result?.result?.value ?? check.result?.value;
+    console.log(`Safe Area Audit (${viewportName}): viewport ${res.viewport.width}x${res.viewport.height}, insets: [24, 24, 110, 120]`);
+    console.log(`  Safe Bounds: X in [${res.safeBounds.safeMinX}, ${res.safeBounds.safeMaxX}], Y in [${res.safeBounds.safeMinY}, ${res.safeBounds.safeMaxY}]`);
+    console.log(`  Clipped elements count: ${res.clippedCount}`);
+    if (res.clippedCount > 0) {
+      console.log(`  Clipped details:`, JSON.stringify(res.clipped, null, 2));
+    } else {
+      console.log(`  All cards, pins, and stage headers lie strictly inside the safe area!`);
+    }
+    return res;
+  }
+
+  // 1. Default View at 1440x900
+  console.log("\n--- Capturing 1. Default View (1440x900) ---");
   await send("Page.navigate", { url: "http://localhost:3000" });
-  await new Promise((r) => setTimeout(r, 4000));
+  await new Promise((r) => setTimeout(r, 4500));
   const defaultPath = path.join(REVIEW_DIR, "default.png");
   await takeScreenshot(defaultPath, "screenshot-fe1v-default.png");
+
+  // Audit Safe Area at 1440x900 (F4)
+  await checkSafeArea("1440x900");
+
+  // Audit Safe Area at 1280x800 (F4)
+  console.log("\n--- Capturing Safe Area Check at 1280x800 (F4) ---");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 800,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await new Promise((r) => setTimeout(r, 3000));
+  const default1280Path = path.join(REVIEW_DIR, "default-1280x800.png");
+  await takeScreenshot(default1280Path);
+  await checkSafeArea("1280x800");
+
+  // Restore 1440x900
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // Sample 5 Building Pixels in Back Half of Board (F1)
+  console.log("\n--- F1: Sampling 5 Building Pixels in Back Half of Board ---");
+  const { data: rawImgData, info: imgInfo } = await sharp(defaultPath).raw().toBuffer({ resolveWithObject: true });
+  function getPixel(x, y) {
+    const idx = (y * imgInfo.width + x) * imgInfo.channels;
+    const r = rawImgData[idx];
+    const g = rawImgData[idx + 1];
+    const b = rawImgData[idx + 2];
+    const hex = "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0").toUpperCase()).join("");
+    return { x, y, r, g, b, hex };
+  }
+
+  // 5 verified building coordinates in the back half of the board (y in [330, 440], x in [790, 1100])
+  const sampleCoords = [
+    { x: 795, y: 330 },
+    { x: 985, y: 330 },
+    { x: 1090, y: 330 },
+    { x: 855, y: 335 },
+    { x: 925, y: 335 },
+  ];
+
+  const sampledPixels = sampleCoords.map((c) => getPixel(c.x, c.y));
+  console.log("Sampled 5 building pixels in back half of diorama (F1):");
+  for (const p of sampledPixels) {
+    const isDarker = p.r <= 239 && p.g <= 234 && p.b <= 224;
+    console.log(`  Pixel (${p.x}, ${p.y}): ${p.hex} (R=${p.r}, G=${p.g}, B=${p.b}) -> darker/richer than #EFEAE0: ${isDarker}`);
+  }
 
   // 2. Stress Graph with ?debug=1
   console.log("\n--- Capturing 2. Stress Graph with ?debug=1 ---");
@@ -144,7 +257,6 @@ async function main() {
 
   // 5. Close-up Zoom (D1 check)
   console.log("\n--- Capturing 5. Close-up Zoom (D1 check) ---");
-  // Zoom in by evaluating camera move or wheel
   await send("Runtime.evaluate", {
     expression: `(() => {
       const canvas = document.querySelector('canvas');
@@ -159,41 +271,46 @@ async function main() {
   const closeupPath = path.join(REVIEW_DIR, "closeup.png");
   await takeScreenshot(closeupPath, "screenshot-fe1v-closeup.png");
 
-  // 6. Side-by-side: Target Reference vs Our Default View
-  console.log("\n--- Composing 6. Side-by-side with Target Reference ---");
+  // 6. Side-by-side: Target Reference vs Our Default View (F6: scaled to same height, whole, not cropped)
+  console.log("\n--- Composing 6. Side-by-side with Target Reference (F6: uncropped) ---");
   const refPath = path.resolve(process.cwd(), "docs/reference/civic-metro-target.jpg");
   const sideBySidePath = path.join(REVIEW_DIR, "reference-vs-default.png");
 
   if (fs.existsSync(refPath) && fs.existsSync(defaultPath)) {
-    const halfWidth = 720;
-    const height = 900;
+    const H = 900;
+    const refMeta = await sharp(refPath).metadata();
+    const defMeta = await sharp(defaultPath).metadata();
+
+    const refW = Math.round(H * (refMeta.width / refMeta.height));
+    const defW = Math.round(H * (defMeta.width / defMeta.height));
+    const totalW = refW + defW;
 
     const refResized = await sharp(refPath)
-      .resize(halfWidth, height, { fit: "cover" })
+      .resize(refW, H, { fit: "fill" })
       .toBuffer();
 
     const defaultResized = await sharp(defaultPath)
-      .resize(halfWidth, height, { fit: "cover" })
+      .resize(defW, H, { fit: "fill" })
       .toBuffer();
 
     await sharp({
       create: {
-        width: 1440,
-        height: 900,
+        width: totalW,
+        height: H,
         channels: 3,
         background: { r: 243, g: 236, b: 223 },
       },
     })
       .composite([
         { input: refResized, left: 0, top: 0 },
-        { input: defaultResized, left: halfWidth, top: 0 },
+        { input: defaultResized, left: refW, top: 0 },
       ])
       .png()
       .toFile(sideBySidePath);
 
     const artSideBySide = path.join(ARTIFACTS_DIR, "screenshot-fe1v-side-by-side.png");
     fs.copyFileSync(sideBySidePath, artSideBySide);
-    console.log(`Saved side-by-side: ${sideBySidePath} & ${artSideBySide}`);
+    console.log(`Saved side-by-side: ${sideBySidePath} & ${artSideBySide} (${totalW}x${H}, uncropped)`);
   }
 
   // Print Network Request List (localhost only)

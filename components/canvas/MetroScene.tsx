@@ -152,6 +152,7 @@ function DebugCollector() {
 interface MetroSceneProps {
   metro: MetroVM;
   slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  pinSlotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
   headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
   selectionRef?: React.RefObject<StationVM[]>;
   onDprChange?: (dpr: number) => void;
@@ -160,6 +161,7 @@ interface MetroSceneProps {
 export function MetroScene({
   metro,
   slotsRef,
+  pinSlotsRef,
   headerSlotsRef,
   selectionRef,
   onDprChange,
@@ -241,11 +243,12 @@ export function MetroScene({
       {/* 5. Pulses */}
       <Pulses metro={metro} />
 
-      {/* 6. Screen-projected DOM Label system */}
-      {slotsRef && (
+      {/* 6. Screen-projected DOM Label system & Pins */}
+      {slotsRef && pinSlotsRef && (
         <LabelProjector
           metro={metro}
           slotsRef={slotsRef}
+          pinSlotsRef={pinSlotsRef}
           selectionRef={selectionRef}
         />
       )}

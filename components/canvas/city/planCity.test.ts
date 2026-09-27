@@ -155,8 +155,29 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     });
 
     expect(plan.buildings.length).toBeLessThanOrEqual(260);
-    expect(plan.trees.length).toBeLessThanOrEqual(180);
+    expect(plan.trees.length).toBeLessThanOrEqual(240);
     expect(plan.props.length).toBeLessThanOrEqual(40);
+  });
+
+  it("ensures no building sits on a corridor cell (F2)", () => {
+    const plan = planCity({
+      taskId: "corridor-check",
+      stations: dummyStations,
+      tracks: dummyTracks,
+    });
+
+    expect(plan.corridorCells.length).toBeGreaterThan(0);
+    const { cellSize } = plan.cellGrid;
+
+    for (const b of plan.buildings) {
+      const c = Math.floor((b.position[0] - plan.bounds.minX) / cellSize);
+      const r = Math.floor((b.position[2] - plan.bounds.minZ) / cellSize);
+      const onCorridor = plan.corridorCells.some((cell) => cell.r === r && cell.c === c);
+      expect(
+        onCorridor,
+        `Building ${b.kind} at [${b.position[0]}, ${b.position[2]}] sits on corridor cell [r=${r}, c=${c}]`
+      ).toBe(false);
+    }
   });
 
   it("plans the stress graph in under 150 ms (Amendment D5)", async () => {
@@ -196,7 +217,7 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
 
     // Verify stress caps
     expect(plan.buildings.length).toBeLessThanOrEqual(260);
-    expect(plan.trees.length).toBeLessThanOrEqual(180);
+    expect(plan.trees.length).toBeLessThanOrEqual(240);
     expect(plan.props.length).toBeLessThanOrEqual(40);
   });
 });

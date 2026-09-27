@@ -44,6 +44,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
   const labelSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const pinSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const headerSlotsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   const initialStations = useMemo(
@@ -103,6 +104,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
         <MetroScene
           metro={metro}
           slotsRef={labelSlotsRef}
+          pinSlotsRef={pinSlotsRef}
           headerSlotsRef={headerSlotsRef}
           selectionRef={selectionRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
@@ -112,6 +114,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       <LabelLayer
         metro={metro}
         slotsRef={labelSlotsRef}
+        pinSlotsRef={pinSlotsRef}
         selectionRef={selectionRef}
       />
       <Legend />

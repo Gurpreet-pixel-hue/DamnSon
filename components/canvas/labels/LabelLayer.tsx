@@ -9,6 +9,7 @@ import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
 export interface LabelLayerProps {
   metro: MetroVM;
   slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
+  pinSlotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
   selectionRef?: React.RefObject<StationVM[]>;
 }
 
@@ -134,7 +135,12 @@ function renderStateIcon(station: StationVM) {
   );
 }
 
-export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
+export function LabelLayer({
+  metro,
+  slotsRef,
+  pinSlotsRef,
+  selectionRef,
+}: LabelLayerProps) {
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const focusedStepId = useViewStore((s) => s.focusedStepId);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
@@ -157,6 +163,59 @@ export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
       data-testid="label-layer"
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
+      {/* 1. Pins layer: a pin for every station (F3: 28 px icon circle on 24 px stem, never culled) */}
+      {metro.stations.slice(0, MAX_LABEL_SLOTS).map((station, idx) => {
+        let stateLabel: string = station.state;
+        if (station.applicability === "may_apply") {
+          stateLabel = "may apply";
+        }
+
+        const isHovered = station.id === hoveredStepId;
+        const isFocused = station.id === focusedStepId || station.id === selectedStepId;
+
+        return (
+          <button
+            key={`pin-slot-${station.id}`}
+            ref={(el) => {
+              if (pinSlotsRef?.current) pinSlotsRef.current[idx] = el;
+            }}
+            type="button"
+            aria-label={`${station.title}, ${stateLabel} pin`}
+            onClick={() => {
+              useTaskStore.getState().selectStep(station.id);
+              setFocusedStepId(station.id);
+            }}
+            onMouseEnter={() => setHoveredStepId(station.id)}
+            onMouseLeave={() => setHoveredStepId(null)}
+            onFocus={() => setFocusedStepId(station.id)}
+            onBlur={() => {
+              if (useViewStore.getState().focusedStepId === station.id) {
+                setFocusedStepId(null);
+              }
+            }}
+            style={{
+              visibility: "hidden", // LabelProjector sets visibility and transform
+              willChange: "transform",
+            }}
+            className={`pointer-events-auto absolute left-0 top-0 flex flex-col items-center cursor-pointer select-none focus-visible:outline-none transition-transform ${
+              isFocused
+                ? "scale-110 z-30"
+                : isHovered
+                ? "scale-105 z-25"
+                : "z-15"
+            }`}
+          >
+            {/* 28 px state-coloured icon circle */}
+            {renderStateIcon(station)}
+            {/* 24 px stem */}
+            <div className="w-[1.5px] h-[24px] bg-[#9A8E78] shadow-sm" aria-hidden="true" />
+            {/* anchor base dot */}
+            <div className="w-1.5 h-1.5 rounded-full bg-[#7D725C] -mt-0.5" aria-hidden="true" />
+          </button>
+        );
+      })}
+
+      {/* 2. Cards layer: up to 25 cards with priority collision culling */}
       {SLOTS.map((idx) => {
         const station = activeStations[idx];
         if (!station) {

@@ -53,6 +53,7 @@ export interface CityPlan {
     cellSize: number;
     cells: CellType[][];
   };
+  corridorCells: Array<{ r: number; c: number }>;
   buildings: PlacedInstance[];
   trees: PlacedInstance[];
   props: PlacedInstance[];
@@ -109,24 +110,6 @@ function cubicBezierPoint(
     mt3 * p0[0] + 3 * mt2 * t * p1[0] + 3 * mt * t2 * p2[0] + t3 * p3[0],
     mt3 * p0[1] + 3 * mt2 * t * p1[1] + 3 * mt * t2 * p2[1] + t3 * p3[1],
   ];
-}
-
-/**
- * Distance squared from point to line segment
- */
-function distSqToSegment(
-  px: number,
-  pz: number,
-  x1: number,
-  z1: number,
-  x2: number,
-  z2: number
-): number {
-  const l2 = (x2 - x1) ** 2 + (z2 - z1) ** 2;
-  if (l2 === 0) return (px - x1) ** 2 + (pz - z1) ** 2;
-  let t = ((px - x1) * (x2 - x1) + (pz - z1) * (z2 - z1)) / l2;
-  t = Math.max(0, Math.min(1, t));
-  return (px - (x1 + t * (x2 - x1))) ** 2 + (pz - (z1 + t * (z2 - z1))) ** 2;
 }
 
 export function computeBoardBounds(stations: StationLocation[]): BoardBounds {
@@ -186,10 +169,11 @@ export function planCity(options: PlanCityOptions): CityPlan {
   const cols = Math.floor(bounds.width / cellSize);
   const rows = Math.floor(bounds.depth / cellSize);
 
-  // 1. Sample track curves into discrete points and line segments
+  // 1. Identify cells crossed by route corridors
   const stationMap = new Map(stations.map((s) => [s.id, s.position3D]));
-  const sampledSegments: Array<{ x1: number; z1: number; x2: number; z2: number }> = [];
-  const roadSegments: Array<{ from: [number, number]; to: [number, number] }> = [];
+  const isCorridor: boolean[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => false)
+  );
 
   for (const t of tracks) {
     const pStart = stationMap.get(t.from);
@@ -202,28 +186,42 @@ export function planCity(options: PlanCityOptions): CityPlan {
     const p1: [number, number] = [p0[0] + dx * 0.4, p0[1]];
     const p2: [number, number] = [p0[0] + dx * 0.6, p3[1]];
 
+    const SAMPLES = 60;
     let prev = p0;
-    const SAMPLES = 12;
-    for (let i = 1; i <= SAMPLES; i++) {
+    for (let i = 0; i <= SAMPLES; i++) {
       const curr = cubicBezierPoint(p0, p1, p2, p3, i / SAMPLES);
-      sampledSegments.push({
-        x1: prev[0],
-        z1: prev[1],
-        x2: curr[0],
-        z2: curr[1],
-      });
-      roadSegments.push({ from: prev, to: curr });
+      const dist = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
+      const subSteps = Math.max(1, Math.ceil(dist / (cellSize * 0.25)));
+      for (let s = 0; s <= subSteps; s++) {
+        const tSub = s / subSteps;
+        const sx = prev[0] + (curr[0] - prev[0]) * tSub;
+        const sz = prev[1] + (curr[1] - prev[1]) * tSub;
+        const c = Math.floor((sx - bounds.minX) / cellSize);
+        const r = Math.floor((sz - bounds.minZ) / cellSize);
+        if (r >= 0 && r < rows && c >= 0 && c < cols) {
+          isCorridor[r]![c] = true;
+        }
+      }
       prev = curr;
     }
   }
 
-  // Add promenade road segment
+  const corridorCells: Array<{ r: number; c: number }> = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (isCorridor[r]![c]) {
+        corridorCells.push({ r, c });
+      }
+    }
+  }
+
+  // Straight street grid segments
+  const roadSegments: Array<{ from: [number, number]; to: [number, number] }> = [];
   roadSegments.push({
     from: [bounds.minX, promenadeZ],
     to: [bounds.maxX, promenadeZ],
   });
 
-  // Add street grid lines across land (every 4th row and col per E5)
   for (let r = 0; r < rows; r += 4) {
     const sz = bounds.minZ + (r + 0.5) * cellSize;
     if (sz <= promenadeZ) {
@@ -278,21 +276,15 @@ export function planCity(options: PlanCityOptions): CityPlan {
         continue;
       }
 
-      // Road: within 0.9 units of any sampled track curve, or on the promenade
+      // Road: corridor cells, promenade, or street grid
       let isRoad = false;
       if (Math.abs(cz - promenadeZ) <= 0.9) {
         isRoad = true;
-      } else {
-        for (const seg of sampledSegments) {
-          if (distSqToSegment(cx, cz, seg.x1, seg.z1, seg.x2, seg.z2) <= 0.9 * 0.9) {
-            isRoad = true;
-            break;
-          }
-        }
       }
-
-      // E5: Streets: every 4th cell row and column (x and z) is a street cell
       if (r % 4 === 0 || c % 4 === 0) {
+        isRoad = true;
+      }
+      if (isCorridor[r]![c]) {
         isRoad = true;
       }
 
@@ -420,7 +412,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
   // 5. Place Trees & Palms
   const trees: PlacedInstance[] = [];
-  const MAX_TREES = 180;
+  const MAX_TREES = 240;
 
   // A. Palms along the promenade road (every second cell)
   for (let c = 0; c < cols && trees.length < MAX_TREES; c += 2) {
@@ -456,6 +448,39 @@ export function planCity(options: PlanCityOptions): CityPlan {
           rotationY: rotY,
           scale: [sJitter, sJitter, sJitter],
         });
+      }
+    }
+  }
+
+  // C. Street trees on every 3rd street cell along block edges (F5)
+  let streetEdgeCellCount = 0;
+  for (let r = 0; r < rows && trees.length < MAX_TREES; r++) {
+    for (let c = 0; c < cols && trees.length < MAX_TREES; c++) {
+      if (cells[r]![c] === "road") {
+        const isBlockEdge =
+          (r > 0 && cells[r - 1]?.[c] === "building") ||
+          (r + 1 < rows && cells[r + 1]?.[c] === "building") ||
+          (c > 0 && cells[r]?.[c - 1] === "building") ||
+          (c + 1 < cols && cells[r]?.[c + 1] === "building");
+
+        if (isBlockEdge) {
+          streetEdgeCellCount++;
+          if (streetEdgeCellCount % 3 === 0) {
+            const px = bounds.minX + (c + 0.5) * cellSize;
+            const pz = bounds.minZ + (r + 0.5) * cellSize;
+            const streetTrees = ["tree-simple", "tree-oak", "tree-pine"];
+            const kind = streetTrees[Math.floor(rand() * streetTrees.length)]!;
+            const rotY = rand() * Math.PI * 2;
+            const sJitter = 0.75 + rand() * 0.25;
+
+            trees.push({
+              kind,
+              position: [px, 0.17, pz],
+              rotationY: rotY,
+              scale: [sJitter, sJitter, sJitter],
+            });
+          }
+        }
       }
     }
   }
@@ -532,6 +557,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
       cellSize,
       cells,
     },
+    corridorCells,
     buildings,
     trees,
     props,
