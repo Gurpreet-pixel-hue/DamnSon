@@ -6,6 +6,8 @@ import { Canvas } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
 import { LabelLayer } from "./labels/LabelLayer";
+import { StageHeaders } from "./StageHeaders";
+import { Legend } from "./Legend";
 import { selectLabels } from "./labels/selectLabels";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
@@ -42,6 +44,8 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
   const labelSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const pinSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const headerSlotsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   const initialStations = useMemo(
     () => selectLabels(metro, null, null),
@@ -75,7 +79,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       <Canvas
         dpr={dpr}
         shadows={{ type: THREE.PCFShadowMap }}
-        camera={{ position: [20, 22, 25], fov: 45 }}
+        camera={{ position: [20, 22, 25], fov: 28 }}
         style={{ background: PALETTE.background }}
         gl={{
           antialias: true,
@@ -83,6 +87,8 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
           preserveDrawingBuffer: isDebug,
         }}
         onCreated={({ gl }) => {
+          gl.toneMapping = THREE.NeutralToneMapping;
+          gl.toneMappingExposure = 1.0;
           if (isDebug) {
             gl.info.autoReset = false;
           }
@@ -98,15 +104,20 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
         <MetroScene
           metro={metro}
           slotsRef={labelSlotsRef}
+          pinSlotsRef={pinSlotsRef}
+          headerSlotsRef={headerSlotsRef}
           selectionRef={selectionRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
         />
       </Canvas>
+      <StageHeaders metro={metro} slotsRef={headerSlotsRef} />
       <LabelLayer
         metro={metro}
         slotsRef={labelSlotsRef}
+        pinSlotsRef={pinSlotsRef}
         selectionRef={selectionRef}
       />
+      <Legend />
     </div>
   );
 }

@@ -2,12 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import {
-  composeJourney,
-  ComposeError,
-  type ComposedJourney,
-} from "@/lib/contract/compose";
-import { analyzeJourney } from "@/lib/contract/analyze";
+import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
 import type { JourneyBundle } from "@/app/loadJourney";
 import { useViewStore } from "@/lib/store/useViewStore";
@@ -27,7 +22,7 @@ const SceneContainer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-[#09090b] text-sm text-zinc-500">
+      <div className="flex h-full w-full items-center justify-center bg-[var(--cw-background)] text-sm text-[var(--cw-text-muted)]">
         Loading 3D Canvas...
       </div>
     ),
@@ -39,7 +34,7 @@ const FlowchartView = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-[#09090b] text-sm text-zinc-500">
+      <div className="flex h-full w-full items-center justify-center bg-[var(--cw-background)] text-sm text-[var(--cw-text-muted)]">
         Loading 2D Flowchart...
       </div>
     ),
@@ -83,21 +78,31 @@ function DebugOverlay() {
   return (
     <div
       data-testid="debug-overlay"
-      className="pointer-events-auto absolute bottom-4 left-4 z-30 flex items-center gap-3 rounded-lg border border-cyan-500/30 bg-zinc-950/90 px-3 py-2 font-mono text-xs text-cyan-300 shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto absolute bottom-4 left-4 z-30 flex items-center gap-3 rounded-lg border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-2 font-mono text-xs text-[var(--cw-text)] shadow-lg backdrop-blur-md"
     >
       <div>
-        <span className="text-zinc-500">scene draws:</span>{" "}
-        <span className="font-semibold text-zinc-100">{metrics.sceneDraws}</span>
+        <span className="text-[var(--cw-text-muted)]">scene draws:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.sceneDraws}</span>
       </div>
-      <div className="h-3 w-px bg-white/20" />
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
       <div>
-        <span className="text-zinc-500">frame calls:</span>{" "}
-        <span className="font-semibold text-zinc-100">{metrics.frameCalls}</span>
+        <span className="text-[var(--cw-text-muted)]">frame calls:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.frameCalls}</span>
       </div>
-      <div className="h-3 w-px bg-white/20" />
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
       <div>
-        <span className="text-zinc-500">fps:</span>{" "}
-        <span className="font-semibold text-emerald-400">{metrics.fps}</span>
+        <span className="text-[var(--cw-text-muted)]">scene tris:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.sceneTris.toLocaleString()}</span>
+      </div>
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
+      <div>
+        <span className="text-[var(--cw-text-muted)]">frame tris:</span>{" "}
+        <span className="font-semibold text-[var(--cw-text)]">{metrics.frameTris.toLocaleString()}</span>
+      </div>
+      <div className="h-3 w-px bg-[var(--cw-border)]" />
+      <div>
+        <span className="text-[var(--cw-text-muted)]">fps:</span>{" "}
+        <span className="font-semibold text-[#1E7F3B]">{metrics.fps}</span>
       </div>
     </div>
   );
@@ -146,47 +151,25 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
     (taskId ? completedByTask[taskId] : undefined) ?? EMPTY_COMPLETED;
   const completed = useMemo(() => new Set(completedList), [completedList]);
 
-  // C2: Memoise composed journey on (template.revision, facts) with try/catch
-  const templateRevision = initialBundle?.template.revision;
-  const composeResult = useMemo<{
-    ok: boolean;
-    journey?: ComposedJourney;
-    errorCodes?: string[];
-  }>(() => {
-    if (!initialBundle) return { ok: true };
-    void templateRevision;
-    try {
-      const journey = composeJourney(
-        initialBundle.template,
-        initialBundle.modules,
-        facts
-      );
-      const analysis = analyzeJourney(journey);
-      if (!analysis.ok) {
-        return {
-          ok: false,
-          errorCodes: analysis.issues
-            .filter((i) => i.severity === "error")
-            .map((i) => i.code),
-        };
-      }
-      return { ok: true, journey };
-    } catch (err) {
-      if (err instanceof ComposeError) {
-        return { ok: false, errorCodes: ["COMPOSE_ERROR"] };
-      }
-      return { ok: false, errorCodes: ["UNEXPECTED_ERROR"] };
-    }
-  }, [initialBundle, templateRevision, facts]);
+  // C2 / Phase 0: Memoise composed journey on (template.revision, facts) via safeCompose
+  const template = initialBundle?.template;
+  const modules = initialBundle?.modules;
+  const templateRevision = template?.revision;
+
+  const composeResult = useMemo<SafeComposeResult | { ok: true; journey?: undefined }>(() => {
+    if (!template || !modules || templateRevision === undefined) return { ok: true };
+    return safeCompose(template, modules, facts);
+  }, [template, modules, templateRevision, facts]);
 
   // C2: Memoise MetroVM on (composed journey, completed)
+  const journey = composeResult.ok ? composeResult.journey : undefined;
   const metro = useMemo<MetroVM | null>(() => {
-    if (!composeResult.journey) return null;
-    return fromJourney(composeResult.journey, completed);
-  }, [composeResult.journey, completed]);
+    if (!journey) return null;
+    return fromJourney(journey, completed);
+  }, [journey, completed]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#09090b]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[var(--cw-background)]">
       {/* Top HUD Overlay */}
       <header className="pointer-events-none absolute top-4 inset-x-4 z-20 flex items-center justify-between gap-4">
         <div className="pointer-events-auto flex-1 max-w-xl">
@@ -201,9 +184,9 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
       {webglFallbackReason && (
         <div
           data-testid="webgl-fallback-notice"
-          className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-zinc-950/90 px-4 py-2 text-xs font-medium text-amber-300 shadow-2xl backdrop-blur-md"
+          className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-[var(--cw-undecided)]/40 bg-[var(--cw-surface)] px-4 py-2 text-xs font-medium text-[var(--cw-undecided)] shadow-md"
         >
-          <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[var(--cw-undecided)] animate-pulse" />
           <span>{webglFallbackReason}</span>
         </div>
       )}
@@ -215,23 +198,29 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
         className="h-full w-full"
       >
         {!composeResult.ok ? (
-          // C2: Render error state with issue codes instead of map
+          // C2 / Phase 0: Render error state with issue codes and message instead of map
           <div
             data-testid="composition-error"
             className="flex h-full w-full flex-col items-center justify-center p-6 text-center"
           >
-            <div className="max-w-md rounded-2xl border border-red-500/30 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-red-400">
+            <div className="max-w-md rounded-2xl border border-[var(--cw-error)]/30 bg-[var(--cw-surface)] p-8 shadow-md">
+              <h2 className="text-lg font-semibold text-[var(--cw-error)]">
                 Journey Composition Failed
               </h2>
-              <p className="mt-2 text-xs text-zinc-400">
-                The civic procedure could not be assembled due to contract validation errors:
-              </p>
-              <ul className="mt-4 space-y-1 text-xs font-mono text-amber-300">
-                {composeResult.errorCodes?.map((code, idx) => (
+              {composeResult.message ? (
+                <p className="mt-2 text-xs font-mono text-[var(--cw-text-muted)] break-words">
+                  {composeResult.message}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-[var(--cw-text-muted)]">
+                  The civic procedure could not be assembled due to contract validation errors:
+                </p>
+              )}
+              <ul className="mt-4 space-y-1 text-xs font-mono text-[var(--cw-undecided)]">
+                {composeResult.codes?.map((code, idx) => (
                   <li
                     key={idx}
-                    className="rounded border border-red-500/20 bg-red-950/40 px-2 py-1"
+                    className="rounded border border-[var(--cw-error)]/20 bg-[var(--cw-surface-muted)] px-2 py-1 text-[var(--cw-error)]"
                   >
                     {code}
                   </li>
@@ -241,11 +230,11 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
           </div>
         ) : !initialBundle || !metro ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center">
-            <div className="max-w-md rounded-2xl border border-white/10 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-zinc-100">
+            <div className="max-w-md rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-8 shadow-md">
+              <h2 className="text-lg font-semibold text-[var(--cw-text)]">
                 No published journeys yet
               </h2>
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-[var(--cw-text-muted)]">
                 Search or load a verified municipal journey from the repository
                 to begin exploring the Civic Metro.
               </p>

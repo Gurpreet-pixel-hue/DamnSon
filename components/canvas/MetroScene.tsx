@@ -1,22 +1,29 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
-import { Ground } from "./Ground";
+import { useTaskStore } from "@/lib/store/useTaskStore";
+import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
+import { Board } from "./Board";
+import { CityBatches } from "./CityBatches";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
 import { Pulses } from "./Pulses";
 import { LabelProjector } from "./labels/LabelProjector";
+import { StageHeaderProjector } from "./StageHeaderProjector";
 import { CameraRig } from "./CameraRig";
 import { useSceneKeyboard } from "./useSceneKeyboard";
+import { PALETTE } from "./palette";
 
 export interface SceneDebugMetrics {
   sceneDraws: number;
   frameCalls: number;
+  sceneTris: number;
+  frameTris: number;
   fps: number;
 }
 
@@ -24,6 +31,8 @@ export interface SceneDebugMetrics {
 export let currentDebugMetrics: SceneDebugMetrics = {
   sceneDraws: 0,
   frameCalls: 0,
+  sceneTris: 0,
+  frameTris: 0,
   fps: 60,
 };
 
@@ -33,6 +42,55 @@ export function subscribeDebugMetrics(cb: (m: SceneDebugMetrics) => void): () =>
   return () => listeners.delete(cb);
 }
 
+function countSceneMetrics(root: THREE.Object3D): { draws: number; tris: number } {
+  let draws = 0;
+  let tris = 0;
+
+  function traverseVisible(obj: THREE.Object3D) {
+    if (!obj.visible) return;
+
+    const bm = obj as unknown as THREE.BatchedMesh;
+    if (Boolean(bm.isBatchedMesh) && typeof bm.instanceCount === "number") {
+      draws++;
+      const count = bm.instanceCount;
+      for (let i = 0; i < count; i++) {
+        if (typeof bm.getVisibleAt === "function" && !bm.getVisibleAt(i)) continue;
+        const gId = typeof bm.getGeometryIdAt === "function" ? bm.getGeometryIdAt(i) : -1;
+        if (gId >= 0 && typeof bm.getGeometryRangeAt === "function") {
+          const range = bm.getGeometryRangeAt(gId);
+          if (range) {
+            const count = range.indexCount > 0 ? range.indexCount : range.vertexCount;
+            tris += Math.floor(count / 3);
+          }
+        }
+      }
+    } else if (obj instanceof THREE.InstancedMesh) {
+      draws++;
+      const geom = obj.geometry;
+      if (geom) {
+        const count = geom.index ? geom.index.count : (geom.attributes.position ? geom.attributes.position.count : 0);
+        tris += Math.floor((count / 3) * obj.count);
+      }
+    } else if (obj instanceof THREE.Mesh) {
+      draws++;
+      const geom = obj.geometry;
+      if (geom) {
+        const count = geom.index ? geom.index.count : (geom.attributes.position ? geom.attributes.position.count : 0);
+        tris += Math.floor(count / 3);
+      }
+    } else if (obj instanceof THREE.Line) {
+      draws++;
+    }
+
+    for (const child of obj.children) {
+      traverseVisible(child);
+    }
+  }
+
+  traverseVisible(root);
+  return { draws, tris };
+}
+
 function DebugCollector() {
   const { scene } = useThree();
   const lastTraverseRef = useRef(0);
@@ -40,16 +98,22 @@ function DebugCollector() {
   const lastFpsTimeRef = useRef(0);
   const fpsRef = useRef(60);
   const sceneDrawsRef = useRef(0);
+  const sceneTrisRef = useRef(0);
   const lastCallsRef = useRef(0);
+  const lastTrianglesRef = useRef(0);
 
   // Priority -1 ensures this runs before rendering passes
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
 
-    // 1. Read previous frame's total calls from gl.info, then reset
+    // 1. Read previous frame's total calls & triangles from gl.info, then reset
     const calls = state.gl.info.render.calls;
+    const triangles = state.gl.info.render.triangles;
     if (calls > 0) {
       lastCallsRef.current = calls;
+    }
+    if (triangles > 0) {
+      lastTrianglesRef.current = triangles;
     }
     state.gl.info.reset();
 
@@ -63,24 +127,19 @@ function DebugCollector() {
       lastFpsTimeRef.current = time;
     }
 
-    // 3. Count scene draws (immediately on first frame, then every 0.5s)
+    // 3. Count scene draws and scene tris (immediately on first frame, then every 0.5s)
     if (sceneDrawsRef.current === 0 || time - lastTraverseRef.current >= 0.5) {
-      let count = 0;
-      scene.traverse((obj) => {
-        if (
-          obj.visible &&
-          (obj instanceof THREE.Mesh || obj instanceof THREE.Line)
-        ) {
-          count++;
-        }
-      });
-      sceneDrawsRef.current = count;
+      const { draws, tris } = countSceneMetrics(scene);
+      sceneDrawsRef.current = draws;
+      sceneTrisRef.current = tris;
       lastTraverseRef.current = time;
 
       // Broadcast metrics
       currentDebugMetrics = {
         sceneDraws: sceneDrawsRef.current,
         frameCalls: lastCallsRef.current,
+        sceneTris: sceneTrisRef.current,
+        frameTris: lastTrianglesRef.current,
         fps: fpsRef.current,
       };
       listeners.forEach((cb) => cb(currentDebugMetrics));
@@ -93,15 +152,51 @@ function DebugCollector() {
 interface MetroSceneProps {
   metro: MetroVM;
   slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  pinSlotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
   selectionRef?: React.RefObject<StationVM[]>;
   onDprChange?: (dpr: number) => void;
 }
 
-export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: MetroSceneProps) {
-  const [bloomEnabled, setBloomEnabled] = useState(true);
+export function MetroScene({
+  metro,
+  slotsRef,
+  pinSlotsRef,
+  headerSlotsRef,
+  selectionRef,
+  onDprChange,
+}: MetroSceneProps) {
+  const activeTaskId = useTaskStore((s) => s.activeTaskId);
+
+  // Performance degradation stages:
+  // 0: Full (Bloom on, dpr 2, shadow 2048, props on)
+  // 1: Bloom off
+  // 2: dpr 1
+  // 3: shadow map 1024
+  // 4: hide props
+  const [perfLevel, setPerfLevel] = useState(0);
 
   // Hook keyboard navigation
   useSceneKeyboard(metro);
+
+  // Compute deterministic city plan
+  const plan = useMemo(() => {
+    const stations: StationLocation[] = metro.stations.map((s) => ({
+      id: s.id,
+      position3D: s.position3D,
+    }));
+    const tracks: TrackLocation[] = metro.tracks.map((t) => ({
+      id: t.id,
+      from: t.from,
+      to: t.to,
+    }));
+
+    return planCity({
+      taskId: activeTaskId || "mumbai-default",
+      stations,
+      tracks,
+    });
+  }, [activeTaskId, metro.stations, metro.tracks]);
 
   const isDebug =
     process.env.NODE_ENV === "development" &&
@@ -109,42 +204,75 @@ export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: Metro
     new URLSearchParams(window.location.search).get("debug") === "1";
 
   const handleDecline = () => {
-    setBloomEnabled(false);
-    onDprChange?.(1);
+    setPerfLevel((prev) => {
+      const next = Math.min(prev + 1, 4);
+      if (next >= 2) onDprChange?.(1);
+      return next;
+    });
   };
 
   const handleIncline = () => {
-    setBloomEnabled(true);
-    onDprChange?.(2);
+    setPerfLevel((prev) => {
+      const next = Math.max(prev - 1, 0);
+      if (next < 2) onDprChange?.(2);
+      return next;
+    });
   };
+
+  const bloomEnabled = perfLevel < 1;
+  const visibleProps = perfLevel < 4;
 
   return (
     <>
+      <fog attach="fog" args={[PALETTE.sky, 60, 160]} />
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
       {isDebug && <DebugCollector />}
 
-      <Ground />
+      {/* 1. Board slab, coastal water shader, roads, kerbs, and lighting */}
+      <Board plan={plan} />
+
+      {/* 2. BatchedMesh city buildings and props */}
+      <CityBatches plan={plan} visibleProps={visibleProps} />
+
+      {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
       <Stations stations={metro.stations} />
+
+      {/* 4. Routes batches */}
       <Tracks metro={metro} />
+
+      {/* 5. Pulses */}
       <Pulses metro={metro} />
-      {slotsRef && (
+
+      {/* 6. Screen-projected DOM Label system & Pins */}
+      {slotsRef && pinSlotsRef && (
         <LabelProjector
           metro={metro}
           slotsRef={slotsRef}
+          pinSlotsRef={pinSlotsRef}
           selectionRef={selectionRef}
         />
       )}
-      <CameraRig metro={metro} />
 
-      <EffectComposer>
+      {/* 6b. Screen-projected DOM Stage Header system */}
+      {headerSlotsRef && (
+        <StageHeaderProjector
+          metro={metro}
+          slotsRef={headerSlotsRef}
+        />
+      )}
+
+      {/* 7. Camera rig with isometric bounds fitting */}
+      <CameraRig metro={metro} boardBounds={plan.bounds} />
+
+      {/* 8. Post-processing: EffectComposer with Bloom only per visual-direction §5 */}
+      <EffectComposer multisampling={4}>
         {bloomEnabled && (
           <Bloom
             mipmapBlur
-            luminanceThreshold={0.9}
-            intensity={0.8}
+            luminanceThreshold={1.0}
+            intensity={0.6}
           />
         )}
-        <Vignette eskil={false} offset={0.1} darkness={0.6} />
       </EffectComposer>
     </>
   );

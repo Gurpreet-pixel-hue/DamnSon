@@ -3,33 +3,24 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import type { MetroVM } from "@/lib/graph/viewModel";
+import { computeProgressCount } from "@/lib/graph/progress";
 
 interface ProgressTrackerProps {
   metro?: MetroVM | null;
 }
 
 export function ProgressTracker({ metro }: ProgressTrackerProps) {
-  const { total, done } = useMemo(() => {
-    if (!metro) return { total: 0, done: 0 };
-    const applicable = metro.stations.filter(
-      (s) => s.applicability !== "optional"
-    );
-    const completed = applicable.filter((s) => s.state === "done");
-    return {
-      total: applicable.length,
-      done: completed.length,
-    };
-  }, [metro]);
+  const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
 
   return (
-    <Card className="border-white/10 bg-zinc-950/80 shadow-2xl backdrop-blur-md">
+    <Card className="rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-[0_2px_8px_rgb(0_0_0/0.08)]">
       <CardHeader className="p-3 pb-1">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+        <CardTitle className="text-xs font-medium uppercase tracking-wider text-[var(--cw-text-muted)]">
           Progress
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 pt-1">
-        <div className="text-sm font-semibold text-zinc-200">
+        <div className="text-sm font-semibold text-[var(--cw-text)]">
           {done} of {total} steps done
         </div>
       </CardContent>

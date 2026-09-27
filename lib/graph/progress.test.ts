@@ -6,7 +6,13 @@ import {
 } from "@/lib/contract/schema";
 import { composeJourney } from "@/lib/contract/compose";
 import { analyzeJourney } from "@/lib/contract/analyze";
-import { deriveStepStates, nextUpStepIds, canMarkDone } from "./progress";
+import {
+  deriveStepStates,
+  nextUpStepIds,
+  canMarkDone,
+  computeProgressCount,
+} from "./progress";
+import { fromJourney } from "./viewModel";
 
 function loadExampleStartupJourney() {
   const template = journeyTemplateSchema.parse(
@@ -131,5 +137,46 @@ describe("progress derivations on ComposedJourney", () => {
     // Should remain locked because milestone requirements are not satisfied
     expect(states.get("ex-incorporation.incorporated")).toBe("locked");
     expect(states.get("ex-incorporation.file")).toBe("locked");
+  });
+
+  it("computeProgressCount covers action steps only (PRD §8.8) and excludes milestones", () => {
+    // 1. Basic check with synthetic stations
+    const stations = [
+      { kind: "government" as const, applicability: "applies" as const, state: "done" as const },
+      { kind: "non_government" as const, applicability: "applies" as const, state: "available" as const },
+      { kind: "milestone" as const, applicability: "applies" as const, state: "done" as const },
+      { kind: "government" as const, applicability: "optional" as const, state: "done" as const },
+    ];
+    const { total, done } = computeProgressCount(stations);
+    expect(total).toBe(2);
+    expect(done).toBe(1);
+
+    // 2. Demo metro reads "of 11"
+    const demoTemplate = journeyTemplateSchema.parse(
+      readTemplateFixture("demo-metro-synthetic")
+    );
+    const demoModules = [
+      "demo-identity",
+      "demo-incorporation",
+      "demo-premises",
+      "demo-food",
+      "demo-trade",
+    ].map((n) => approvalModuleSchema.parse(readModuleFixture(n)));
+    const demoJourney = composeJourney(demoTemplate, demoModules, {});
+    const demoMetro = fromJourney(demoJourney, new Set());
+    const demoCount = computeProgressCount(demoMetro);
+    expect(demoCount.total).toBe(11);
+
+    // 3. Stress graph reads "of 24"
+    const stressTemplate = journeyTemplateSchema.parse(
+      readTemplateFixture("stress-25-synthetic")
+    );
+    const stressModules = ["stress-alpha", "stress-beta"].map((n) =>
+      approvalModuleSchema.parse(readModuleFixture(n))
+    );
+    const stressJourney = composeJourney(stressTemplate, stressModules, {});
+    const stressMetro = fromJourney(stressJourney, new Set());
+    const stressCount = computeProgressCount(stressMetro);
+    expect(stressCount.total).toBe(24);
   });
 });

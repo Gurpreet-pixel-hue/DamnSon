@@ -66,7 +66,7 @@ Scene-only colours (`palette.ts` only):
 |---|---|
 | seaDeep | `#4E97AE` |
 | seaShallow | `#8CC3D1` |
-| land | `#EADFC8` |
+| land | `#E6DFD2` |
 | park | `#B7CF95` |
 | road | `#D6CCBA` |
 | roadEdge | `#C4B8A2` |
@@ -179,7 +179,7 @@ Scene-only colours (`palette.ts` only):
 **Lighting**
 - `hemisphereLight` (hemiSky, hemiGround, 1.1).
 - One `directionalLight` from (−18, 30, 22), colour `sun`, intensity 2.4:
-  - `castShadow`, 2048² map, `PCFSoftShadowMap`, bias −0.0004, normalBias 0.02;
+  - `castShadow`, 2048² map, `PCFShadowMap`, bias −0.0004, normalBias 0.02;
   - an orthographic shadow camera refitted to the board bounds whenever the layout changes.
 - No runtime HDRI. If reflections look flat, use a 1k CC0 HDRI self-hosted in `public/env/` at intensity 0.35. Never load from a CDN.
 

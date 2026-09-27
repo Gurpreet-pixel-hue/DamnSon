@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeTrackCurves, type TrackCurveData } from "./Tracks";
-import { PALETTE } from "./palette";
 
 interface PulsesProps {
   metro: MetroVM;
@@ -54,11 +53,11 @@ export function Pulses({ metro }: PulsesProps) {
     });
   }, [pulseTracks]);
 
-  const geometry = useMemo(() => new THREE.SphereGeometry(0.12, 16, 16), []);
+  const geometry = useMemo(() => new THREE.SphereGeometry(0.14, 16, 16), []);
   const material = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: PALETTE.available,
+        color: "#FFFFFF",
         toneMapped: false,
       }),
     []

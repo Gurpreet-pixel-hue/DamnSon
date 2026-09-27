@@ -95,3 +95,30 @@ export function nextUpStepIds(
 
   return nextUp;
 }
+
+export interface ProgressCount {
+  done: number;
+  total: number;
+}
+
+/**
+ * Computes progress counts covering action steps only (PRD §8.8): excludes milestones.
+ */
+export function computeProgressCount(
+  stationsOrMetro:
+    | { stations: readonly Pick<StationVM, "kind" | "applicability" | "state">[] }
+    | readonly Pick<StationVM, "kind" | "applicability" | "state">[]
+    | null
+    | undefined
+): ProgressCount {
+  if (!stationsOrMetro) return { done: 0, total: 0 };
+  const stations = "stations" in stationsOrMetro ? stationsOrMetro.stations : stationsOrMetro;
+  const actionStations = stations.filter(
+    (s) => s.kind !== "milestone" && s.applicability !== "optional"
+  );
+  const done = actionStations.filter((s) => s.state === "done").length;
+  return {
+    done,
+    total: actionStations.length,
+  };
+}

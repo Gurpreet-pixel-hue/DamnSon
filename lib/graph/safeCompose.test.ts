@@ -51,6 +51,8 @@ describe("safeCompose helper", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.codes).toContain("COMPOSE_ERROR");
+      expect(result.message).toBeDefined();
+      expect(result.message).toContain("ex-incorporation");
     }
   });
 
