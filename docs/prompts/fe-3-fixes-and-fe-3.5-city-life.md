@@ -137,6 +137,12 @@ Build docs/visual-direction.md §10 exactly: §10.1–§10.8. It is normative an
   - wire the RightDrawer buttons, the Space key, the undo toast (use the existing `motion` for the toast), the unlock pop and pulse re-routing;
   - tests in lib/store and lib/graph for mark, unmark and undo, and for the next-up change.
 - Labels (§10.6): the "Key steps / All" toggle, still-camera placement, hysteresis, and the fade-in after the first fit, with the tests listed there.
+- Hover (§10.6, "Hover never moves other labels"): this has top priority because the jitter is visible today.
+  - Remove hover and focus from the `selectLabels` inputs, and expand the hovered label in place.
+  - Share hover state between the canvas and the labels, with 60/200 ms hysteresis.
+  - Run the projector after the controls update in the same frame, and snap to whole pixels.
+  - Add the 0 px displacement capture test. Report its numbers.
+  - Commit it separately, first among the canvas commits: fix(canvas): hover expands in place, no re-layout (§10.6).
 
 Verify:
 1. `npm run verify` (per-file counts) and the `npx -y npm@11.20.0 ci` tail.

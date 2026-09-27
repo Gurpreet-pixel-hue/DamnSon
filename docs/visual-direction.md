@@ -160,7 +160,7 @@ Scene-only colours (`palette.ts` only):
     - milestone: ring icon.
   - Title at 13 px/600, mode at 11 px `--cw-text-muted`.
   - A 1 px tether line to the building top.
-- Which labels show:
+- Which labels show: **superseded by §10.6** (key steps by default, "All" on request). The rules below apply in "All" mode.
   - ≤ 16 stations: all of them.
   - Above 16: next-up, hovered, focused, selected and the last done, then greedy collision culling by that priority.
 - Labels are real buttons (`aria-label` "<title>, <state>") that select the station. Focus stays in sync with `useViewStore.focusedStepId`.
@@ -307,6 +307,7 @@ Where the ≈ 30 scene draws come from:
 | Right drawer: hero thumbnail, Overview/Documents/Fees/Source tabs, official source with verified date, Mark as complete; 2D view | FE-4 |
 | Landing with natural-language search, location chip, fact card and questions (§9.3, P0); intro sequence (§9.2, P1); landing → journey transition (§9.4, P1) | FE-5 |
 | Left navigation: My Journey, Checklist, Documents, Office Visits, Resources | FE-6 |
+| Street grid, traffic, pedestrians, station composites with sign plates, online kiosks, mark done with unlock, calm labels (§10) | FE-3.5 |
 | Office trip plan with a real map | FE-8 P2 (needs a map library and tile-provider decision) |
 
 ---
@@ -439,3 +440,157 @@ Total ≤ 2.4 s. Any input (pointer, key, wheel) cancels what is left and jumps 
 - `components/canvas/entrance/useEntrance.ts`.
 - Fonts come from the existing `geist` package through `next/font`. No font CDN.
 - Use `motion` 13.4.4 for UI micro-interactions (drawer, toasts). Use `gsap` 3.15.0 only in `components/intro` and `components/landing`.
+
+---
+
+## 10. City life, station identity and progress (FE-3.5, decided 2026-09-27)
+
+Status: normative. Decided by Gurpreet after reviewing FE-3. Where §3 or §4 disagree, this section wins.
+- §4 "Which labels show" is replaced by §10.6.
+- §3 "City fill" gains the street grid in §10.2.
+- It adds no new dependencies and no downloaded assets. Everything comes from the Kenney packs already in `art/src/` or from procedural geometry.
+
+### 10.1 Everything stands on the ground
+- `art:compose` measures every city, props and stations mesh and bakes an offset, so each mesh's bounding-box `min.y` is 0.
+- `planCity` places everything at the land top (y = 0.17).
+- **Scale is always uniform.** The ≤ 0.7× height cap near stations (§3) is met by choosing a lower variant, never by squashing y.
+- Test (`assets.test.ts`): every mesh has `min.y` within ±0.01, and every placed instance has `scale.x === scale.y === scale.z`.
+
+### 10.2 Streets that read as a city
+- **Grid.** The city is a real street grid: blocks of 3 × 3 cells, separated by 1-cell roads. Station plazas and route corridors snap to the grid, and every station plaza touches a road.
+- **Road tiles** come from `kenney-city-kit-roads`, chosen from each cell's road neighbours:
+  - `road-straight`, `road-bend`, `road-intersection`, `road-crossroad`, `road-end`;
+  - `road-side` / `tile-low` for pavements.
+  - All roads share the atlas `roads` slot and render as one `BatchedMesh` (+1 draw).
+- **Journey routes run on the streets.** A route is a coloured lane painted on the road surface: a 0.35-wide ribbon at y = 0.19, colour from state (§3, "Routes"). It is no longer a floating line over the sand. Pulses travel along that lane.
+- **Street furniture**, all in the props `BatchedMesh`:
+  - `light-square` every third road cell;
+  - `traffic-light` at intersections within 2 cells of a station;
+  - bus-stop-style benches, reused from the existing props.
+- **Buildings face the street.** Their rotation points the front at the nearest road cell.
+- Far field, more than 8 cells from any station: low-detail buildings and trees only.
+
+### 10.3 Moving cars
+- Cars use the car kit: `sedan`, `taxi`, `van`, `suv`, `hatchback-sports`, `delivery`, `truck`, `garbage-truck`.
+- 24–36 cars in one `BatchedMesh` (+1 draw). Budget: ≤ 25k triangles for all cars.
+- **Driving:**
+  - Cars drive loops through the road graph at 1.2–2.0 units/s.
+  - **Keep left** (India).
+  - Cars pause 0.4–1.2 s at intersections, and never overlap: a car keeps a minimum gap to the car ahead in its lane.
+  - Matrices update in `useFrame` without allocations.
+- **Parked service vehicles** (static): a `firetruck` at `fire_services` stations, `police` at `police`, `ambulance` at `health_department`.
+- **When animation stops:**
+  - Under reduced motion: cars are parked along kerbs and don't move.
+  - Hidden tab (`document.hidden`): animation pauses.
+  - PerformanceMonitor decline: cars stop first.
+
+### 10.4 Pedestrians
+- **Figures:** procedural low-poly people, ≤ 60 triangles each (a box body and an octahedron head), in 6 clothing colours from the palette, all in one `InstancedMesh` (+1 draw).
+- **Walkers:** 60–100 walk along pavements at 0.4–0.7 units/s.
+- **Queues:** 3–5 people stand in a short line at the door of each **in-person or hybrid** station, with a small idle sway. The number is decorative and fixed: it never implies a waiting time, and no text refers to it.
+- **Under reduced motion:** the walkers are hidden and the queues stay, static.
+
+### 10.5 Stations that say what they are, and how you do the step
+
+**Hero composites**
+- Each `officeType` gets a recognisable composite, built in `art/compose.mjs` from kit parts, procedural geometry and a sign plate. There is no Blender step in FE-3.5; Blender stays optional for Stage 2.
+- Footprint ≤ 2.6 × 2.6, height 1.6–4.2, ≤ 6k triangles each, one atlas material.
+
+| officeType | Composite | Sign plate |
+|---|---|---|
+| `municipal_hq` | heritage block, 4 columns on steps, drum and dome (procedural) | CIVIC CENTRE |
+| `ward_office` | two-storey civic block with a small clock tower | WARD OFFICE |
+| `revenue_office` | colonnaded front with a pediment | REVENUE OFFICE |
+| `labour_department` | office block with a wide awning | LABOUR OFFICE |
+| `fire_services` | red-accent station, 2 garage doors, drill tower, parked firetruck | FIRE STATION |
+| `police` | blue-accent building, parked police car | POLICE STATION |
+| `health_department` | white clinic with an ambulance bay | HEALTH OFFICE |
+| `utility_provider` | water tower, substation box and pipes beside a small office | UTILITY OFFICE |
+| `pollution_control_board` | office, chimney, green roof garden | ENVIRONMENT BOARD |
+| `court_or_notary` | pediment, columns and wide steps | COURT · NOTARY |
+| `other` | plain office block | OFFICE |
+| `online_portal` | see "Online kiosk" below | none |
+
+**Sign plates**
+- Generic English words rendered by `art:compose` (sharp, SVG → PNG) into the atlas swatch slot, dark text on a cream plate.
+- No emblems, seals, logos, crosses or real organisation names ("BMC", "MCGM" etc. are not allowed).
+- A `non_government` step (e.g. the bank account) keeps its office composite. It shows the "non-government" badge (PRD §11.1) on its label, never a bank's name.
+
+**Mode is visible** (from `step.mode`, never inferred):
+- **`online` → Online kiosk.** There is no building:
+  - a floating screen slab (1.6 × 1.0 × 0.12) at y = 2.2, with an emissive screen quad showing a monitor-and-cursor glyph from the atlas;
+  - a thin light beam to a small round plaza;
+  - a slow bob of ±0.08 over 3 s, turned off under reduced motion.
+  - Label mode text: "Online · from home", with a monitor icon.
+- **`in_person` → office building with a queue at the door.** Label: "In person · visit the office", with a building icon.
+- **`hybrid` → the building plus a small floating screen above its roof.** Label: "Online + office visit".
+- The legend gains three mode entries: Online · In person · Both.
+
+### 10.6 Labels: calm by default, stable while moving
+
+**What shows by default ("Key steps")**
+- **Full cards** only for next-up (available) stations, plus the selected, hovered and focused station.
+- **Every other station gets a 28 px state pin** (the icon circle from §4, with no text), placed at the tether top. Hover or focus shows its full card as a tooltip.
+- **Done stations** get a green pin with a check.
+- A footer toggle "Labels: Key steps / All" switches this; the default is Key steps.
+- "All" uses the §4 placement rules with the H3 slots.
+
+**Stability**
+- Label placement runs only when the camera has been still for 250 ms, and when the layout or state changes.
+- While the camera moves, labels keep their slot offsets and only translate with their anchors.
+- A label keeps its previous slot unless that slot now collides (hysteresis).
+- The first fit is computed before the canvas becomes visible: there is no visible camera jump on load. Labels fade in over 200 ms, staggered by layer, after the first fit.
+
+**Tests (`selectLabels.test.ts`)**
+- The same input twice gives identical slots.
+- A 2 % camera move changes the slot of at most 10 % of labels.
+- The default mode shows full cards only for next-up, selected, hovered and focused stations.
+
+**Hover never moves other labels** (added after Gurpreet saw hover jitter in FE-3)
+
+Cause, found in `LabelLayer.tsx:151`: `selectLabels()` is memoised on `hoveredStepId`, so every hover re-runs placement for all labels. Also, a card that appears under the cursor blocks the canvas hover, so hover flips on and off in a loop.
+
+- **Placement inputs.** Placement (`selectLabels`) depends only on metro, layout, state, the label mode (Key steps / All) and the settled camera. `hoveredStepId` and `focusedStepId` are removed from its inputs.
+- **The hovered or focused station expands in place.** Its pin or card grows into a full card at its current slot, above everything else (`z-index` top). It may overlap neighbours, and no other label moves.
+- **One hover state for canvas and DOM.** `pointerenter` on a label or pin sets `hoveredStepId`, exactly like the canvas raycast. Leaving both the station and its label clears it.
+- **Hysteresis:** 60 ms enter delay and 200 ms leave delay, so that sweeping across stations does not flash cards.
+- **Pointer events:** pins and cards take pointer events, and the tether line does not (`pointer-events: none`).
+- **Picking:** a station's hover target is its building plus plaza. Overlapping hits resolve to the nearest station centre. Nothing else in the city is hoverable.
+- **Same-frame projection.** The projector runs after the camera-controls update in the same frame, so labels don't trail the camera by one frame while damping.
+  - Order the controls update before the projector with negative `useFrame` priorities, or project on the controls' `update` event.
+  - Never use a positive priority: that takes over R3F's render loop.
+- **Pixel snapping:** screen positions are rounded to whole pixels before `translate3d`.
+- **Tests:**
+  - `selectLabels.test.ts`: the same inputs with a different `hoveredStepId` give identical slots, because hover is not an input.
+  - Playwright capture: move the pointer across 3 stations in 1 s and record the rects of all non-hovered labels. Their maximum displacement must be 0 px while the camera is still.
+
+### 10.7 Mark done, and the path reacts (P0, pulled forward from FE-4)
+**Drawer controls**
+- The drawer has a primary "Mark as complete" button for action steps when `canMarkDone` is true.
+- When a step is locked, the button is disabled, and the drawer lists the unfinished prerequisites ("Finish these first: …").
+- Done steps show "Mark as not done".
+- Milestones have no button; they complete automatically (PRD §8.8).
+
+**Keyboard.** Space on the focused station toggles done (`frontend-spec.md`).
+
+**What happens on done** (all derived from `deriveStepStates`, state kept in `completedByTask`):
+- the station ring, pin and card turn done-green;
+- its outgoing routes turn green;
+- stations that become available play a 0.6 s "unlock" pop (scale 1 → 1.12 → 1) and turn blue;
+- pulses re-route to the new next-up set;
+- summary tiles and the progress bar update;
+- an undo toast shows for 8 s: "Marked '<title>' done · Undo".
+- Under reduced motion: no pop and no pulse, colours only.
+
+**Other rules**
+- Undo and "Mark as not done" restore the previous state exactly.
+- The share link carries done ids (§8.8).
+
+### 10.8 Budgets after §10 (these tighten §7)
+| Metric | Budget |
+|---|---|
+| Scene draws | ≤ 36 (roads +1, cars +1, pedestrians +1, kiosk screens +1 are included) |
+| Scene triangles (demo and stress) | ≤ 350k, target 300k |
+| Frame triangles | ≤ 650k |
+| fps on a MacBook Air-class laptop | 60, with cars and people moving |
+| `public/models` + `public/thumbs` | ≤ 6 MB |
