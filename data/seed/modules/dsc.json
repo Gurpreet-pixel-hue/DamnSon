@@ -94,7 +94,8 @@
       ],
       "review": {
         "status": "verified",
-        "verifiedOn": "2026-09-27"
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, cca.gov.in: \"One can approach any one of the Licensed CAs for getting a Digital Signature Certificate.\" CCA FAQ: \"The price of the certificate may however vary from CA to CA.\""
       }
     }
   ],

@@ -95,7 +95,8 @@
       ],
       "review": {
         "status": "verified",
-        "verifiedOn": "2026-09-27"
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, Rules 2018, rule 8: \"The employer of every establishment engaging less than ten workers shall submit an online intimation in Form 'F'\"."
       }
     },
     {
@@ -181,7 +182,8 @@
       ],
       "review": {
         "status": "verified",
-        "verifiedOn": "2026-09-27"
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, Rules 2018, rule 3: \"engaging ten or more workers shall submit online application in Form 'A'\". RTS services list: registration time limit 1 (days)."
       }
     },
     {
@@ -220,7 +222,8 @@
       ],
       "review": {
         "status": "verified",
-        "verifiedOn": "2026-09-27"
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, Rules 2018, rule 14: \"Every employer shall display a notice on his website and at a conspicuous place of the premises … in Form 'M'\"."
       }
     }
   ],

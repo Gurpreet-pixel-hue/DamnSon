@@ -3,7 +3,7 @@
   "moduleId": "esic",
   "version": 1,
   "title": "ESI registration (ESIC)",
-  "summary": "Registration of the establishment and its employees with ESIC. Under the Code on Social Security, 2020, ESI applies to every establishment in which ten or more persons are employed (other than a seasonal factory).",
+  "summary": "New companies get their ESIC number through SPICe+; other establishments register themselves. ESI contributions start at 10 or more employees (Code on Social Security, 2020).",
   "authority": {
     "slug": "esic",
     "name": "Employees' State Insurance Corporation",
@@ -12,13 +12,7 @@
   },
   "eligibility": [
     {
-      "text": "Every establishment in which ten or more persons are employed other than a seasonal factory.",
-      "rule": {
-        "fact": "employees.count",
-        "op": "gte",
-        "value": 10,
-        "sourceRef": "code-ss"
-      },
+      "text": "Registered through SPICe+ for new companies (MCA FAQ 39); ESI compliance from 10 employees (Code on Social Security, 2020).",
       "sourceRef": "code-ss"
     }
   ],
@@ -46,16 +40,101 @@
       "kind": "guideline",
       "retrievedOn": "2026-09-27",
       "authoritySlug": "esic"
+    },
+    {
+      "id": "mca-faqs",
+      "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+      "title": "FAQs on Incorporation and Allied Matters",
+      "kind": "faq",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mca"
     }
   ],
   "steps": [
+    {
+      "kind": "government",
+      "id": "via-spice",
+      "title": "ESIC registration through SPICe+",
+      "description": "For a new company the ESIC registration number is issued through the SPICe+ form (AGILE-PRO-S); it is not issued separately and needs no separate filing.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "New company incorporated through SPICe+",
+        "rule": {
+          "fact": "business.entity_type",
+          "op": "in",
+          "value": [
+            "private_limited",
+            "opc"
+          ]
+        }
+      },
+      "authoritySlug": "esic",
+      "department": "Ministry of Corporate Affairs (SPICe+ / AGILE-PRO-S)",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": {
+        "name": "MCA SPICe+",
+        "url": "https://www.mca.gov.in/content/mca/global/en/mca/e-filing/incorporation-change-services/spice.html"
+      },
+      "forms": [
+        {
+          "name": "AGILE-PRO-S"
+        }
+      ],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "esic-registration-number",
+          "name": "ESIC registration number (from SPICe+)"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "No separate filing; the SPICe+ consolidated challan lists form, MoA, AoA, PAN, TAN and URC-1 fees only (MCA FAQ 32)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mca-faqs"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, MCA FAQs Q39: \"Registration for EPFO and ESIC shall be mandatory for all new companies incorporated w.e.f 23rd February 2020 through SPICe+ web form and EPFO &ESIC registration numbers shall not be separately issued\""
+      }
+    },
     {
       "kind": "government",
       "id": "register",
       "title": "Register the establishment with ESIC",
       "description": "Online registration of the establishment and its employees, through the Shram Suvidha Portal or the ESIC Employer Portal.",
       "requirement": {
-        "kind": "mandatory"
+        "kind": "conditional",
+        "condition": "Not a company, and 10 or more employees",
+        "rule": {
+          "all": [
+            {
+              "not": {
+                "fact": "business.entity_type",
+                "op": "in",
+                "value": [
+                  "private_limited",
+                  "opc"
+                ]
+              }
+            },
+            {
+              "fact": "employees.count",
+              "op": "gte",
+              "value": 10,
+              "sourceRef": "code-ss"
+            }
+          ]
+        }
       },
       "authoritySlug": "esic",
       "department": "Employees' State Insurance Corporation",
@@ -90,16 +169,77 @@
       ],
       "review": {
         "status": "verified",
-        "verifiedOn": "2026-09-27"
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, ESIC circular 12.12.2025: \"Online registration is done through Shram Suvidha Portal … or ESIC Employer Portal\"; Code on Social Security, 2020, First Schedule: \"ten or more persons are employed\""
+      }
+    },
+    {
+      "kind": "government",
+      "id": "start-contributions",
+      "title": "Start ESI contributions",
+      "description": "ESI compliance starts once the establishment has 10 or more employees; until then no ESI compliance is required for a company registered through SPICe+.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "10 or more employees",
+        "rule": {
+          "fact": "employees.count",
+          "op": "gte",
+          "value": 10,
+          "sourceRef": "code-ss"
+        }
+      },
+      "authoritySlug": "esic",
+      "department": "Employees' State Insurance Corporation",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": {
+        "kind": "unknown",
+        "note": "Contribution rates are outside this journey."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "code-ss",
+        "mca-faqs"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, MCA FAQs Q39: \"compliances are not required to be carried out in respect of EPFO and ESIC provisions until the threshold limit surpasses the threshold limit provided in EPFO and ESIC provisions\"; Code on Social Security, 2020, First Schedule: \"Every establishment in which ten or more persons are employed other than a seasonal factory\""
+      },
+      "applicationPortal": {
+        "name": "ESIC Employer Portal",
+        "url": "https://portal.esic.gov.in/ESICInsurance1/ESICInsurancePortal/ESICSignup.aspx"
       }
     }
   ],
-  "edges": [],
+  "edges": [
+    {
+      "id": "e-via-spice-contributions",
+      "from": "via-spice",
+      "to": "start-contributions",
+      "kind": "requires"
+    },
+    {
+      "id": "e-register-contributions",
+      "from": "register",
+      "to": "start-contributions",
+      "kind": "requires"
+    }
+  ],
   "entrySteps": [
+    "via-spice",
     "register"
   ],
   "exitSteps": [
-    "register"
+    "start-contributions"
   ],
   "meta": {
     "origin": "curated",

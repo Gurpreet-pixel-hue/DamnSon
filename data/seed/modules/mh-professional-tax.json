@@ -3,7 +3,7 @@
   "moduleId": "mh-professional-tax",
   "version": 1,
   "title": "Professional Tax (Maharashtra)",
-  "summary": "Enrolment (PTEC) for the business and registration (PTRC) for an employer that pays salaries, on the MAHAGST portal. For new companies this is done through SPICe+ (MCA FAQ 38).",
+  "summary": "New companies in Maharashtra register for Professional Tax through SPICe+ (MCA FAQ 38). Other entities enrol (PTEC) and, as employers, register (PTRC) on MAHAGST.",
   "authority": {
     "slug": "mahagst",
     "name": "Department of Goods and Services Tax, Government of Maharashtra",
@@ -35,16 +35,91 @@
       "kind": "circular",
       "retrievedOn": "2026-09-27",
       "authoritySlug": "mahagst"
+    },
+    {
+      "id": "mca-faqs",
+      "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+      "title": "FAQs on Incorporation and Allied Matters",
+      "kind": "faq",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mca"
     }
   ],
   "steps": [
+    {
+      "kind": "government",
+      "id": "via-spice",
+      "title": "PTEC / PTRC through SPICe+",
+      "description": "For a new company in Maharashtra, Professional Tax registration (PTEC / PTRC) is done through the SPICe+ form (AGILE-PRO-S); no separate filing on MAHAGST.",
+      "requirement": {
+        "kind": "conditional",
+        "condition": "New company incorporated through SPICe+",
+        "rule": {
+          "fact": "business.entity_type",
+          "op": "in",
+          "value": [
+            "private_limited",
+            "opc"
+          ]
+        }
+      },
+      "authoritySlug": "mahagst",
+      "department": "Ministry of Corporate Affairs (SPICe+ / AGILE-PRO-S)",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": {
+        "name": "MCA SPICe+",
+        "url": "https://www.mca.gov.in/content/mca/global/en/mca/e-filing/incorporation-change-services/spice.html"
+      },
+      "forms": [
+        {
+          "name": "AGILE-PRO-S"
+        }
+      ],
+      "documents": [],
+      "outputs": [
+        {
+          "documentTypeId": "pt-registration-maharashtra",
+          "name": "Professional Tax PTEC / PTRC (from SPICe+)"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "No separate filing; the SPICe+ consolidated challan lists form, MoA, AoA, PAN, TAN and URC-1 fees only (MCA FAQ 32)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "mca-faqs"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, MCA FAQs Q38: \"Registration for Profession Tax shall be mandatory through SPICe+ only in respect of new companies incorporated in the State of Maharashtra, Karnataka and West Bengal.\""
+      }
+    },
     {
       "kind": "government",
       "id": "ptec",
       "title": "Get the PT Enrolment Certificate (PTEC)",
       "description": "PTEC lets the business pay Professional Tax for the entity and its professionals or owners. Create a profile on mahagst.gov.in, then New Registration under the PT Act (PTEC), Form II. Auto-approved; documents are not mandatory.",
       "requirement": {
-        "kind": "mandatory"
+        "kind": "conditional",
+        "condition": "Not a company (companies register through SPICe+)",
+        "rule": {
+          "not": {
+            "fact": "business.entity_type",
+            "op": "in",
+            "value": [
+              "private_limited",
+              "opc"
+            ]
+          }
+        }
       },
       "authoritySlug": "mahagst",
       "department": "GST Department, Government of Maharashtra",
@@ -95,9 +170,8 @@
         "mahagst-tc-01t-2026"
       ],
       "review": {
-        "status": "verified",
-        "verifiedOn": "2026-09-27",
-        "note": "Registration confirmed live on 2026-09-27 (form accepted a PAN and validated the OTP), after Trade Circular 01T of 2026 had disabled it in March 2026."
+        "status": "flagged",
+        "note": "MAHAGST Trade Circular 01T of 2026 (14/03/2026) temporarily disabled PT registration on the portal; no official MAHAGST page yet says it is re-enabled (checked 2026-09-28)."
       }
     },
     {
@@ -107,7 +181,17 @@
       "description": "PTRC lets an employer deduct Professional Tax from employees' salary or wages and deposit it. New Registration under the PT Act (PTRC), Form I (Employers Registration Form). Auto-approved.",
       "requirement": {
         "kind": "conditional",
-        "condition": "The employer pays salary or wages to employees"
+        "condition": "Not a company, and the employer pays salary or wages",
+        "rule": {
+          "not": {
+            "fact": "business.entity_type",
+            "op": "in",
+            "value": [
+              "private_limited",
+              "opc"
+            ]
+          }
+        }
       },
       "authoritySlug": "mahagst",
       "department": "GST Department, Government of Maharashtra",
@@ -158,18 +242,19 @@
         "mahagst-tc-01t-2026"
       ],
       "review": {
-        "status": "verified",
-        "verifiedOn": "2026-09-27",
-        "note": "Registration confirmed live on 2026-09-27 (form accepted a PAN and validated the OTP), after Trade Circular 01T of 2026 had disabled it in March 2026."
+        "status": "flagged",
+        "note": "MAHAGST Trade Circular 01T of 2026 (14/03/2026) temporarily disabled PT registration on the portal; no official MAHAGST page yet says it is re-enabled (checked 2026-09-28)."
       }
     }
   ],
   "edges": [],
   "entrySteps": [
+    "via-spice",
     "ptec",
     "ptrc"
   ],
   "exitSteps": [
+    "via-spice",
     "ptec",
     "ptrc"
   ],

@@ -173,70 +173,23 @@
     {
       "moduleId": "mh-professional-tax",
       "version": 1,
-      "requirement": "conditional",
-      "activation": {
-        "not": {
-          "fact": "business.entity_type",
-          "op": "in",
-          "value": [
-            "private_limited",
-            "opc"
-          ]
-        }
-      },
-      "reason": "Registered through SPICe+ for new companies in Maharashtra (MCA FAQ 38)"
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "Professional Tax: through SPICe+ for new companies in Maharashtra (MCA FAQ 38)"
     },
     {
       "moduleId": "epfo",
       "version": 1,
-      "requirement": "conditional",
-      "activation": {
-        "all": [
-          {
-            "not": {
-              "fact": "business.entity_type",
-              "op": "in",
-              "value": [
-                "private_limited",
-                "opc"
-              ]
-            }
-          },
-          {
-            "fact": "employees.count",
-            "op": "gte",
-            "value": 20,
-            "sourceRef": "code-ss"
-          }
-        ]
-      },
-      "reason": "Registered through SPICe+ for new companies (MCA FAQ 39); otherwise 20 or more employees"
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "EPF: through SPICe+ for new companies (MCA FAQ 39); contributions from 20 employees"
     },
     {
       "moduleId": "esic",
       "version": 1,
-      "requirement": "conditional",
-      "activation": {
-        "all": [
-          {
-            "not": {
-              "fact": "business.entity_type",
-              "op": "in",
-              "value": [
-                "private_limited",
-                "opc"
-              ]
-            }
-          },
-          {
-            "fact": "employees.count",
-            "op": "gte",
-            "value": 10,
-            "sourceRef": "code-ss"
-          }
-        ]
-      },
-      "reason": "Registered through SPICe+ for new companies (MCA FAQ 39); otherwise 10 or more employees"
+      "requirement": "mandatory",
+      "activation": null,
+      "reason": "ESI: through SPICe+ for new companies (MCA FAQ 39); contributions from 10 employees"
     },
     {
       "moduleId": "udyam",
@@ -335,13 +288,13 @@
       "id": "l-spice-epfo",
       "fromModule": "mca-spice-plus",
       "toModule": "epfo",
-      "kind": "recommended_after"
+      "kind": "requires"
     },
     {
       "id": "l-spice-esic",
       "fromModule": "mca-spice-plus",
       "toModule": "esic",
-      "kind": "recommended_after"
+      "kind": "requires"
     },
     {
       "id": "l-spice-udyam",
