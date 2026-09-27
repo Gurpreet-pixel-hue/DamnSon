@@ -13,7 +13,6 @@ export const StationNode = memo(function StationNode({
 
   const isDone = station.state === "done";
   const isAvailable = station.state === "available";
-  const isLocked = station.state === "locked";
   const isMayApply = station.applicability === "may_apply";
   const isMilestone = station.kind === "milestone";
   const isOnline = station.mode === "online";

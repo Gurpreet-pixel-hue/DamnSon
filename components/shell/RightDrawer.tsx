@@ -26,6 +26,7 @@ export function cancelAutoAdvance() {
 
 export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(null);
 
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const selectStep = useTaskStore((s) => s.selectStep);
@@ -36,18 +37,18 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
   const toggleDocumentCheck = useTaskStore((s) => s.toggleDocumentCheck);
   const showUndoToast = useViewStore((s) => s.showUndoToast);
 
+  if (selectedStepId !== prevSelectedId) {
+    setPrevSelectedId(selectedStepId);
+    if (selectedStepId) {
+      setActiveTab("overview");
+    }
+  }
+
   const isOpen = Boolean(selectedStepId);
 
   const handleClose = useCallback(() => {
     selectStep(null);
   }, [selectStep]);
-
-  // Reset tab to overview whenever selected step changes
-  useEffect(() => {
-    if (selectedStepId) {
-      setActiveTab("overview");
-    }
-  }, [selectedStepId]);
 
   // Escape key closes drawer (P11 & P12)
   useEffect(() => {

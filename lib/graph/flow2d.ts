@@ -1,6 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
 import type { MetroVM, StationVM } from "./viewModel";
-import { PALETTE } from "@/components/canvas/palette";
 
 export interface FlowNodeData extends Record<string, unknown> {
   station: StationVM;
@@ -23,10 +22,18 @@ export interface Flow2DGraphOptions {
   onHoverStep?: (id: string | null) => void;
 }
 
+// Color tokens per docs/frontend-spec.md and PRD §11.6
+const TOKENS = {
+  border: "#E4DACA",
+  critical: "#D92D20",
+  available: "#1F63D6",
+  undecided: "#B45309",
+} as const;
+
 /**
  * Builds pure React Flow nodes and edges from MetroVM (frontend-spec '2D view' & Amendment 3):
  * - Positions come directly from position2D (computeMetroLayout / fromJourney).
- * - Colours come from PALETTE.
+ * - Colours come from palette tokens.
  * - Critical path edges render with strokeWidth 3px.
  * - Nodes in focusStage are full opacity/accented; other stages are dimmed.
  */
@@ -82,18 +89,18 @@ export function buildFlow2DGraph(
       fromStation?.layer === focusStage - 1 ||
       toStation?.layer === focusStage - 1;
 
-    let strokeColor: string = PALETTE.border;
+    let strokeColor: string = TOKENS.border;
     let strokeWidth = 2;
     let strokeDasharray: string | undefined = undefined;
 
     if (isCritical) {
-      strokeColor = PALETTE.critical;
+      strokeColor = TOKENS.critical;
       strokeWidth = 3; // Amendment 3: critical path at 3 px
     } else if (track.toAvailable && track.kind === "requires") {
-      strokeColor = PALETTE.available;
+      strokeColor = TOKENS.available;
       strokeWidth = 2;
     } else if (track.dashed) {
-      strokeColor = PALETTE.undecided;
+      strokeColor = TOKENS.undecided;
       strokeDasharray = "5 5";
       strokeWidth = 2;
     }

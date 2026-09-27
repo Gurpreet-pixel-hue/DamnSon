@@ -16,16 +16,20 @@ import { buildFlow2DGraph } from "@/lib/graph/flow2d";
 import { StationNode } from "./StationNode";
 
 export interface FlowchartViewProps {
-  metro: MetroVM;
+  metro?: MetroVM | null;
 }
 
 const nodeTypes: NodeTypes = {
   station: StationNode,
 };
 
-export default function FlowchartView({ metro }: FlowchartViewProps) {
+const EMPTY_METRO: MetroVM = { stations: [], tracks: [] };
+
+export default function FlowchartView({ metro = EMPTY_METRO }: FlowchartViewProps) {
+  const activeMetro = metro ?? EMPTY_METRO;
+
   // Shared keyboard navigation per frontend-spec & Amendment 3
-  useSceneKeyboard(metro);
+  useSceneKeyboard(activeMetro);
 
   const focusStage = useViewStore((s) => s.focusStage);
   const setFocusStage = useViewStore((s) => s.setFocusStage);
@@ -38,17 +42,20 @@ export default function FlowchartView({ metro }: FlowchartViewProps) {
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const selectStep = useTaskStore((s) => s.selectStep);
 
-  const handleSelectStep = (id: string) => {
-    selectStep(id);
-    setFocusedStepId(id);
-    const station = metro.stations.find((s) => s.id === id);
-    if (station) {
-      setFocusStage(station.layer + 1);
-    }
-  };
+  const handleSelectStep = React.useCallback(
+    (id: string) => {
+      selectStep(id);
+      setFocusedStepId(id);
+      const station = activeMetro.stations.find((s) => s.id === id);
+      if (station) {
+        setFocusStage(station.layer + 1);
+      }
+    },
+    [activeMetro, selectStep, setFocusedStepId, setFocusStage]
+  );
 
   const { nodes, edges } = useMemo(() => {
-    return buildFlow2DGraph(metro, {
+    return buildFlow2DGraph(activeMetro, {
       focusStage,
       selectedStepId: selectedStepId ?? focusedStepId,
       hoveredStepId,
@@ -57,13 +64,22 @@ export default function FlowchartView({ metro }: FlowchartViewProps) {
       onHoverStep: requestHover,
     });
   }, [
-    metro,
+    activeMetro,
     focusStage,
     selectedStepId,
     focusedStepId,
     hoveredStepId,
     criticalPathOn,
+    handleSelectStep,
   ]);
+
+  if (activeMetro.stations.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-[var(--cw-background)] text-xs text-[var(--cw-text-muted)]">
+        No graph to display in 2D
+      </div>
+    );
+  }
 
   return (
     <div

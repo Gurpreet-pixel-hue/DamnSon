@@ -61,7 +61,7 @@ export function clampFocusStage(currentFocus: number, nextMetro: MetroVM): numbe
   }
 
   const stageInfo = stages.find((s) => s.number === currentFocus);
-  if (!stageInfo || stageInfo.stationCount === 0) {
+  if (!stageInfo || stageInfo.stations.length === 0) {
     return currentStage(nextMetro);
   }
 

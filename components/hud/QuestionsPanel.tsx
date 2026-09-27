@@ -37,7 +37,7 @@ export function QuestionsPanel({ journey, className = "" }: QuestionsPanelProps)
             Key Questions
           </span>
           <span className="text-[10px] text-[var(--cw-text-muted)]">
-            Helps prune steps you don't need
+            Helps prune steps you don&apos;t need
           </span>
         </div>
         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300">
