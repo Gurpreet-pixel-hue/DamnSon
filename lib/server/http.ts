@@ -25,13 +25,13 @@ export function jsonError(
   code: ErrorCode,
   message: string,
   status: number,
-  opts: { requestId: string; details?: unknown },
+  opts: { requestId: string; details?: unknown; headers?: Record<string, string> },
 ): NextResponse {
   const body = errorBodySchema.parse({
     error: { code, message: message.slice(0, 300), ...(opts.details === undefined ? {} : { details: opts.details }) },
     requestId: opts.requestId,
   });
-  return NextResponse.json(body, { status, headers: { "x-request-id": opts.requestId } });
+  return NextResponse.json(body, { status, headers: { "x-request-id": opts.requestId, ...opts.headers } });
 }
 
 /** 200 with the request id on the header, for handlers whose body carries its own shape. */
