@@ -50,7 +50,7 @@ export const DEFAULT_STAGE_INSETS: LayoutSafeInsets = {
   left: 24,
   right: 24,
   top: 56,
-  bottom: 68, // stepper height (44) + 24
+  bottom: 133, // canvasBottom − stepperTop + 16 (~117 + 16)
 };
 
 export const MAX_TETHER_LENGTH = 140; // max 140 px per §11.8
@@ -107,11 +107,11 @@ export function layoutStageCards(
   // Build standard obstacles: stepper + drawer + custom obstacles
   const allObstacles: ScreenRect[] = [...obstacles];
 
-  // Stepper obstacle at bottom center (width 280, height 48)
+  // Stepper obstacle at bottom center (width 320, height = insets.bottom)
   allObstacles.push({
-    minX: (viewport.width - 280) / 2,
-    maxX: (viewport.width + 280) / 2,
-    minY: viewport.height - 68,
+    minX: (viewport.width - 320) / 2,
+    maxX: (viewport.width + 320) / 2,
+    minY: viewport.height - insets.bottom,
     maxY: viewport.height,
   });
 

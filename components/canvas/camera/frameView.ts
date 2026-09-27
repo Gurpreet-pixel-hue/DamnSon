@@ -34,14 +34,14 @@ export const DEFAULT_FOV = 45;
 
 export const DEFAULT_STAGE_INSETS: SafeInsets = {
   top: 56,
-  bottom: 68, // stepper height (44) + 24
+  bottom: 133, // canvasBottom − stepperTop + 16 (~117 + 16)
   left: 24,
   right: 24,
 };
 
 export const DRAWER_STAGE_INSETS: SafeInsets = {
   top: 56,
-  bottom: 68,
+  bottom: 133,
   left: 24,
   right: 404, // drawer (380) + 24
 };

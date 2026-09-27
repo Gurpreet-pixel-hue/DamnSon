@@ -35,6 +35,7 @@ export function LabelProjector({
   const focusStage = useViewStore((s) => s.focusStage);
   const wholeRouteView = useViewStore((s) => s.wholeRouteView);
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
 
   const headers = useMemo(() => deriveStageHeaders(metro), [metro]);
@@ -164,7 +165,7 @@ export function LabelProjector({
       cachedPlacements.current = layoutStageCards({
         stations: stationInputs,
         viewport: size,
-        insets: { left: 24, right: 24, top: 56, bottom: 68 },
+        insets: { left: 24, right: 24, top: 56, bottom: stepperBottomInset },
         drawerOpen: Boolean(selectedStepId),
         obstacles: chipObstacles,
       });

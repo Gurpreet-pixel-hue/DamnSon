@@ -79,8 +79,9 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
 
     for (const station of focusedStations) {
       const [x, y, z] = station.position3D;
-      box.expandByPoint(new THREE.Vector3(x - 1.8, y, z - 1.8));
-      box.expandByPoint(new THREE.Vector3(x + 1.8, y + 3.2, z + 1.8));
+      // Add the station geometry & the plaza footprint (radius 2.4 at land height 0.170 to 0.225 per §11.8)
+      box.expandByPoint(new THREE.Vector3(x - 2.4, 0.17, z - 2.4));
+      box.expandByPoint(new THREE.Vector3(x + 2.4, y + 3.2, z + 2.4));
     }
 
     // Include next stage's chip if available (§11.3 & §11.8)
@@ -146,6 +147,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     controls.setBoundary(boardBox);
   }, [boardBounds]);
 
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
+
   const frameCurrentStageOrRoute = useCallback(
     (instant = false) => {
       const controls = controlsRef.current;
@@ -159,9 +162,14 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         : stageBoundingBox;
       const isDrawerOpen = Boolean(useTaskStore.getState().selectedStepId);
 
-      const insets = isDrawerOpen
+      const baseInsets = isDrawerOpen
         ? DRAWER_STAGE_INSETS
         : DEFAULT_STAGE_INSETS;
+
+      const insets = {
+        ...baseInsets,
+        bottom: stepperBottomInset,
+      };
 
       const camera = controls.camera as THREE.PerspectiveCamera;
       const fov = camera?.fov ?? 45;

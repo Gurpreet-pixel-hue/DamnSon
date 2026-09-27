@@ -109,6 +109,7 @@ export interface WindowCardProps {
 
 export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const stepperContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const viewMode = useViewStore((s) => s.viewMode);
@@ -126,6 +127,30 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  // Measure stepper rect relative to canvas container (§11.8):
+  // bottom inset = canvasBottom − stepperTop + 16
+  useEffect(() => {
+    const measureStepper = () => {
+      if (!cardRef.current || !stepperContainerRef.current) return;
+      const canvasEl = cardRef.current.querySelector("canvas") || cardRef.current;
+      const canvasRect = canvasEl.getBoundingClientRect();
+      const stepperRect = stepperContainerRef.current.getBoundingClientRect();
+      if (canvasRect.height > 0 && stepperRect.height > 0) {
+        const bottomInset = Math.max(
+          80,
+          Math.round(canvasRect.bottom - stepperRect.top + 16)
+        );
+        useViewStore.getState().setStepperBottomInset(bottomInset);
+      }
+    };
+
+    measureStepper();
+    const ro = new ResizeObserver(measureStepper);
+    if (stepperContainerRef.current) ro.observe(stepperContainerRef.current);
+    if (cardRef.current) ro.observe(cardRef.current);
+    return () => ro.disconnect();
+  }, [metro]);
 
   const toggleFullscreen = () => {
     if (!cardRef.current) return;
@@ -161,7 +186,10 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
 
         {/* Stage Stepper, bottom center (§11.1) */}
         {metro && (
-          <div className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30">
+          <div
+            ref={stepperContainerRef}
+            className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30"
+          >
             <StageStepper metro={metro} />
           </div>
         )}

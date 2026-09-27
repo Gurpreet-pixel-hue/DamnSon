@@ -22,6 +22,7 @@ interface ViewState {
   previousFocusStage: number | null;
   wholeRouteView: boolean;
   undoToast: UndoToastState | null;
+  stepperBottomInset: number;
   setViewMode: (mode: ViewMode) => void;
   setFocusedStepId: (id: string | null) => void;
   setHoveredStepId: (id: string | null) => void;
@@ -33,6 +34,7 @@ interface ViewState {
   setFocusStage: (stage: number) => void;
   setWholeRouteView: (wholeRoute: boolean) => void;
   toggleWholeRouteView: () => void;
+  setStepperBottomInset: (inset: number) => void;
   showUndoToast: (toast: UndoToastState) => void;
   dismissUndoToast: () => void;
 }
@@ -50,6 +52,7 @@ export const useViewStore = create<ViewState>((set) => ({
   previousFocusStage: null,
   wholeRouteView: false,
   undoToast: null,
+  stepperBottomInset: 133,
   setViewMode: (viewMode) => set({ viewMode }),
   setFocusedStepId: (focusedStepId) => set({ focusedStepId }),
   setHoveredStepId: (hoveredStepId) => set({ hoveredStepId }),
@@ -71,6 +74,7 @@ export const useViewStore = create<ViewState>((set) => ({
   setWholeRouteView: (wholeRouteView) => set({ wholeRouteView }),
   toggleWholeRouteView: () =>
     set((state) => ({ wholeRouteView: !state.wholeRouteView })),
+  setStepperBottomInset: (stepperBottomInset) => set({ stepperBottomInset }),
   showUndoToast: (toast) => {
     if (toastTimeout) {
       clearTimeout(toastTimeout);
