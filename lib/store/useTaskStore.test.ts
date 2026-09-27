@@ -186,4 +186,15 @@ describe("useTaskStore v2", () => {
     );
     expect(sanitized.completed).toEqual(["ex-incorporation.file"]);
   });
+
+  it("sets completed steps immutably via setCompleted", () => {
+    const memory = new MemoryStorage();
+    const store = createTaskStore(memory);
+
+    store.getState().setCompleted("task-x", ["step-1", "step-2"]);
+    expect(store.getState().completedByTask["task-x"]).toEqual(["step-1", "step-2"]);
+
+    store.getState().setCompleted("task-x", ["step-3"]);
+    expect(store.getState().completedByTask["task-x"]).toEqual(["step-3"]);
+  });
 });

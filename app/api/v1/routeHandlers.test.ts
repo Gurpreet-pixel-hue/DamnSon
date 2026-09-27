@@ -93,7 +93,7 @@ describe("GET /api/v1/templates/[taskId]", () => {
 
 describe("GET /api/v1/health", () => {
   it("200: reports the data source and defers db and intelligence", async () => {
-    const response = getHealth(request("/api/v1/health"));
+    const response = await getHealth(request("/api/v1/health"));
     expect(response.status).toBe(200);
     const body = healthResponseSchema.parse(await response.json());
     expect(body).toMatchObject({ ok: true, dataSource: "fixtures", db: "skipped", intelligence: "skipped" });
@@ -102,7 +102,7 @@ describe("GET /api/v1/health", () => {
 
   it("200: an unusable DATA_SOURCE shows as ok: false instead of crashing", async () => {
     process.env["DATA_SOURCE"] = "nonsense";
-    const body = healthResponseSchema.parse(await getHealth(request("/api/v1/health")).json());
+    const body = healthResponseSchema.parse(await (await getHealth(request("/api/v1/health"))).json());
     expect(body.ok).toBe(false);
   });
 });

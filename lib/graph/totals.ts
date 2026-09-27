@@ -7,6 +7,10 @@ export interface FeeSummary {
   maxINR: number;
   unconfirmedCount: number;
   mayApplyCount: number;
+  annualMinINR: number;
+  annualMaxINR: number;
+  annualUnconfirmedCount: number;
+  conditionalMaxINR: number;
 }
 
 export interface TimeSummary {
@@ -41,6 +45,10 @@ export function summarizeFees(
   let maxINR = 0;
   let unconfirmedCount = 0;
   let mayApplyCount = 0;
+  let annualMinINR = 0;
+  let annualMaxINR = 0;
+  let annualUnconfirmedCount = 0;
+  let conditionalMaxINR = 0;
 
   for (const step of journey.steps) {
     // Totals skip done, optional and milestone steps
@@ -54,26 +62,54 @@ export function summarizeFees(
     }
 
     const fee = step.fee;
+    const isAnnual = "recurrence" in fee && fee.recurrence === "annual";
+
     switch (fee.kind) {
       case "free":
         break;
       case "fixed":
-        if (isMayApply) {
-          maxINR += fee.amountINR;
+        if (isAnnual) {
+          if (isMayApply) {
+            annualMaxINR += fee.amountINR;
+          } else {
+            annualMinINR += fee.amountINR;
+            annualMaxINR += fee.amountINR;
+          }
         } else {
-          minINR += fee.amountINR;
-          maxINR += fee.amountINR;
+          if (isMayApply) {
+            maxINR += fee.amountINR;
+            conditionalMaxINR += fee.amountINR;
+          } else {
+            minINR += fee.amountINR;
+            maxINR += fee.amountINR;
+          }
         }
         break;
       case "range":
-        if (isMayApply) {
-          maxINR += fee.maxINR;
+        if (isAnnual) {
+          if (isMayApply) {
+            annualMaxINR += fee.maxINR;
+          } else {
+            annualMinINR += fee.minINR;
+            annualMaxINR += fee.maxINR;
+          }
         } else {
-          minINR += fee.minINR;
-          maxINR += fee.maxINR;
+          if (isMayApply) {
+            maxINR += fee.maxINR;
+            conditionalMaxINR += fee.maxINR;
+          } else {
+            minINR += fee.minINR;
+            maxINR += fee.maxINR;
+          }
         }
         break;
       case "variable":
+        if (isAnnual) {
+          annualUnconfirmedCount++;
+        } else {
+          unconfirmedCount++;
+        }
+        break;
       case "unknown":
         unconfirmedCount++;
         break;
@@ -85,6 +121,10 @@ export function summarizeFees(
     maxINR,
     unconfirmedCount,
     mayApplyCount,
+    annualMinINR,
+    annualMaxINR,
+    annualUnconfirmedCount,
+    conditionalMaxINR,
   };
 }
 

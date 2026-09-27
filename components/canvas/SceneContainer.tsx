@@ -7,7 +7,6 @@ import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
 import { LabelLayer } from "./labels/LabelLayer";
 import { StageHeaders } from "./StageHeaders";
-import { Legend } from "./Legend";
 import { selectLabels } from "./labels/selectLabels";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
@@ -117,7 +116,6 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
         pinSlotsRef={pinSlotsRef}
         selectionRef={selectionRef}
       />
-      <Legend />
     </div>
   );
 }

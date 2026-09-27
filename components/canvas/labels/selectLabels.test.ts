@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { selectLabels } from "./selectLabels";
+import {
+  selectLabels,
+  resolveLabelCollisions,
+  rectsOverlap,
+  SAFE_INSETS,
+  type ProjectedStationPoint,
+  type ScreenRect,
+} from "./selectLabels";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 
 function makeDummyStation(
@@ -113,13 +120,6 @@ describe("selectLabels", () => {
     expect(labels.map((s) => s.id)).toEqual(["s1"]);
   });
 });
-
-import {
-  resolveLabelCollisions,
-  rectsOverlap,
-  type ProjectedStationPoint,
-  type ScreenRect,
-} from "./selectLabels";
 
 const DEMO_1440 = {
   pts: [
@@ -278,12 +278,12 @@ function runCollisionCheck(
     projectedMap.set(p.id, p);
   }
 
-  const safeMinX = 24;
-  const safeMaxX = viewport.width - 24;
-  const safeMinY = 88;
-  const safeMaxY = viewport.height - 110;
+  const safeMinX = SAFE_INSETS.left;
+  const safeMaxX = viewport.width - SAFE_INSETS.right;
+  const safeMinY = SAFE_INSETS.top;
+  const safeMaxY = viewport.height - SAFE_INSETS.bottom;
 
-  // Clamped headers per StageHeaderProjector (H2)
+  // Clamped headers per StageHeaderProjector (H2 & P11)
   const clampedHeaders = fixture.headerBoxes.map((h) => {
     const halfW = (h.maxX - h.minX) / 2;
     const halfH = (h.maxY - h.minY) / 2;
@@ -360,6 +360,15 @@ function runCollisionCheck(
     }
   }
 
+  let cardHeaderOverlaps = 0;
+  for (const card of cards) {
+    for (const h of clampedHeaders) {
+      if (rectsOverlap(card, h, 0)) {
+        cardHeaderOverlaps++;
+      }
+    }
+  }
+
   return {
     totalStations: stations.length,
     placedCards: cards.length,
@@ -370,6 +379,7 @@ function runCollisionCheck(
     placedPins: pins.length,
     cardCardOverlaps,
     pinCardOverlaps,
+    cardHeaderOverlaps,
   };
 }
 
@@ -428,6 +438,20 @@ describe("resolveLabelCollisions (G1 & G5)", () => {
     const stress1280 = runCollisionCheck(STRESS_1280, { width: 1280, height: 800 });
     expect(stress1280.clippedCards).toBe(0);
     expect(stress1280.clippedHeaders).toBe(0);
+  });
+
+  it("ensures no card rect intersects a header rect for demo and stress (P12)", () => {
+    const demo1440 = runCollisionCheck(DEMO_1440, { width: 1440, height: 900 });
+    expect(demo1440.cardHeaderOverlaps).toBe(0);
+
+    const demo1280 = runCollisionCheck(DEMO_1280, { width: 1280, height: 800 });
+    expect(demo1280.cardHeaderOverlaps).toBe(0);
+
+    const stress1440 = runCollisionCheck(STRESS_1440, { width: 1440, height: 900 });
+    expect(stress1440.cardHeaderOverlaps).toBe(0);
+
+    const stress1280 = runCollisionCheck(STRESS_1280, { width: 1280, height: 800 });
+    expect(stress1280.cardHeaderOverlaps).toBe(0);
   });
 });
 
