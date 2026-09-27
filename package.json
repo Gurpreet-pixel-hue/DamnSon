@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "contract:schemas": "tsx scripts/contract-schemas.ts",
+    "validate:seed": "tsx scripts/validate-seed.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
@@ -49,6 +51,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
+    "tsx": "4.23.15",
     "typescript": "^5",
     "vitest": "5.0.2"
   }
