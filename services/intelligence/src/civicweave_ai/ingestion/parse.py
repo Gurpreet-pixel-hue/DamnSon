@@ -18,4 +18,6 @@ def parse_pdf(content: bytes) -> str:
 def parse_content(content: bytes, mime_type: str) -> str:
     if "pdf" in mime_type:
         return parse_pdf(content)
+    if "text/markdown" in mime_type or "text/plain" in mime_type:
+        return content.decode("utf-8", errors="replace")
     return parse_html(content)
