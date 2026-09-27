@@ -122,6 +122,8 @@ export function StageHeaders({ metro, slotsRef }: StageHeadersProps) {
                 : "border-[var(--cw-border)] bg-[var(--cw-surface)]/95 text-[var(--cw-text-muted)] font-medium shadow-xs hover:border-[var(--cw-text-muted)]"
             }`}
           >
+            <span className="hidden [[data-pinned='left']>&]:inline font-bold text-xs mr-0.5">‹</span>
+            <span className="hidden [[data-pinned='top']>&]:inline font-bold text-xs mr-0.5">▲</span>
             {isDone && !isFocused && (
               <svg
                 className="h-3 w-3 text-[#1E7F3B]"
@@ -137,6 +139,8 @@ export function StageHeaders({ metro, slotsRef }: StageHeadersProps) {
               </svg>
             )}
             <span>{item.text}</span>
+            <span className="hidden [[data-pinned='right']>&]:inline font-bold text-xs ml-0.5">›</span>
+            <span className="hidden [[data-pinned='bottom']>&]:inline font-bold text-xs ml-0.5">▼</span>
           </div>
         );
       })}

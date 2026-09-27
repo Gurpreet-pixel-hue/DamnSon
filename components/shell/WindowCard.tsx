@@ -99,7 +99,7 @@ function CardDebugOverlay() {
   );
 }
 
-import { StageStepper } from "@/components/canvas/StageStepper";
+import { StageBar } from "@/components/canvas/StageBar";
 import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
 import { KeysHintModal } from "@/components/hud/KeysHintModal";
 import type { ComposedJourney } from "@/lib/contract/compose";
@@ -201,14 +201,14 @@ export function WindowCard({
         {/* Debug overlay inside card, bottom-left */}
         <CardDebugOverlay />
 
-        {/* Stage Stepper & Personalise Nudge, bottom center (§11.1, A3) */}
+        {/* Stage Bar & Personalise Nudge, bottom center (§12.2, A3) */}
         {metro && (
           <div
             ref={stepperContainerRef}
             className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 max-w-[90vw]"
           >
             <PersonaliseNudge journey={journey} metro={metro} />
-            <StageStepper metro={metro} />
+            <StageBar metro={metro} />
           </div>
         )}
 
