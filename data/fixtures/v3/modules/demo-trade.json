@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "demo-trade",
+  "version": 1,
+  "title": "[Synthetic] Trade Operations and Recognition",
+  "summary": "Synthetic module for labour intimation, signage, tax and optional recognition.",
+  "authority": {
+    "slug": "demo-trade-auth",
+    "name": "Example Labour and Trade Authority",
+    "tier": "state",
+    "officialUrl": "https://www.india.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "labour-register",
+      "title": "[Synthetic] Labour department intimation",
+      "description": "File employee intimation online.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-trade-auth",
+      "department": "Example Labour Department",
+      "mode": "online",
+      "officeType": "labour_department",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 2, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "signage-permit",
+      "title": "[Synthetic] Ward commercial signage permit",
+      "description": "Obtain signage display sanction from ward office.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-trade-auth",
+      "department": "Example Ward Administration",
+      "mode": "in_person",
+      "officeType": "ward_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "fixed", "amountINR": 200, "recurrence": "one_time", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 2, "maxDays": 3, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "tax-intimation",
+      "title": "[Synthetic] Professional tax enrollment",
+      "description": "Enroll enterprise for jurisdictional tax schedule.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-trade-auth",
+      "department": "Example Revenue Department",
+      "mode": "online",
+      "officeType": "revenue_office",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 2, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "recognition",
+      "title": "[Synthetic] Startup recognition application",
+      "description": "Optional recognition for innovation incentives.",
+      "requirement": { "kind": "optional", "note": "Discretionary program" },
+      "authoritySlug": "demo-trade-auth",
+      "department": "Example Promotion Office",
+      "mode": "online",
+      "officeType": "other",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 2, "maxDays": 5, "dayType": "calendar" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "police-intimation",
+      "title": "[Synthetic] Local police station intimation",
+      "description": "Physical intimation to the jurisdictional police.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-trade-auth",
+      "department": "Example Police Station",
+      "mode": "in_person",
+      "officeType": "police",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 1, "dayType": "calendar" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-labour-sign",
+      "from": "labour-register",
+      "to": "signage-permit",
+      "kind": "requires"
+    },
+    {
+      "id": "e-sign-tax",
+      "from": "signage-permit",
+      "to": "tax-intimation",
+      "kind": "requires"
+    },
+    {
+      "id": "e-tax-police",
+      "from": "tax-intimation",
+      "to": "police-intimation",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": ["labour-register", "recognition"],
+  "exitSteps": ["police-intimation", "recognition"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}

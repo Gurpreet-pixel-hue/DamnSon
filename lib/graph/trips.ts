@@ -1,61 +1,74 @@
-import type { Step } from "./schema";
-import type { ResolvedPath } from "./resolvePath";
-import { analyzeGraph } from "./analyzeGraph";
+import type { ComposedJourney } from "@/lib/contract/compose";
+import type { OfficeType } from "@/lib/contract/schema";
+import { analyzeJourney } from "@/lib/contract/analyze";
 
 export interface OfficeTrip {
   key: string;
   name: string;
-  officeType: Step["officeType"];
+  officeType: OfficeType;
   lat?: number;
   lng?: number;
   stepIds: string[];
+  mayApply: boolean;
 }
 
-export function planOfficeTrips(path: ResolvedPath): OfficeTrip[] {
-  const analysis = analyzeGraph(path.graph);
-  const nodeMap = new Map<string, Step>(
-    path.graph.nodes.map((n) => [n.id, n])
-  );
+export function planOfficeTrips(journey: ComposedJourney): OfficeTrip[] {
+  const analysis = analyzeJourney(journey);
+  const evaluationOrder = analysis.ok
+    ? analysis.order
+    : journey.steps.map((s) => s.id);
+
+  const stepMap = new Map(journey.steps.map((s) => [s.id, s]));
 
   const trips: OfficeTrip[] = [];
   const tripMap = new Map<string, OfficeTrip>();
 
-  for (const stepId of analysis.order) {
-    const node = nodeMap.get(stepId);
-    if (!node) continue;
+  for (const stepId of evaluationOrder) {
+    const step = stepMap.get(stepId);
+    if (!step) continue;
+    if (step.kind === "milestone") continue;
 
     // Include steps whose mode isn't online and which aren't optional
-    if (node.mode === "online" || node.requirement.kind === "optional") {
+    if (
+      step.mode === "online" ||
+      step.applicability === "optional" ||
+      step.requirement.kind === "optional"
+    ) {
       continue;
     }
 
-    const name = node.office?.name ?? node.department;
+    const name = step.office?.name ?? step.department;
     const key = name.toLowerCase();
+    const isMayApply = step.applicability === "may_apply";
 
     const existingTrip = tripMap.get(key);
     if (existingTrip) {
-      existingTrip.stepIds.push(node.id);
+      existingTrip.stepIds.push(step.id);
+      if (isMayApply) {
+        existingTrip.mayApply = true;
+      }
       if (
         existingTrip.lat === undefined &&
-        node.office?.lat !== undefined &&
-        node.office?.lng !== undefined
+        step.office?.lat !== undefined &&
+        step.office?.lng !== undefined
       ) {
-        existingTrip.lat = node.office.lat;
-        existingTrip.lng = node.office.lng;
+        existingTrip.lat = step.office.lat;
+        existingTrip.lng = step.office.lng;
       }
     } else {
       const trip: OfficeTrip = {
         key,
         name,
-        officeType: node.officeType,
-        stepIds: [node.id],
+        officeType: step.officeType,
+        stepIds: [step.id],
+        mayApply: isMayApply,
       };
       if (
-        node.office?.lat !== undefined &&
-        node.office?.lng !== undefined
+        step.office?.lat !== undefined &&
+        step.office?.lng !== undefined
       ) {
-        trip.lat = node.office.lat;
-        trip.lng = node.office.lng;
+        trip.lat = step.office.lat;
+        trip.lng = step.office.lng;
       }
       tripMap.set(key, trip);
       trips.push(trip);
