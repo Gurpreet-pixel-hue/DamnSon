@@ -128,7 +128,14 @@ export async function publishTemplate(
       const row = newestByModule.get(pin.moduleId);
       if (row === undefined || row.status === "published") continue;
 
-      await promoteModuleVersion(tx, { moduleId: pin.moduleId, versionId: row.id, publishedAt, actorId });
+      const promoted = await promoteModuleVersion(tx, { moduleId: pin.moduleId, versionId: row.id, publishedAt, actorId });
+      if (!promoted) {
+        return {
+          ok: false,
+          code: "conflict",
+          message: `Someone published ${pin.moduleId} while this was being prepared. Reload.`,
+        };
+      }
       await writeAudit(tx, {
         actorId,
         action: "module.publish",
@@ -143,18 +150,26 @@ export async function publishTemplate(
       data: { status: "superseded" },
     });
 
-    const created = await tx.journeyTemplateRevision.create({
-      data: {
-        templateId: taskId,
-        revision: nextRevision,
-        content: canonical(candidate),
-        contentHash: candidateHash,
-        status: "published",
-        publishedAt,
-        publishedBy: actorId,
-      },
-      select: { id: true },
-    });
+    // The unique index on (template_id, revision) is the real guard: if another publish inserted this
+    // revision between the check above and here, the insert fails rather than producing two. That is
+    // a conflict for the caller to retry, not a server error.
+    let created: { id: string };
+    try {
+      created = await tx.journeyTemplateRevision.create({
+        data: {
+          templateId: taskId,
+          revision: nextRevision,
+          content: canonical(candidate),
+          contentHash: candidateHash,
+          status: "published",
+          publishedAt,
+          publishedBy: actorId,
+        },
+        select: { id: true },
+      });
+    } catch {
+      return { ok: false, code: "conflict", message: "Someone published this revision first. Reload." };
+    }
 
     await tx.journeyTemplate.update({
       where: { id: taskId },
@@ -182,21 +197,32 @@ export async function publishTemplate(
   });
 }
 
-/** Promotes one draft and supersedes whatever it replaces, so exactly one version stays published. */
+/**
+ * Promotes one draft and supersedes whatever it replaces, so exactly one version stays published.
+ *
+ * The draft is claimed first, with `status: "draft"` in the where clause. If another admin published
+ * it between the read above and here, the claim matches nothing and we back out — rather than
+ * superseding the version they just published and leaving the module with none.
+ *
+ * Returns false when the draft was no longer there to claim.
+ */
 async function promoteModuleVersion(
   tx: Tx,
   input: { moduleId: string; versionId: string; publishedAt: Date; actorId: string },
-): Promise<void> {
-  await tx.approvalModuleVersion.updateMany({
-    where: { moduleId: input.moduleId, status: "published" },
-    data: { status: "superseded" },
-  });
-  await tx.approvalModuleVersion.update({
-    where: { id: input.versionId },
+): Promise<boolean> {
+  const claimed = await tx.approvalModuleVersion.updateMany({
+    where: { id: input.versionId, status: "draft" },
     data: { status: "published", publishedAt: input.publishedAt, publishedBy: input.actorId },
+  });
+  if (claimed.count !== 1) return false;
+
+  await tx.approvalModuleVersion.updateMany({
+    where: { moduleId: input.moduleId, status: "published", id: { not: input.versionId } },
+    data: { status: "superseded" },
   });
   await tx.approvalModule.update({
     where: { id: input.moduleId },
     data: { publishedVersionId: input.versionId },
   });
+  return true;
 }
