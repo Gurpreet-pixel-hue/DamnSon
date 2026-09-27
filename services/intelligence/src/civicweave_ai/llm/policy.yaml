@@ -1,0 +1,33 @@
+providers:
+  gemini:
+    env_model: GEMINI_FAST_MODEL
+    env_api_key: GEMINI_API_KEY
+  groq:
+    env_model: GROQ_FAST_MODEL
+    env_api_key: GROQ_API_KEY
+  local:
+    env_model: LOCAL_FAST_MODEL
+    env_base_url: LOCAL_LLM_BASE_URL
+
+profiles:
+  gemini: [gemini, groq]
+  groq:   [groq, gemini]
+  local:  [local]
+
+circuit_breaker:
+  max_failures: 5
+  window_seconds: 60
+  open_seconds: 30
+
+timeouts:
+  extract: 4
+  search: 4
+  answer: 12
+  repair: 8
+  deadline: 22
+
+temperatures:
+  extract: 0.0
+  answer:  0.2
+  copilot: 0.2
+  search: 0.0
