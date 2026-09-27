@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import type { MetroVM, StationVM, TrackVM } from "@/lib/graph/viewModel";
@@ -24,8 +24,12 @@ export interface TracksProps {
 
 /**
  * Builds merged BufferGeometry from multiple RouteOnRoad ribbon buffers.
+ * Supports widthScale (e.g. 0.5 for non-focused stage routes per §11.2).
  */
-function buildMergedRibbonGeometry(routes: RouteOnRoad[]): THREE.BufferGeometry {
+function buildMergedRibbonGeometry(
+  routes: RouteOnRoad[],
+  widthScale = 1.0
+): THREE.BufferGeometry {
   const geom = new THREE.BufferGeometry();
   if (routes.length === 0) return geom;
 
@@ -45,7 +49,33 @@ function buildMergedRibbonGeometry(routes: RouteOnRoad[]): THREE.BufferGeometry 
   let vertIndexBase = 0;
 
   for (const r of routes) {
-    positions.set(r.ribbonPositions, vOffset);
+    if (widthScale === 1.0) {
+      positions.set(r.ribbonPositions, vOffset);
+    } else {
+      const numVerts = r.ribbonPositions.length / 3;
+      for (let i = 0; i < numVerts; i += 2) {
+        const leftIdx = i * 3;
+        const rightIdx = (i + 1) * 3;
+        const midX =
+          (r.ribbonPositions[leftIdx]! + r.ribbonPositions[rightIdx]!) * 0.5;
+        const midZ =
+          (r.ribbonPositions[leftIdx + 2]! + r.ribbonPositions[rightIdx + 2]!) *
+          0.5;
+
+        positions[vOffset + leftIdx] =
+          midX + (r.ribbonPositions[leftIdx]! - midX) * widthScale;
+        positions[vOffset + leftIdx + 1] = r.ribbonPositions[leftIdx + 1]!;
+        positions[vOffset + leftIdx + 2] =
+          midZ + (r.ribbonPositions[leftIdx + 2]! - midZ) * widthScale;
+
+        positions[vOffset + rightIdx] =
+          midX + (r.ribbonPositions[rightIdx]! - midX) * widthScale;
+        positions[vOffset + rightIdx + 1] = r.ribbonPositions[rightIdx + 1]!;
+        positions[vOffset + rightIdx + 2] =
+          midZ + (r.ribbonPositions[rightIdx + 2]! - midZ) * widthScale;
+      }
+    }
+
     normals.set(r.ribbonNormals, vOffset);
     for (let i = 0; i < r.ribbonIndices.length; i++) {
       indices[iOffset + i] = r.ribbonIndices[i]! + vertIndexBase;
@@ -142,6 +172,8 @@ export function computeTrackCurves(metro: MetroVM, externalPlan?: CityPlan): {
 
 export function Tracks({ metro, plan }: TracksProps) {
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
 
   const {
     normalRoutes,
@@ -151,13 +183,101 @@ export function Tracks({ metro, plan }: TracksProps) {
     dashedSegments,
   } = useMemo(() => computeTrackCurves(metro, plan), [metro, plan]);
 
-  // Merged geometries for flat 0.35 ribbons
-  const normalGeometry = useMemo(() => buildMergedRibbonGeometry(normalRoutes), [normalRoutes]);
-  const doneGeometry = useMemo(() => buildMergedRibbonGeometry(doneRoutes), [doneRoutes]);
-  const nextUpGeometry = useMemo(() => buildMergedRibbonGeometry(nextUpRoutes), [nextUpRoutes]);
-  const criticalGeometry = useMemo(() => buildMergedRibbonGeometry(criticalRoutes), [criticalRoutes]);
+  const stationMap = useMemo(
+    () => new Map(metro.stations.map((s) => [s.id, s])),
+    [metro.stations]
+  );
+  const trackMap = useMemo(
+    () => new Map(metro.tracks.map((t) => [t.id, t])),
+    [metro.tracks]
+  );
 
-  // Materials with polygonOffset for routeLane
+  const isFocusRoute = useCallback(
+    (route: RouteOnRoad) => {
+      if (wholeRouteView) return true;
+      const track = trackMap.get(route.trackId);
+      if (!track) return false;
+      const from = stationMap.get(track.from);
+      const to = stationMap.get(track.to);
+      return from?.layer === focusStage - 1 || to?.layer === focusStage - 1;
+    },
+    [wholeRouteView, trackMap, stationMap, focusStage]
+  );
+
+  // Split into focused stage routes and dimmed routes (§11.2)
+  const normalFocus = useMemo(
+    () => normalRoutes.filter(isFocusRoute),
+    [normalRoutes, isFocusRoute]
+  );
+  const normalDimmed = useMemo(
+    () => normalRoutes.filter((r) => !isFocusRoute(r)),
+    [normalRoutes, isFocusRoute]
+  );
+
+  const doneFocus = useMemo(
+    () => doneRoutes.filter(isFocusRoute),
+    [doneRoutes, isFocusRoute]
+  );
+  const doneDimmed = useMemo(
+    () => doneRoutes.filter((r) => !isFocusRoute(r)),
+    [doneRoutes, isFocusRoute]
+  );
+
+  const nextUpFocus = useMemo(
+    () => nextUpRoutes.filter(isFocusRoute),
+    [nextUpRoutes, isFocusRoute]
+  );
+  const nextUpDimmed = useMemo(
+    () => nextUpRoutes.filter((r) => !isFocusRoute(r)),
+    [nextUpRoutes, isFocusRoute]
+  );
+
+  const criticalFocus = useMemo(
+    () => criticalRoutes.filter(isFocusRoute),
+    [criticalRoutes, isFocusRoute]
+  );
+  const criticalDimmed = useMemo(
+    () => criticalRoutes.filter((r) => !isFocusRoute(r)),
+    [criticalRoutes, isFocusRoute]
+  );
+
+  // Full-width geometries (1.0)
+  const normalGeom = useMemo(
+    () => buildMergedRibbonGeometry(normalFocus, 1.0),
+    [normalFocus]
+  );
+  const doneGeom = useMemo(
+    () => buildMergedRibbonGeometry(doneFocus, 1.0),
+    [doneFocus]
+  );
+  const nextUpGeom = useMemo(
+    () => buildMergedRibbonGeometry(nextUpFocus, 1.0),
+    [nextUpFocus]
+  );
+  const criticalGeom = useMemo(
+    () => buildMergedRibbonGeometry(criticalFocus, 1.0),
+    [criticalFocus]
+  );
+
+  // 50% width geometries (0.5) for dimmed routes (§11.2)
+  const normalDimGeom = useMemo(
+    () => buildMergedRibbonGeometry(normalDimmed, 0.5),
+    [normalDimmed]
+  );
+  const doneDimGeom = useMemo(
+    () => buildMergedRibbonGeometry(doneDimmed, 0.5),
+    [doneDimmed]
+  );
+  const nextUpDimGeom = useMemo(
+    () => buildMergedRibbonGeometry(nextUpDimmed, 0.5),
+    [nextUpDimmed]
+  );
+  const criticalDimGeom = useMemo(
+    () => buildMergedRibbonGeometry(criticalDimmed, 0.5),
+    [criticalDimmed]
+  );
+
+  // Focused Materials (full opacity)
   const normalMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -206,35 +326,102 @@ export function Tracks({ metro, plan }: TracksProps) {
     [criticalPathOn]
   );
 
+  // Dimmed Materials (35% opacity) (§11.2)
+  const normalDimMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.trackNormal,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const doneDimMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.done,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const nextUpDimMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.available,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const criticalDimMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: criticalPathOn ? PALETTE.critical : PALETTE.normalTrack,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    [criticalPathOn]
+  );
+
   return (
     <group>
-      {/* 1. Normal routes (trackNormal #9AA3AD, flat ribbon width 0.35) */}
-      {normalRoutes.length > 0 && (
-        <mesh geometry={normalGeometry} material={normalMaterial} />
+      {/* Focused stage routes (full width 0.35, 100% opacity) */}
+      {normalFocus.length > 0 && (
+        <mesh geometry={normalGeom} material={normalMaterial} />
+      )}
+      {doneFocus.length > 0 && (
+        <mesh geometry={doneGeom} material={doneMaterial} />
+      )}
+      {nextUpFocus.length > 0 && (
+        <mesh geometry={nextUpGeom} material={nextUpMaterial} />
+      )}
+      {criticalFocus.length > 0 && (
+        <mesh geometry={criticalGeom} material={criticalMaterial} />
       )}
 
-      {/* 2. Done routes (--cw-done #1E7F3B, flat ribbon width 0.35) */}
-      {doneRoutes.length > 0 && (
-        <mesh geometry={doneGeometry} material={doneMaterial} />
+      {/* Dimmed routes for other stages (50% width 0.175, 35% opacity) */}
+      {normalDimmed.length > 0 && (
+        <mesh geometry={normalDimGeom} material={normalDimMaterial} />
+      )}
+      {doneDimmed.length > 0 && (
+        <mesh geometry={doneDimGeom} material={doneDimMaterial} />
+      )}
+      {nextUpDimmed.length > 0 && (
+        <mesh geometry={nextUpDimGeom} material={nextUpDimMaterial} />
+      )}
+      {criticalDimmed.length > 0 && (
+        <mesh geometry={criticalDimGeom} material={criticalDimMaterial} />
       )}
 
-      {/* 3. Next-up routes (--cw-available #1F63D6, flat ribbon width 0.35) */}
-      {nextUpRoutes.length > 0 && (
-        <mesh geometry={nextUpGeometry} material={nextUpMaterial} />
-      )}
-
-      {/* 4. Critical path routes (only while toggle is on: --cw-critical #D92D20) */}
-      {criticalRoutes.length > 0 && (
-        <mesh geometry={criticalGeometry} material={criticalMaterial} />
-      )}
-
-      {/* 5. Dashed routes (--cw-undecided #B45309, width 3) */}
+      {/* Dashed routes */}
       {dashedSegments.length > 0 && (
         <Line
           segments
           points={dashedSegments}
           color={PALETTE.undecided}
-          lineWidth={3}
+          lineWidth={wholeRouteView ? 3 : 2}
+          transparent={!wholeRouteView}
+          opacity={wholeRouteView ? 1 : 0.6}
           dashed
           dashScale={2}
           dashSize={0.4}

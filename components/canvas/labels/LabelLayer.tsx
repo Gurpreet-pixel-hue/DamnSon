@@ -1,19 +1,16 @@
 "use client";
 
-import { useMemo, useLayoutEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
-import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
 
 export interface LabelLayerProps {
   metro: MetroVM;
-  slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
-  pinSlotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
-  selectionRef?: React.RefObject<StationVM[]>;
+  cardSlotsRef: React.RefObject<Map<string, HTMLDivElement>>;
+  tetherRefs: React.RefObject<Map<string, SVGSVGElement>>;
+  tooltipRef?: React.RefObject<HTMLDivElement | null>;
 }
-
-const SLOTS = Array.from({ length: MAX_LABEL_SLOTS }, (_, i) => i);
 
 function formatMode(mode: string | null): string {
   if (!mode) return "";
@@ -138,189 +135,197 @@ function renderStateIcon(station: StationVM) {
 
 export function LabelLayer({
   metro,
-  slotsRef,
-  pinSlotsRef,
-  selectionRef,
+  cardSlotsRef,
+  tetherRefs,
+  tooltipRef,
 }: LabelLayerProps) {
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const focusedStepId = useViewStore((s) => s.focusedStepId);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const setFocusedStepId = useViewStore((s) => s.setFocusedStepId);
 
-  // §10.6: Placement depends only on metro, layout, and state.
-  // hoveredStepId and focusedStepId are removed from its inputs, so hover never moves other labels.
-  const activeStations = useMemo(
-    () => selectLabels(metro, selectedStepId),
-    [metro, selectedStepId]
-  );
+  // Staging fade transitions on focusStage change (§11.4: fade out 120ms, fade in 180ms)
+  const [displayedStage, setDisplayedStage] = useState(focusStage);
+  const [stageOpacity, setStageOpacity] = useState(1);
 
-  useLayoutEffect(() => {
-    if (selectionRef) {
-      selectionRef.current = activeStations;
+  useEffect(() => {
+    if (displayedStage !== focusStage) {
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        const t = setTimeout(() => {
+          setDisplayedStage(focusStage);
+          setStageOpacity(1);
+        }, 0);
+        return () => clearTimeout(t);
+      }
+      const tFade = setTimeout(() => {
+        setStageOpacity(0);
+      }, 0);
+      const timer = setTimeout(() => {
+        setDisplayedStage(focusStage);
+        setStageOpacity(1);
+      }, 120);
+      return () => {
+        clearTimeout(tFade);
+        clearTimeout(timer);
+      };
     }
-  }, [activeStations, selectionRef]);
+  }, [focusStage, displayedStage]);
+
+  // Stations belonging to the currently displayed stage
+  const stageStations = useMemo(() => {
+    return metro.stations.filter((s) => s.layer === displayedStage - 1);
+  }, [metro.stations, displayedStage]);
+
+  const isCompact = stageStations.length > 4;
+
+  // If > 8 stations, cards only for available ones (§11.2)
+  const visibleStations = useMemo(() => {
+    if (stageStations.length > 8) {
+      return stageStations.filter((s) => s.state === "available");
+    }
+    return stageStations;
+  }, [stageStations]);
+
+  const hoveredStation = useMemo(() => {
+    if (!hoveredStepId) return null;
+    return metro.stations.find((s) => s.id === hoveredStepId) ?? null;
+  }, [metro.stations, hoveredStepId]);
 
   return (
     <div
       data-testid="label-layer"
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      {/* 1. Pins layer: a pin for every station (F3: 28 px icon circle on 24 px stem, never culled) */}
-      {metro.stations.slice(0, MAX_LABEL_SLOTS).map((station, idx) => {
-        let stateLabel: string = station.state;
-        if (station.applicability === "may_apply") {
-          stateLabel = "may apply";
-        }
+      {/* 1. Stage Station Cards: only for focused stage, hidden in wholeRouteView (§11.2, §11.3) */}
+      {!wholeRouteView &&
+        visibleStations.map((station) => {
+          let stateLabel: string = station.state;
+          if (station.applicability === "may_apply") {
+            stateLabel = "may apply";
+          }
 
-        const isHovered = station.id === hoveredStepId;
-        const isFocused = station.id === focusedStepId || station.id === selectedStepId;
+          const isHovered = station.id === hoveredStepId;
+          const isFocused =
+            station.id === focusedStepId || station.id === selectedStepId;
+          const isExpanded = isHovered || isFocused;
+          const isDone = station.state === "done";
 
-        return (
-          <button
-            key={`pin-slot-${station.id}`}
-            ref={(el) => {
-              if (pinSlotsRef?.current) pinSlotsRef.current[idx] = el;
-            }}
-            type="button"
-            aria-label={`${station.title}, ${stateLabel} pin`}
-            onClick={() => {
-              useTaskStore.getState().selectStep(station.id);
-              setFocusedStepId(station.id);
-            }}
-            onMouseEnter={() => requestHover(station.id)}
-            onMouseLeave={() => requestHover(null)}
-            onFocus={() => setFocusedStepId(station.id)}
-            onBlur={() => {
-              if (useViewStore.getState().focusedStepId === station.id) {
-                setFocusedStepId(null);
-              }
-            }}
-            style={{
-              visibility: "hidden", // LabelProjector sets visibility and transform
-              willChange: "transform",
-            }}
-            className={`pointer-events-auto absolute left-0 top-0 flex flex-col items-center cursor-pointer select-none focus-visible:outline-none transition-transform ${
-              isFocused
-                ? "scale-110 z-50"
-                : isHovered
-                ? "scale-105 z-50"
-                : "z-5"
-            }`}
-          >
-            {/* Expanded tooltip on hover for pin (§10.6: expands in place, no re-layout) */}
-            {isHovered && (
-              <div
-                className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] border border-[#8A4A0A]/50 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)] z-50 whitespace-nowrap"
-                style={{ minWidth: "150px" }}
+          return (
+            <div
+              key={station.id}
+              ref={(el) => {
+                if (el) {
+                  cardSlotsRef.current.set(station.id, el);
+                } else {
+                  cardSlotsRef.current.delete(station.id);
+                }
+              }}
+              data-station-id={station.id}
+              style={{
+                visibility: "hidden", // LabelProjector sets transform and visibility
+                opacity: stageOpacity,
+                transition: "opacity 180ms ease-out", // NO transform transition (§11.4)
+                willChange: "transform, opacity",
+              }}
+              className="pointer-events-auto absolute left-0 top-0"
+            >
+              <button
+                type="button"
+                data-mode={isCompact ? "compact" : "full"}
+                title={station.title}
+                aria-label={`${station.title}, ${stateLabel}`}
+                onClick={() => {
+                  useTaskStore.getState().selectStep(station.id);
+                  setFocusedStepId(station.id);
+                }}
+                onMouseEnter={() => requestHover(station.id)}
+                onMouseLeave={() => requestHover(null)}
+                onFocus={() => setFocusedStepId(station.id)}
+                onBlur={() => {
+                  if (useViewStore.getState().focusedStepId === station.id) {
+                    setFocusedStepId(null);
+                  }
+                }}
+                className={`group flex items-center gap-2 rounded-[10px] border shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer select-none text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none ${
+                  isCompact
+                    ? "w-[180px] py-1 px-2"
+                    : "w-[220px] px-2.5 py-1.5"
+                } ${
+                  isDone
+                    ? "bg-[#F4F9F5] border-[#C2E0C9] text-[#1E7F3B]"
+                    : "bg-white border-[#E6DDC8] text-[#1F242E]"
+                } ${
+                  isExpanded
+                    ? "border-[#8A4A0A] ring-2 ring-[#8A4A0A]/30 shadow-lg z-30"
+                    : "hover:border-[#8A4A0A]/70 hover:shadow-md z-10"
+                }`}
               >
                 {renderStateIcon(station)}
-                <div className="flex flex-col min-w-0 pr-1 text-left">
-                  <span className="text-[13px] font-semibold text-[#1F242E] leading-tight line-clamp-1">
+                <div className="flex flex-col min-w-0 pr-1 overflow-hidden">
+                  <span
+                    className={`font-semibold leading-tight text-[#1F242E] ${
+                      isCompact
+                        ? "text-[12px] truncate"
+                        : "text-[13px] line-clamp-2 break-words"
+                    }`}
+                  >
                     {station.title}
                   </span>
-                  <span className="text-[11px] text-[#697586] leading-tight">
-                    {formatMode(station.mode)}
-                  </span>
+                  {!isCompact && (
+                    <span className="text-[11px] text-[#697586] leading-tight truncate mt-0.5">
+                      {formatMode(station.mode)}
+                    </span>
+                  )}
                 </div>
-              </div>
-            )}
-            {/* 28 px state-coloured icon circle */}
-            {renderStateIcon(station)}
-            {/* 24 px stem */}
-            <div className="w-[1.5px] h-[24px] bg-[#9A8E78] shadow-sm" aria-hidden="true" />
-            {/* anchor base dot */}
-            <div className="w-1.5 h-1.5 rounded-full bg-[#7D725C] -mt-0.5" aria-hidden="true" />
-          </button>
-        );
-      })}
+              </button>
 
-      {/* 2. Cards layer: up to 25 cards with priority collision culling */}
-      {SLOTS.map((idx) => {
-        const station = activeStations[idx];
-        if (!station) {
-          return (
-            <button
-              key={`label-slot-${idx}`}
-              ref={(el) => {
-                if (slotsRef.current) slotsRef.current[idx] = el;
-              }}
-              type="button"
-              tabIndex={-1}
-              aria-hidden="true"
-              style={{ visibility: "hidden" }}
-              className="pointer-events-none absolute left-0 top-0"
-            />
-          );
-        }
-
-        const isHovered = station.id === hoveredStepId;
-        const isFocused = station.id === focusedStepId || station.id === selectedStepId;
-        const isExpanded = isHovered || isFocused;
-
-        let stateLabel: string = station.state;
-        if (station.applicability === "may_apply") {
-          stateLabel = "may apply";
-        }
-
-        return (
-          <button
-            key={`label-slot-${idx}`}
-            ref={(el) => {
-              if (slotsRef.current) slotsRef.current[idx] = el;
-            }}
-            type="button"
-            data-mode="full"
-            title={station.title}
-            aria-label={`${station.title}, ${stateLabel}`}
-            onClick={() => {
-              useTaskStore.getState().selectStep(station.id);
-              setFocusedStepId(station.id);
-            }}
-            onMouseEnter={() => requestHover(station.id)}
-            onMouseLeave={() => requestHover(null)}
-            onFocus={() => setFocusedStepId(station.id)}
-            onBlur={() => {
-              if (useViewStore.getState().focusedStepId === station.id) {
-                setFocusedStepId(null);
-              }
-            }}
-            style={{
-              visibility: "hidden", // LabelProjector toggles visibility and transform
-              willChange: "transform",
-            }}
-            className={`group pointer-events-auto absolute left-0 top-0 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left max-w-[260px] data-[mode=compact]:max-w-[180px] data-[mode=compact]:py-1 data-[mode=compact]:px-2 focus-visible:outline-none ${
-              isExpanded
-                ? "border-[#8A4A0A] ring-2 ring-[#8A4A0A]/30 z-50 scale-105 shadow-xl !max-w-[260px]"
-                : "border-[#E6DDC8] z-20"
-            }`}
-          >
-            {renderStateIcon(station)}
-            <div className="flex flex-col min-w-0 pr-1">
-              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight line-clamp-2 break-words group-data-[mode=compact]:line-clamp-1 group-data-[mode=compact]:truncate group-data-[mode=compact]:max-w-[120px]">
-                {station.title}
-              </span>
-              <span className="text-[11px] text-[#697586] leading-tight truncate group-data-[mode=compact]:hidden">
-                {formatMode(station.mode)}
-              </span>
+              {/* Dynamic SVG tether line connecting card edge back to station anchor (§11.4) */}
+              <svg
+                ref={(el) => {
+                  if (el) {
+                    tetherRefs.current.set(station.id, el);
+                  } else {
+                    tetherRefs.current.delete(station.id);
+                  }
+                }}
+                className="pointer-events-none absolute left-1/2 top-1/2 overflow-visible -z-10"
+                aria-hidden="true"
+              >
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="0"
+                  stroke="#B0A48E"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
             </div>
-            {/* Dynamic leader line connecting card edge back to station anchor (H2 & H3) */}
-            <svg
-              className="pointer-events-none absolute left-1/2 top-1/2 overflow-visible -z-10"
-              aria-hidden="true"
-            >
-              <line
-                x1="0"
-                y1="22"
-                x2="0"
-                y2="64"
-                stroke="#B0A48E"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        );
-      })}
+          );
+        })}
+
+      {/* 2. Hover Tooltip in place ("title · Stage n", §11.2 & §11.4) */}
+      <div
+        ref={tooltipRef}
+        data-testid="station-hover-tooltip"
+        style={{
+          visibility: "hidden",
+          willChange: "transform",
+        }}
+        className="pointer-events-none absolute left-0 top-0 z-50 flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] border border-[#8A4A0A]/40 bg-[#FAF8F5] text-[#1F242E] shadow-md text-[12px] font-medium whitespace-nowrap"
+      >
+        {hoveredStation && (
+          <span>
+            {hoveredStation.title} · Stage {hoveredStation.layer + 1}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

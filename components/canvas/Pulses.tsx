@@ -8,6 +8,8 @@ import { computeTrackCurves, type TrackCurveData } from "./Tracks";
 import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
 import type { CityPlan } from "./city/planCity";
 
+import { useViewStore } from "@/lib/store/useViewStore";
+
 interface PulsesProps {
   metro: MetroVM;
   plan?: CityPlan;
@@ -25,18 +27,31 @@ interface PulseLUT {
 
 export function Pulses({ metro, plan }: PulsesProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
-  // Filter curves that end at an available station
+  // Filter curves that touch focused stage and end at an available station (§11.2)
   const pulseTracks = useMemo(() => {
+    if (wholeRouteView) return [];
     const { curves } = computeTrackCurves(metro, plan);
-    const available = curves.filter((c) => c.track.toAvailable);
+    const stationMap = new Map(metro.stations.map((s) => [s.id, s]));
+
+    const available = curves.filter((c) => {
+      if (!c.track.toAvailable) return false;
+      const fromStation = stationMap.get(c.track.from);
+      const toStation = stationMap.get(c.track.to);
+      const touchesFocus =
+        fromStation?.layer === focusStage - 1 ||
+        toStation?.layer === focusStage - 1;
+      return touchesFocus;
+    });
     return available.slice(0, MAX_PULSES);
-  }, [metro, plan]);
+  }, [metro, plan, focusStage, wholeRouteView]);
 
   // Precomputed Arc-length Lookup Tables (LUT) along the road polyline
   const luts = useMemo<PulseLUT[]>(() => {

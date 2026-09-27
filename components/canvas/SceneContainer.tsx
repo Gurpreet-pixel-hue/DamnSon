@@ -3,11 +3,10 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
+import type { MetroVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
 import { LabelLayer } from "./labels/LabelLayer";
 import { StageHeaders } from "./StageHeaders";
-import { selectLabels } from "./labels/selectLabels";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
 
@@ -42,15 +41,10 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
   const supported = useMemo(() => checkWebGLSupport(), []);
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
-  const labelSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
-  const pinSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const cardSlotsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const tetherRefs = useRef<Map<string, SVGSVGElement>>(new Map());
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const headerSlotsRef = useRef<(HTMLDivElement | null)[]>([]);
-
-  const initialStations = useMemo(
-    () => selectLabels(metro, null, null),
-    [metro]
-  );
-  const selectionRef = useRef<StationVM[]>(initialStations);
 
   const isDebug = useMemo(() => {
     return (
@@ -102,19 +96,19 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       >
         <MetroScene
           metro={metro}
-          slotsRef={labelSlotsRef}
-          pinSlotsRef={pinSlotsRef}
+          cardSlotsRef={cardSlotsRef}
+          tetherRefs={tetherRefs}
+          tooltipRef={tooltipRef}
           headerSlotsRef={headerSlotsRef}
-          selectionRef={selectionRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
         />
       </Canvas>
       <StageHeaders metro={metro} slotsRef={headerSlotsRef} />
       <LabelLayer
         metro={metro}
-        slotsRef={labelSlotsRef}
-        pinSlotsRef={pinSlotsRef}
-        selectionRef={selectionRef}
+        cardSlotsRef={cardSlotsRef}
+        tetherRefs={tetherRefs}
+        tooltipRef={tooltipRef}
       />
     </div>
   );

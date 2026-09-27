@@ -137,12 +137,23 @@ export function Stations({ stations }: StationsProps) {
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
   const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
+  const checkDiscMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Available non-optional stations for next-up beacons
+  const focusStage = useViewStore((s) => s.focusStage);
+
+  // Available non-optional stations in focused stage for next-up beacons (§11.2)
   const nextUpStations = useMemo(() => {
     return stations.filter(
-      (s) => s.state === "available" && s.applicability !== "optional"
+      (s) =>
+        s.layer === focusStage - 1 &&
+        s.state === "available" &&
+        s.applicability !== "optional"
     );
+  }, [stations, focusStage]);
+
+  // Done stations for 3D green check discs on the plaza (§11.2)
+  const doneStations = useMemo(() => {
+    return stations.filter((s) => s.state === "done");
   }, [stations]);
 
   // Hybrid stations for floating roof screen (§10.5)
@@ -150,7 +161,7 @@ export function Stations({ stations }: StationsProps) {
     return stations.filter((s) => s.mode === "hybrid");
   }, [stations]);
 
-  // Geometries for Plaza Pads, Plaza Rings, and Beacons
+  // Geometries for Plaza Pads, Plaza Rings, Beacons, and Check Discs
   const padGeometry = useMemo(() => {
     // E9: Plaza pad (plaza colour, radius 1.6, 0.04 high)
     return new THREE.CylinderGeometry(1.6, 1.6, 0.04, 32);
@@ -182,6 +193,25 @@ export function Stations({ stations }: StationsProps) {
     geom.translate(0, 3, 0); // Base at y = 0
     return geom;
   }, []);
+
+  // 3D green check disc decal on plaza for done stations (§11.2)
+  const checkDiscGeometry = useMemo(() => {
+    const geom = new THREE.CircleGeometry(0.35, 32);
+    geom.rotateX(-Math.PI / 2);
+    return geom;
+  }, []);
+
+  const checkDiscMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.done,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
+      }),
+    []
+  );
 
   const ringMaterial = useMemo(
     () =>
@@ -324,11 +354,22 @@ export function Stations({ stations }: StationsProps) {
 
         mesh.setMatrixAt(i, _tempObj.matrix);
 
-        // G3: Locked buildings dim to no less than 60% luminance (0.75 >= 0.6)
-        if (station.state === "locked") {
-          _targetColor.setRGB(0.75, 0.75, 0.75);
+        // §11.2: Focused stage has full color; other stages instance color 40% toward --cw-paper (PALETTE.background)
+        const isFocusedStage = station.layer === focusStage - 1;
+        const paperColor = new THREE.Color(PALETTE.background);
+
+        if (isFocusedStage) {
+          if (station.state === "locked") {
+            _targetColor.setRGB(0.75, 0.75, 0.75);
+          } else {
+            _targetColor.setRGB(1.0, 1.0, 1.0);
+          }
         } else {
-          _targetColor.setRGB(1.0, 1.0, 1.0);
+          const baseColor =
+            station.state === "locked"
+              ? new THREE.Color(0.75, 0.75, 0.75)
+              : new THREE.Color(1.0, 1.0, 1.0);
+          _targetColor.copy(baseColor).lerp(paperColor, 0.4);
         }
         mesh.setColorAt(i, _targetColor);
       }
@@ -422,6 +463,24 @@ export function Stations({ stations }: StationsProps) {
       hybridMesh.instanceMatrix.needsUpdate = true;
     }
 
+    // 5. Update done station check discs on the plaza (§11.2)
+    const checkMesh = checkDiscMeshRef.current;
+    if (checkMesh && doneStations.length > 0) {
+      for (let i = 0; i < doneStations.length; i++) {
+        const station = doneStations[i];
+        if (!station) continue;
+
+        const [x, , z] = station.position3D;
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z + 0.8);
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        checkMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      checkMesh.instanceMatrix.needsUpdate = true;
+    }
+
     if (allFinished) {
       animDoneRef.current = true;
     }
@@ -465,6 +524,7 @@ export function Stations({ stations }: StationsProps) {
       if (station) {
         useTaskStore.getState().selectStep(station.id);
         useViewStore.getState().setFocusedStepId(station.id);
+        useViewStore.getState().setFocusStage(station.layer + 1);
       }
     }
   };
@@ -512,6 +572,28 @@ export function Stations({ stations }: StationsProps) {
           ref={padMeshRef}
           args={[padGeometry, padMaterial, stations.length]}
           receiveShadow
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            if (typeof e.instanceId === "number") {
+              const station = stations[e.instanceId];
+              if (station) requestHover(station.id);
+            }
+          }}
+          onPointerOut={(e) => {
+            e.stopPropagation();
+            requestHover(null);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (typeof e.instanceId === "number") {
+              const station = stations[e.instanceId];
+              if (station) {
+                useTaskStore.getState().selectStep(station.id);
+                useViewStore.getState().setFocusedStepId(station.id);
+                useViewStore.getState().setFocusStage(station.layer + 1);
+              }
+            }
+          }}
         />
       )}
 
@@ -520,6 +602,14 @@ export function Stations({ stations }: StationsProps) {
         <instancedMesh
           ref={ringMeshRef}
           args={[ringGeometry, ringMaterial, stations.length]}
+        />
+      )}
+
+      {/* 3D Green Check Discs on Plaza for Done Stations (§11.2) */}
+      {doneStations.length > 0 && (
+        <instancedMesh
+          ref={checkDiscMeshRef}
+          args={[checkDiscGeometry, checkDiscMaterial, doneStations.length]}
         />
       )}
 
