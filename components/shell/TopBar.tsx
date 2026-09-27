@@ -150,22 +150,30 @@ export function TopBar({
         <SummaryTile
           testId="topbar-tile-next-up"
           label="Next up"
-          value={summary.nextUpText}
+          value={summary.nextUpTile?.value ?? summary.nextUpText}
+          subtext={summary.nextUpTile?.subtext}
+          fullText={summary.nextUpTile?.fullText ?? summary.nextUpText}
         />
         <SummaryTile
           testId="topbar-tile-fees"
           label="Estimated fee"
-          value={summary.feesText}
+          value={summary.feesTile?.value ?? summary.feesText}
+          subtext={summary.feesTile?.subtext}
+          fullText={summary.feesTile?.fullText ?? summary.feesText}
         />
         <SummaryTile
           testId="topbar-tile-time"
           label="Total time"
-          value={summary.timeText}
+          value={summary.timeTile?.value ?? summary.timeText}
+          subtext={summary.timeTile?.subtext}
+          fullText={summary.timeTile?.fullText ?? summary.timeText}
         />
         <SummaryTile
           testId="topbar-tile-visits"
           label="Office visits"
-          value={summary.officeVisitsText}
+          value={summary.visitsTile?.value ?? summary.officeVisitsText}
+          subtext={summary.visitsTile?.subtext}
+          fullText={summary.visitsTile?.fullText ?? summary.officeVisitsText}
         />
       </div>
 

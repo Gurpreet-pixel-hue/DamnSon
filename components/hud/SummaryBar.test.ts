@@ -41,6 +41,14 @@ describe("SummaryBar derivations (visual-direction §8 & §9.1)", () => {
     expect(summary.feesText).toContain("₹500–₹1,500");
     expect(summary.timeText).toContain("days");
     expect(summary.officeVisitsText).toBe("2 office visits");
+
+    // A5: Two-line tile checks
+    expect(summary.nextUpTile.value).toContain("Complete director KYC");
+    expect(summary.nextUpTile.subtext).toBeDefined();
+    expect(summary.feesTile.value).toContain("₹500–₹1,500");
+    expect(summary.timeTile.value).toContain("days");
+    expect(summary.visitsTile.value).toBe("2 visits");
+    expect(summary.visitsTile.subtext).toContain("across");
   });
 
   it("checks all remaining online correctly", () => {
