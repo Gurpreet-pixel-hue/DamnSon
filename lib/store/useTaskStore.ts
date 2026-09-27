@@ -31,6 +31,7 @@ export interface TaskState {
   setFact: (taskId: string, key: FactKey, value: FactValue) => void;
   clearFact: (taskId: string, key: FactKey) => void;
   setFacts: (taskId: string, facts: Facts) => void;
+  setCompleted: (taskId: string, stepIds: string[]) => void;
   toggleStepDone: (taskId: string, stepId: string) => void;
 }
 
@@ -76,6 +77,13 @@ export function createTaskStore(customStorage?: StateStorage) {
             factsByTask: {
               ...state.factsByTask,
               [taskId]: parseFacts(facts),
+            },
+          })),
+        setCompleted: (taskId, stepIds) =>
+          set((state) => ({
+            completedByTask: {
+              ...state.completedByTask,
+              [taskId]: [...stepIds],
             },
           })),
         toggleStepDone: (taskId, stepId) =>
