@@ -303,8 +303,139 @@ Where the ≈ 30 scene draws come from:
 |---|---|
 | Light theme tokens, diorama, stations, routes, labels, stage headers, legend, restyled top bar and toggles | FE-1V |
 | Same scene fed by contract v3 | FE-2 |
-| Summary bar (Next up, estimated fee, total time, office visits), journey page, Share Journey | FE-3 |
+| App shell with framed 3D window (§9.1), summary bar (Next up, estimated fee, total time, office visits), journey page, Share Journey | FE-3 |
 | Right drawer: hero thumbnail, Overview/Documents/Fees/Source tabs, official source with verified date, Mark as complete; 2D view | FE-4 |
-| Search "Start a restaurant in Mumbai" with a location chip | FE-5 |
+| Landing with natural-language search, location chip, fact card and questions (§9.3, P0); intro sequence (§9.2, P1); landing → journey transition (§9.4, P1) | FE-5 |
 | Left navigation: My Journey, Checklist, Documents, Office Visits, Resources | FE-6 |
 | Office trip plan with a real map | FE-8 P2 (needs a map library and tile-provider decision) |
+
+---
+
+## 9. App shell, intro and transitions (PRD 1.2, D20–D21)
+
+Status: normative. This section supersedes the placement rules in `frontend-spec.md` "HUD": the full-screen canvas, the floating top bar and the floating summary bar. The tile contents stay as specified there. Priorities:
+- the shell is P0 (FE-3);
+- the intro and the transition are P1 (FE-5), built after the P0 path works, and cut first (PRD §15.5 item 2).
+
+### 9.1 Journey page shell (FE-3)
+
+Target width 1280–1920 px. From 1024 to 1279 px the rail collapses to icons and the drawer overlays the window. Below 1024 px the page shows the 2D view (PRD §11.3).
+
+The shell is a CSS grid with 16 px page gutters and 16 px gaps:
+
+```
+┌ top bar 72 px ───────────────────────────────────────────────────────────────┐
+│ brand │ journey chip · location chip │ Next up │ Fee │ Time │ Visits │ Share │
+├ rail ──┬ 3D window (card) ──────────────────────────────┬ drawer 380 px ──────┤
+│ 200 px │ stage-header band 56 px (inside the card)      │ docked; opens when  │
+│ (64 px │ canvas                                         │ a step is selected  │
+│ icons  │ footer 52 px: legend · 3D/2D · critical path · │                     │
+│ <1440) │ fullscreen                                     │                     │
+├────────┴────────────────────────────────────────────────┴─────────────────────┤
+│ below the window: 2D panel (FE-4) · office trip plan (P2, FE-8)               │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+**3D window**
+- Height: `calc(100dvh - 72px - 48px)` (three 16 px gaps), at least 560 px. At 1440×900 the whole window is above the fold.
+- Card style: `--cw-surface` border, radius 16, 1 px `--cw-border`, soft shadow, `overflow: hidden`.
+- The canvas fills the card, and the scene clear colour is `--cw-background`.
+- Safe-area insets are relative to the card: top 56 (stage headers), bottom 52 (footer), left and right 16. `computeSafeFit` takes the card's size, not the window's.
+- The legend, the 3D/2D and critical-path toggles, and a fullscreen button live in the card footer, not as floating HUD.
+- The debug overlay sits inside the card, bottom-left, above the footer.
+- Fullscreen expands the card to the viewport (Fullscreen API on the card element). Esc returns.
+
+**Top bar**
+- **Brand:** an original mark (three woven metro lines in `--cw-brand`, `--cw-available` and `--cw-done`; no emblems, seals or crosses), "CivicWeave", and the tagline "Your city. In order.".
+- **Journey chip:** the task title and a pencil icon. In FE-3 the pencil links to `/`. From FE-5 it returns to the landing with the query prefilled.
+- **Location chip:** the template's jurisdiction (city, state) from data. Never inferred.
+- **Summary tiles:** Next up · Estimated fee · Total time · Office visits, with the copy rules from the FE-3 prompt. Progress is a 3 px bar under the journey chip ("4 of 11 done" on hover and for screen readers).
+- **Share Journey:** a primary button in `--cw-brand`.
+
+**Left rail (content in FE-6)**
+- Items: Home, My Journey, Checklist, Documents, Office Visits, Resources.
+- FE-3 renders only Home and My Journey. Items without a page are not shown; there are no disabled placeholders.
+
+**Right drawer (content in FE-4)**
+- A docked grid column, not an overlay.
+- Opening it narrows the window over 240 ms, with no animation under reduced motion. The camera refits to the new card size; the canvas never scales.
+- Escape closes it. Clicking a station swaps its content.
+
+### 9.2 Intro sequence (FE-5, P1)
+
+**Purpose.** A brand moment that also hides load time. While it plays, it:
+- imports the 3D chunk;
+- preloads `stations.glb`, `city.glb` and `props.glb` with `useGLTF.preload`;
+- does no GPU work. Shader warm-up happens on the journey page with `gl.compileAsync(scene, camera)` before the first visible frame.
+
+**Rules**
+- **Where:** `/`, on the first visit per browser session. Read the `cw-intro-seen` key in sessionStorage inside try/catch; if storage fails, play it. Deep links to `/journey/…` never show the intro.
+- **Length:** 3.5–4.5 s, cut to a 120 BPM grid (beat = 0.5 s).
+- **Skip:** always possible. A "Skip intro" button is visible from the first frame, and any key, click or tap also skips.
+- **Medium:** DOM + SVG only, no WebGL while it plays. GSAP 3.15.0 timeline with SplitText, ScrambleTextPlugin, DrawSVGPlugin and Flip. Everything is registered inside a client component that loads with `next/dynamic` on `/` only.
+- **Type:** Geist Sans 800, `clamp(72px, 14vw, 220px)`, tracking −0.04em. Colours are tokens only: `--cw-text` on `--cw-background`, with accents in `--cw-brand` and `--cw-available`.
+
+**Storyboard (b = beat)**
+1. **b0–b1.** Cream screen. One transit line (6 px, `--cw-available`) draws left to right (DrawSVG, `power2.inOut`), and three station dots pop on it (scale 0 → 1, `back.out(3)`).
+2. **b1–b5.** Four words hit, one per beat, centred: "FORMS." "FEES." "OFFICES." "QUEUES.".
+   - **In:** SplitText chars move from `yPercent: 110, rotationX: -80` to rest, with a 0.02 s stagger, `expo.out`, 0.35 s. The line jolts 8 px on each hit.
+   - **Hit accent:** a 2-frame RGB split (text-shadow −4 px `--cw-brand` / +4 px `--cw-available`).
+   - **Out:** `skewX: 12`, `filter: blur(8px)`, opacity 0, 0.15 s.
+3. **b5–b6.** "The maze": the line scribbles into a tangle (DrawSVG on a precomputed tangled path, 0.5 s) while the last word shatters. Its chars scatter outward with random rotation and fade.
+4. **b6–b7.** ScrambleText resolves to "IN ORDER." in `--cw-text`, and the tangle straightens into one clean line: crossfade the two paths while DrawSVG retracts the tangle.
+5. **b7–b9.** The wordmark "CivicWeave" rises (chars, 0.03 s stagger) and the tagline "Your city. In order." fades up. The straight line Flips into the underline of the landing's search field, and the landing fades in around it. Focus moves to the input.
+
+**Content rule.** Use generic civic nouns only: no department names, fees, dates, places or logos.
+
+**Safety**
+- No full-screen flashes.
+- Nothing flashes more than 3 times per second (WCAG 2.3.1).
+- No audio.
+
+**Reduced motion.** No timeline. Show the wordmark and tagline statically for 600 ms with a 200 ms fade, then the landing.
+
+**Accessibility.** Every animated layer is `aria-hidden`. Add one `sr-only` h1: "CivicWeave: your city, in order". The skip button is a real `<button>`.
+
+**Slow load.** If the preload is still running at b9, hold on the wordmark with a determinate 2 px progress line showing the loaded bytes of the three GLBs, for at most 3 s. Then continue anyway; the journey page still has its own skeleton.
+
+### 9.3 Landing (FE-5: search is P0, extras are P1)
+
+**Layout**
+- The wordmark sits small at the top left.
+- One centred prompt, "What do you need to get done?" (Geist 600, 44 px).
+- A large natural-language input: min height 64 px, radius 16, brand focus ring.
+- A location chip, filled from the search result's jurisdiction. It is editable and never assumed.
+- The primary button "Map my route".
+
+**Examples.** The examples under the input are the titles of published templates (`listTemplates`). They are never invented.
+
+**After submit** (`POST /api/v1/search`):
+- The input docks to the top of the column.
+- The fact card appears, with the words each fact came from highlighted.
+- The decisive questions follow inline; this is the same component as on the journey page (FE-4).
+- When AI is unavailable, show the lexical-fallback notice (PRD §6.6).
+
+**Below the fold:** published journeys and the continue card (P1).
+
+### 9.4 Landing → journey transition (FE-5, P1)
+
+Total ≤ 2.4 s. Any input (pointer, key, wheel) cancels what is left and jumps to the final pose.
+
+1. **0–0.4 s, DOM on the landing.** The fact card and questions fold up (`power3.in`), and the query text Flips toward the top-left, where the journey chip will appear.
+2. **Navigation.** Navigate to `/journey/<taskId>?task=…&f=…&done=` (the share format in PRD §8.8). A module-level flag `arrivedFromLanding` (in memory, never persisted) enables the entrance. The shell renders at once.
+3. **0.4–2.4 s, 3D entrance** in `components/canvas/entrance/`, driven from `useFrame` with refs only. No GSAP inside the canvas; use hand-written easing functions.
+   - **Camera:** starts at polar 12°, azimuth −40°, 2.6 × the fit distance. It transitions to the safe-fit pose over 1.6 s with camera-controls (`smoothTime` 0.35).
+   - **City rises:** each BatchedMesh instance scales in y from 0.01 to 1. Its delay is proportional to its distance from the first station (max 0.9 s), and each instance takes 0.35 s with `back.out`. Stop writing matrices once the last one settles.
+   - **Stations and plazas:** each station pops after its block (scale 0.6 → 1, 0.25 s), and plazas fade in.
+   - **Routes:** tracks draw in topological order through a dash-offset uniform (0.8 s total). Pulses start afterwards.
+   - **Labels:** label cards and stage headers fade in last, staggered 0.2 s by layer.
+4. **When it runs:** once per navigation from the landing. Reloads, deep links, `?debug=1` and reduced motion skip it and render the final pose.
+5. **Budget:** no new draw calls, no allocations in `useFrame`, and scene draws stay within §7.
+
+### 9.5 Files and assets for 9.2–9.4
+
+- `components/intro/IntroSequence.tsx` and `components/intro/paths.ts`: SVG paths authored in code, with no downloaded artwork.
+- `components/landing/*`.
+- `components/canvas/entrance/useEntrance.ts`.
+- Fonts come from the existing `geist` package through `next/font`. No font CDN.
+- Use `motion` 13.4.4 for UI micro-interactions (drawer, toasts). Use `gsap` 3.15.0 only in `components/intro` and `components/landing`.

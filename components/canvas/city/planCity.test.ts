@@ -1,9 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { planCity, type StationLocation, type TrackLocation } from "./planCity";
-import { CITY_KINDS } from "./cityKinds";
-import { loadJourneyForPage } from "@/app/loadJourney";
+import { CITY_KINDS, TRIANGLES_BY_KIND } from "./cityKinds";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import { journeyTemplateSchema, approvalModuleSchema } from "@/lib/contract/schema";
 import { safeCompose } from "@/lib/graph/safeCompose";
 import { fromJourney } from "@/lib/graph/viewModel";
+
+function loadFixtureBundle(templateName: string) {
+  const template = journeyTemplateSchema.parse(readTemplateFixture(templateName));
+  const modules = template.modules.map((modEntry) =>
+    approvalModuleSchema.parse(readModuleFixture(modEntry.moduleId))
+  );
+  return { template, modules };
+}
 
 describe("planCity (visual-direction §3 & Amendment D5)", () => {
   const dummyStations: StationLocation[] = [
@@ -180,10 +189,8 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
       ).toBe(false);
     }
   });
-
-  it("plans the stress graph in under 150 ms (Amendment D5)", async () => {
-    process.env.DATA_SOURCE = "fixtures";
-    const bundle = await loadJourneyForPage({ graph: "stress" });
+  it("plans the stress graph in under 150 ms (Amendment D5)", () => {
+    const bundle = loadFixtureBundle("stress-25-synthetic");
     expect(bundle, "Stress fixture bundle must load").not.toBeNull();
 
     const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
@@ -302,11 +309,10 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     }
   });
 
-  it("satisfies H1 occupancy and caps for demo and stress fixtures", async () => {
-    process.env.DATA_SOURCE = "fixtures";
+  it("satisfies H1 occupancy and caps for demo and stress fixtures", () => {
     for (const graphName of ["demo", "stress"]) {
-      const bundle = await loadJourneyForPage(
-        graphName === "stress" ? { graph: "stress" } : {}
+      const bundle = loadFixtureBundle(
+        graphName === "stress" ? "stress-25-synthetic" : "demo-metro-synthetic"
       );
       expect(bundle).not.toBeNull();
       const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
@@ -382,6 +388,72 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
         `[H1 OCCUPANCY] ${graphName}: ${occupiedNearCells}/${eligibleNearCells} (${occupancyPct.toFixed(1)}%), buildings=${plan.buildings.length}, trees=${plan.trees.length}`
       );
       expect(occupancyPct).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it("satisfies the ≤ 300k triangle budget estimate for demo and stress (A7)", () => {
+    for (const graphName of ["demo", "stress"]) {
+      const templateName =
+        graphName === "demo" ? "demo-metro-synthetic" : "stress-25-synthetic";
+      const bundle = loadFixtureBundle(templateName);
+      const composeResult = safeCompose(bundle.template, bundle.modules, {});
+      expect(composeResult.ok).toBe(true);
+      if (!composeResult.ok) continue;
+
+      const metro = fromJourney(composeResult.journey, new Set());
+      const stations: StationLocation[] = metro.stations.map((s) => ({
+        id: s.id,
+        position3D: s.position3D,
+      }));
+      const tracks: TrackLocation[] = metro.tracks.map((t) => ({
+        id: t.id,
+        from: t.from,
+        to: t.to,
+      }));
+
+      const plan = planCity({
+        taskId: bundle.template.taskId,
+        stations,
+        tracks,
+      });
+
+      // Sum per-kind triangle counts from cityKinds table (A7)
+      let totalTriangles = 0;
+      for (const b of plan.buildings) {
+        totalTriangles += TRIANGLES_BY_KIND[b.kind] ?? 0;
+      }
+      for (const t of plan.trees) {
+        totalTriangles += TRIANGLES_BY_KIND[t.kind] ?? 0;
+      }
+      for (const p of plan.props) {
+        totalTriangles += TRIANGLES_BY_KIND[p.kind] ?? 0;
+      }
+
+      console.log(
+        `[A7 TRIANGLE BUDGET] ${graphName}: ${totalTriangles.toLocaleString()} triangles (target <= 300,000)`
+      );
+      expect(totalTriangles).toBeLessThanOrEqual(300_000);
+    }
+  });
+
+  it("ensures every placed building has uniform scale without y-squashing (A7 & visual-direction §10.1)", () => {
+    for (const graphName of ["demo", "stress"]) {
+      const templateName =
+        graphName === "demo" ? "demo-metro-synthetic" : "stress-25-synthetic";
+      const bundle = loadFixtureBundle(templateName);
+      const composeResult = safeCompose(bundle.template, bundle.modules, {});
+      if (!composeResult.ok) continue;
+      const metro = fromJourney(composeResult.journey, new Set());
+      const plan = planCity({
+        taskId: bundle.template.taskId,
+        stations: metro.stations.map((s) => ({ id: s.id, position3D: s.position3D })),
+        tracks: metro.tracks.map((t) => ({ id: t.id, from: t.from, to: t.to })),
+      });
+
+      for (const b of plan.buildings) {
+        expect(b.scale[0]).toBeCloseTo(b.scale[1], 5);
+        expect(b.scale[1]).toBeCloseTo(b.scale[2], 5);
+      }
     }
   });
 });

@@ -53,10 +53,10 @@ export interface SafeFitResult {
 }
 
 export const DEFAULT_SAFE_INSETS: SafeInsets = {
-  left: 24,
-  right: 24,
-  top: 88,
-  bottom: 110,
+  left: 16,
+  right: 16,
+  top: 56,
+  bottom: 52,
 };
 
 export interface ScreenRect {

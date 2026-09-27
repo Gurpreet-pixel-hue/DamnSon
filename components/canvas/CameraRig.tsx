@@ -90,8 +90,9 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     if (!controls) return;
 
     const enableTransition = !prefersReducedMotion;
+    controls.smoothTime = enableTransition ? 0.6 : 0;
     // Fit station bounding box (world-unit paddings 0.8 / 1.0 removed per H2)
-    void controls.fitToBox(stationBoundingBox, false).then(() => {
+    void controls.fitToBox(stationBoundingBox, enableTransition).then(() => {
       // G2: Azimuth -15°, lower camera to polar 52° so horizon and board edge are outside viewport
       void controls.rotateTo(
         (-15 * Math.PI) / 180,
@@ -112,17 +113,32 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     }
   }, [metro.stations, resetView]);
 
+  // Track previous selection to detect when drawer is closed / Escape pressed (P12)
+  const prevSelectedRef = useRef<string | null>(null);
+
   // Station focus or selection transition (visual-direction §5: setLookAt(station + (7, 8, 9), station, true))
   const targetStationId = selectedStepId || focusedStepId;
   useEffect(() => {
     const controls = controlsRef.current;
-    if (!controls || !targetStationId) return;
+    if (!controls) return;
+
+    const enableTransition = !prefersReducedMotion;
+    controls.smoothTime = enableTransition ? 0.6 : 0;
+
+    if (!targetStationId) {
+      if (prevSelectedRef.current) {
+        prevSelectedRef.current = null;
+        resetView();
+      }
+      return;
+    }
+
+    prevSelectedRef.current = selectedStepId;
 
     const station = metro.stations.find((s) => s.id === targetStationId);
     if (!station) return;
 
     const [x, y, z] = station.position3D;
-    const enableTransition = !prefersReducedMotion;
 
     if (selectedStepId) {
       // G4: Selected station framed in visible area left of drawer, ~25% viewport height
@@ -156,7 +172,7 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         enableTransition
       );
     }
-  }, [targetStationId, selectedStepId, focusedStepId, metro.stations, prefersReducedMotion]);
+  }, [targetStationId, selectedStepId, focusedStepId, metro.stations, prefersReducedMotion, resetView]);
 
   return (
     <CameraControls

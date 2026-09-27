@@ -14,7 +14,17 @@ const tokenize = (text: string): string[] =>
     .split(SEPARATORS)
     .filter((token) => token.length >= 2);
 
-export function searchTemplates(templates: readonly TemplateSummary[], query: string, limit = 8): TemplateSummary[] {
+export interface RankedTemplate {
+  template: TemplateSummary;
+  /** 0-1, the raw token score divided by the best score in this result set. */
+  score: number;
+}
+
+/**
+ * Same ranking as searchTemplates, but with a normalised score, because the search response has to
+ * report one per match (Appendix F.1) and the raw token score has no upper bound.
+ */
+export function rankTemplates(templates: readonly TemplateSummary[], query: string, limit = 8): RankedTemplate[] {
   const tokens = tokenize(query);
   if (tokens.length === 0) return [];
 
@@ -34,5 +44,10 @@ export function searchTemplates(templates: readonly TemplateSummary[], query: st
   }
 
   scored.sort((a, b) => (b.score === a.score ? a.template.title.localeCompare(b.template.title) : b.score - a.score));
-  return scored.slice(0, limit).map((entry) => entry.template);
+  const best = scored[0]?.score ?? 1;
+  return scored.slice(0, limit).map((entry) => ({ template: entry.template, score: entry.score / best }));
+}
+
+export function searchTemplates(templates: readonly TemplateSummary[], query: string, limit = 8): TemplateSummary[] {
+  return rankTemplates(templates, query, limit).map((entry) => entry.template);
 }
