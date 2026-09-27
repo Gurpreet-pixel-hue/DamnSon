@@ -99,12 +99,15 @@ function CardDebugOverlay() {
   );
 }
 
+import { StageStepper } from "@/components/canvas/StageStepper";
+
 export interface WindowCardProps {
   metro: MetroVM | null;
+  drawer?: React.ReactNode;
   className?: string;
 }
 
-export function WindowCard({ metro, className = "" }: WindowCardProps) {
+export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -112,8 +115,8 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
   const setViewMode = useViewStore((s) => s.setViewMode);
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
   const toggleCriticalPath = useViewStore((s) => s.toggleCriticalPath);
-  const labelMode = useViewStore((s) => s.labelMode);
-  const setLabelMode = useViewStore((s) => s.setLabelMode);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+  const toggleWholeRouteView = useViewStore((s) => s.toggleWholeRouteView);
 
   // Monitor fullscreen change
   useEffect(() => {
@@ -155,6 +158,16 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
 
         {/* Debug overlay inside card, bottom-left */}
         <CardDebugOverlay />
+
+        {/* Stage Stepper, bottom center (§11.1) */}
+        {metro && (
+          <div className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30">
+            <StageStepper metro={metro} />
+          </div>
+        )}
+
+        {/* Overlay Drawer (§11.3) */}
+        {drawer}
       </div>
 
       {/* Card Footer (52px) */}
@@ -167,7 +180,7 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
           <Legend />
         </div>
 
-        {/* Right: Controls (Critical path, 3D/2D, Fullscreen) */}
+        {/* Right: Controls (Critical path, Whole route, 3D/2D, Fullscreen) */}
         <div className="flex items-center gap-2 shrink-0">
           {/* Critical Path Toggle */}
           <button
@@ -184,38 +197,21 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
             Critical Path
           </button>
 
-          {/* Labels Toggle: Key steps / All (§10.6) */}
-          <div className="flex items-center rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] p-0.5 text-xs">
-            <span className="text-[10px] text-[var(--cw-text-muted)] font-medium px-1.5 hidden sm:inline">
-              Labels:
-            </span>
-            <button
-              type="button"
-              data-testid="footer-toggle-labels-key"
-              onClick={() => setLabelMode("key_steps")}
-              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
-                labelMode === "key_steps"
-                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
-                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
-              }`}
-              aria-pressed={labelMode === "key_steps"}
-            >
-              Key steps
-            </button>
-            <button
-              type="button"
-              data-testid="footer-toggle-labels-all"
-              onClick={() => setLabelMode("all")}
-              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
-                labelMode === "all"
-                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
-                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
-              }`}
-              aria-pressed={labelMode === "all"}
-            >
-              All
-            </button>
-          </div>
+          {/* Whole Route Toggle Button (§11.3) */}
+          <button
+            type="button"
+            data-testid="footer-whole-route-toggle"
+            onClick={toggleWholeRouteView}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              wholeRouteView
+                ? "border-[var(--cw-brand)] bg-[var(--cw-brand)]/15 text-[var(--cw-brand)] font-semibold"
+                : "border-[var(--cw-border)] bg-[var(--cw-background)] text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
+            }`}
+            aria-pressed={wholeRouteView}
+            title={wholeRouteView ? "Return to stage framing" : "Fit whole route"}
+          >
+            Whole route
+          </button>
 
           {/* 3D / 2D Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] p-0.5 text-xs">

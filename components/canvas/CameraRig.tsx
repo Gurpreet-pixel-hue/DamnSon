@@ -9,14 +9,21 @@ import { useTaskStore } from "@/lib/store/useTaskStore";
 import { deriveStageHeaders } from "./StageHeaders";
 import type { BoardBounds } from "./city/planCity";
 
+import { useThree } from "@react-three/fiber";
+import { getStages } from "@/lib/graph/stages";
+
 interface CameraRigProps {
   metro: MetroVM;
   boardBounds?: BoardBounds;
 }
 
+const scratchStationPos = new THREE.Vector3();
+
 export function CameraRig({ metro, boardBounds }: CameraRigProps) {
   const controlsRef = useRef<CameraControls>(null);
-  const focusedStepId = useViewStore((s) => s.focusedStepId);
+  const { size } = useThree();
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const initialFittedRef = useRef(false);
 
@@ -55,8 +62,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     };
   }, []);
 
-  // Compute bounding box encompassing stations, pins, card anchors, and stage headers (F4)
-  const stationBoundingBox = useMemo(() => {
+  // Whole route bounding box (all stations + all stage headers)
+  const wholeRouteBoundingBox = useMemo(() => {
     const box = new THREE.Box3();
     if (metro.stations.length === 0) {
       box.set(new THREE.Vector3(-10, 0, -10), new THREE.Vector3(10, 5, 10));
@@ -64,14 +71,9 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     }
     for (const station of metro.stations) {
       const [x, y, z] = station.position3D;
-      // Station base
       box.expandByPoint(new THREE.Vector3(x, y, z));
-      // Pin top
-      box.expandByPoint(new THREE.Vector3(x, y + 1.8, z));
-      // Card anchor
       box.expandByPoint(new THREE.Vector3(x, y + 2.8, z));
     }
-    // Stage headers
     const headers = deriveStageHeaders(metro);
     for (const h of headers) {
       box.expandByPoint(new THREE.Vector3(h.x, 0.57, h.z));
@@ -79,6 +81,40 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     }
     return box;
   }, [metro]);
+
+  // Stage bounding box:
+  // "its stations, their cards, and the next stage's chip. It never frames the whole city." (§11.3)
+  const stageBoundingBox = useMemo(() => {
+    const box = new THREE.Box3();
+    const focusedStations = metro.stations.filter(
+      (s) => s.layer === focusStage - 1
+    );
+
+    if (focusedStations.length === 0) {
+      return wholeRouteBoundingBox;
+    }
+
+    for (const station of focusedStations) {
+      const [x, y, z] = station.position3D;
+      box.expandByPoint(new THREE.Vector3(x, y, z));
+      box.expandByPoint(new THREE.Vector3(x, y + 3.2, z));
+      box.expandByPoint(new THREE.Vector3(x - 2.5, y, z - 2.0));
+      box.expandByPoint(new THREE.Vector3(x + 2.5, y + 3.2, z + 2.0));
+    }
+
+    // Include next stage's chip if available
+    const stages = getStages(metro);
+    if (focusStage < stages.length) {
+      const headers = deriveStageHeaders(metro);
+      const nextHeader = headers.find((h) => h.layer === focusStage);
+      if (nextHeader) {
+        box.expandByPoint(new THREE.Vector3(nextHeader.x, 0.57, nextHeader.z));
+        box.expandByPoint(new THREE.Vector3(nextHeader.x, 2.0, nextHeader.z));
+      }
+    }
+
+    return box;
+  }, [metro, focusStage, wholeRouteBoundingBox]);
 
   // Set boundary on board bounds
   useEffect(() => {
@@ -92,94 +128,110 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     controls.setBoundary(boardBox);
   }, [boardBounds]);
 
-  const resetView = useCallback(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
+  const frameCurrentStageOrRoute = useCallback(
+    (instant = false) => {
+      const controls = controlsRef.current;
+      if (!controls || metro.stations.length === 0) return;
 
-    const enableTransition = !prefersReducedMotion;
-    controls.smoothTime = enableTransition ? 0.6 : 0;
-    // Fit station bounding box (world-unit paddings 0.8 / 1.0 removed per H2)
-    void controls.fitToBox(stationBoundingBox, enableTransition).then(() => {
-      // G2: Azimuth -15°, lower camera to polar 52° so horizon and board edge are outside viewport
-      void controls.rotateTo(
-        (-15 * Math.PI) / 180,
-        (52 * Math.PI) / 180,
-        enableTransition
-      );
-    });
-  }, [stationBoundingBox, prefersReducedMotion]);
+      const enableTransition = !instant && !prefersReducedMotion;
+      controls.smoothTime = enableTransition ? 0.6 : 0;
 
-  // Initial fitToBox
+      const targetBox = wholeRouteView ? wholeRouteBoundingBox : stageBoundingBox;
+      const isDrawerOpen = Boolean(useTaskStore.getState().selectedStepId);
+
+      void controls
+        .fitToBox(targetBox, enableTransition, {
+          paddingTop: 56,
+          paddingBottom: 52,
+          paddingLeft: 16,
+          paddingRight: isDrawerOpen ? 396 : 16,
+        })
+        .then(() => {
+          void controls.rotateTo(
+            (-15 * Math.PI) / 180,
+            (52 * Math.PI) / 180,
+            enableTransition
+          );
+        });
+    },
+    [
+      metro.stations.length,
+      wholeRouteView,
+      wholeRouteBoundingBox,
+      stageBoundingBox,
+      prefersReducedMotion,
+    ]
+  );
+
+  // Initial fitToBox: load-time fit before canvas is revealed (§10.6 & §11.3)
   useEffect(() => {
     if (metro.stations.length > 0 && !initialFittedRef.current) {
       initialFittedRef.current = true;
       const t = setTimeout(() => {
-        resetView();
+        frameCurrentStageOrRoute(true);
       }, 50);
       return () => clearTimeout(t);
     }
-  }, [metro.stations, resetView]);
+  }, [metro.stations, frameCurrentStageOrRoute]);
 
-  // Track previous selection to detect when drawer is closed / Escape pressed (P12)
+  // On every focusStage or wholeRouteView change, glide camera to frame it (§11.3)
+  useEffect(() => {
+    if (!initialFittedRef.current) return;
+    frameCurrentStageOrRoute(false);
+  }, [focusStage, wholeRouteView, frameCurrentStageOrRoute]);
+
+  // Track previous selection to handle drawer open / close (§11.3)
   const prevSelectedRef = useRef<string | null>(null);
 
-  // Station focus or selection transition (visual-direction §5: setLookAt(station + (7, 8, 9), station, true))
-  const targetStationId = selectedStepId || focusedStepId;
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
 
-    const enableTransition = !prefersReducedMotion;
-    controls.smoothTime = enableTransition ? 0.6 : 0;
-
-    if (!targetStationId) {
+    if (!selectedStepId) {
       if (prevSelectedRef.current) {
         prevSelectedRef.current = null;
-        resetView();
+        frameCurrentStageOrRoute(false);
       }
       return;
     }
 
+    const isFirstSelection = prevSelectedRef.current !== selectedStepId;
     prevSelectedRef.current = selectedStepId;
+    if (!isFirstSelection) return;
 
-    const station = metro.stations.find((s) => s.id === targetStationId);
+    const station = metro.stations.find((s) => s.id === selectedStepId);
     if (!station) return;
 
-    const [x, y, z] = station.position3D;
-
-    if (selectedStepId) {
-      // G4: Selected station framed in visible area left of drawer, ~25% viewport height
-      // Shift target to the right along camera plane so station lands in center of remaining area
-      const targetX = x + 2.7;
-      const targetY = y + 0.5;
-      const targetZ = z + 0.7;
-
-      const camX = targetX - 5.55;
-      const camY = targetY + 18.0;
-      const camZ = targetZ + 20.7;
-
-      void controls.setLookAt(
-        camX,
-        camY,
-        camZ,
-        targetX,
-        targetY,
-        targetZ,
-        enableTransition
-      );
+    // "Clicking a card in the focused stage opens the drawer and does not move the camera,
+    // unless the station would sit under the drawer. In that case the camera pans only enough to clear the drawer." (§11.3)
+    if (station.layer === focusStage - 1 && !wholeRouteView) {
+      scratchStationPos.set(...station.position3D).project(controls.camera);
+      const screenX = ((scratchStationPos.x + 1) / 2) * size.width;
+      const drawerLeftEdge = size.width - 380;
+      if (screenX > drawerLeftEdge - 40) {
+        const deltaPx = screenX - (drawerLeftEdge - 80);
+        const cam = controls.camera as THREE.PerspectiveCamera;
+        const truckFactor =
+          (controls.distance * Math.tan((cam.fov * Math.PI) / 360)) /
+          (size.height / 2);
+        const worldTruckX = -deltaPx * truckFactor;
+        const enableTransition = !prefersReducedMotion;
+        controls.smoothTime = enableTransition ? 0.6 : 0;
+        void controls.truck(worldTruckX, 0, enableTransition);
+      }
     } else {
-      // Focused station without drawer open
-      void controls.setLookAt(
-        x - 5.55,
-        y + 18.0,
-        z + 20.7,
-        x,
-        y,
-        z,
-        enableTransition
-      );
+      frameCurrentStageOrRoute(false);
     }
-  }, [targetStationId, selectedStepId, focusedStepId, metro.stations, prefersReducedMotion, resetView]);
+  }, [
+    selectedStepId,
+    focusStage,
+    wholeRouteView,
+    metro.stations,
+    size.width,
+    size.height,
+    prefersReducedMotion,
+    frameCurrentStageOrRoute,
+  ]);
 
   return (
     <CameraControls

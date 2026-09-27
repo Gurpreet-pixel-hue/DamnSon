@@ -7,6 +7,9 @@ import { useViewStore } from "@/lib/store/useViewStore";
 import { deriveStepStates } from "@/lib/graph/progress";
 import { formatINR } from "@/lib/graph/summary";
 
+import { getStages, currentStage } from "@/lib/graph/stages";
+import { fromJourney } from "@/lib/graph/viewModel";
+
 export interface RightDrawerProps {
   journey?: ComposedJourney;
   className?: string;
@@ -69,13 +72,33 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
 
   const handleToggleDone = () => {
     if (!activeTaskId || !step) return;
+    const currentFocus = useViewStore.getState().focusStage;
+
     if (isAvailable) {
       toggleStepDone(activeTaskId, step.id);
       showUndoToast({
         taskId: activeTaskId,
         stepId: step.id,
         title: step.title,
+        previousFocusStage: currentFocus,
       });
+
+      if (journey) {
+        const nextCompleted = new Set(completedSet);
+        nextCompleted.add(step.id);
+        const nextMetro = fromJourney(journey, nextCompleted);
+        const stages = getStages(nextMetro);
+        const currentStageInfo = stages.find((s) => s.number === currentFocus);
+        // If the focused stage has no available step that applies left (§11.1)
+        if (!currentStageInfo || !currentStageInfo.hasAvailable) {
+          setTimeout(() => {
+            if (useViewStore.getState().focusStage === currentFocus) {
+              const next = currentStage(nextMetro);
+              useViewStore.getState().setFocusStage(next);
+            }
+          }, 700);
+        }
+      }
     } else if (isDone) {
       toggleStepDone(activeTaskId, step.id);
     }
@@ -86,10 +109,10 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
       data-testid="right-drawer"
       data-state={isOpen ? "open" : "closed"}
       aria-label="Step details inspector"
-      className={`relative shrink-0 overflow-hidden rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-xs transition-[width,transform] duration-240 ease-out motion-reduce:transition-none flex flex-col ${
+      className={`absolute right-0 top-0 bottom-0 z-40 w-[380px] overflow-hidden rounded-r-2xl border-l border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-2xl transition-transform duration-240 ease-out motion-reduce:transition-none flex flex-col ${
         isOpen
-          ? "w-[380px] opacity-100 pointer-events-auto"
-          : "w-0 border-transparent opacity-0 pointer-events-none p-0"
+          ? "translate-x-0 opacity-100 pointer-events-auto"
+          : "translate-x-full opacity-0 pointer-events-none"
       } ${className}`}
     >
       {isOpen && step && (

@@ -8,6 +8,7 @@ export interface UndoToastState {
   taskId: string;
   stepId: string;
   title: string;
+  previousFocusStage?: number;
 }
 
 interface ViewState {
@@ -17,6 +18,9 @@ interface ViewState {
   criticalPathOn: boolean;
   webglFallbackReason: string | null;
   labelMode: LabelDensityMode;
+  focusStage: number;
+  previousFocusStage: number | null;
+  wholeRouteView: boolean;
   undoToast: UndoToastState | null;
   setViewMode: (mode: ViewMode) => void;
   setFocusedStepId: (id: string | null) => void;
@@ -26,6 +30,9 @@ interface ViewState {
   setWebglFallbackReason: (reason: string | null) => void;
   setLabelMode: (mode: LabelDensityMode) => void;
   toggleLabelMode: () => void;
+  setFocusStage: (stage: number) => void;
+  setWholeRouteView: (wholeRoute: boolean) => void;
+  toggleWholeRouteView: () => void;
   showUndoToast: (toast: UndoToastState) => void;
   dismissUndoToast: () => void;
 }
@@ -39,6 +46,9 @@ export const useViewStore = create<ViewState>((set) => ({
   criticalPathOn: false,
   webglFallbackReason: null,
   labelMode: "key_steps",
+  focusStage: 1,
+  previousFocusStage: null,
+  wholeRouteView: false,
   undoToast: null,
   setViewMode: (viewMode) => set({ viewMode }),
   setFocusedStepId: (focusedStepId) => set({ focusedStepId }),
@@ -52,6 +62,15 @@ export const useViewStore = create<ViewState>((set) => ({
     set((state) => ({
       labelMode: state.labelMode === "key_steps" ? "all" : "key_steps",
     })),
+  setFocusStage: (focusStage) =>
+    set((state) => ({
+      previousFocusStage: state.focusStage,
+      focusStage,
+      wholeRouteView: false,
+    })),
+  setWholeRouteView: (wholeRouteView) => set({ wholeRouteView }),
+  toggleWholeRouteView: () =>
+    set((state) => ({ wholeRouteView: !state.wholeRouteView })),
   showUndoToast: (toast) => {
     if (toastTimeout) {
       clearTimeout(toastTimeout);

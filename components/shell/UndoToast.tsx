@@ -12,6 +12,9 @@ export function UndoToast() {
 
   const handleUndo = () => {
     if (!undoToast) return;
+    if (undoToast.previousFocusStage !== undefined) {
+      useViewStore.getState().setFocusStage(undoToast.previousFocusStage);
+    }
     toggleStepDone(undoToast.taskId, undoToast.stepId);
     dismissUndoToast();
   };
