@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "demo-incorporation",
+  "version": 1,
+  "title": "[Synthetic] Incorporation and Charter",
+  "summary": "Synthetic module forming the company structure.",
+  "authority": {
+    "slug": "demo-inc-auth",
+    "name": "Example Municipal Authority",
+    "tier": "municipal",
+    "officialUrl": "https://www.india.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    },
+    {
+      "id": "s-blog",
+      "url": "https://example.com/notary-guide",
+      "title": "Notary Guidelines",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "non_government",
+      "id": "charter-draft",
+      "title": "[Synthetic] Notarize entity charter",
+      "description": "Execute charter agreement before notary.",
+      "requirement": { "kind": "mandatory" },
+      "department": "Example Notary Office",
+      "mode": "in_person",
+      "officeType": "court_or_notary",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "fixed", "amountINR": 500, "recurrence": "one_time", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 2, "dayType": "calendar" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-blog"],
+      "review": { "status": "unverified" }
+    },
+    {
+      "kind": "government",
+      "id": "register-entity",
+      "title": "[Synthetic] File municipal entity registration",
+      "description": "Submit entity papers to municipal headquarters.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-inc-auth",
+      "department": "Example Municipal Headquarters",
+      "mode": "online",
+      "officeType": "municipal_hq",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "fixed", "amountINR": 1000, "recurrence": "one_time", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 2, "maxDays": 4, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "milestone",
+      "id": "entity-formed",
+      "title": "[Synthetic] Entity formed",
+      "description": "Entity registration certificate issued.",
+      "requirement": { "kind": "mandatory" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-charter-reg",
+      "from": "charter-draft",
+      "to": "register-entity",
+      "kind": "requires"
+    },
+    {
+      "id": "e-reg-formed",
+      "from": "register-entity",
+      "to": "entity-formed",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": ["charter-draft"],
+  "exitSteps": ["entity-formed"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}

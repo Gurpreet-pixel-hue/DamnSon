@@ -1,0 +1,436 @@
+[
+  {
+    "url": "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe+Part%20A.pdf",
+    "title": "Instruction Kit for webform SPICe+ Part A (Name Reservation)",
+    "kind": "guideline",
+    "authoritySlug": "mca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "mca-spice-plus"
+    ],
+    "language": "en",
+    "manualText": "data/sources/manual/mca-spice-plus-part-a-kit.md"
+  },
+  {
+    "url": "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe%20+%20Part%20B.pdf",
+    "title": "Instruction Kit for Form No. SPICe + Part B (Simplified Proforma for Incorporating Company Electronically Plus)",
+    "kind": "guideline",
+    "authoritySlug": "mca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "mca-spice-plus",
+      "founder-kyc",
+      "dsc"
+    ],
+    "language": "en",
+    "manualText": "data/sources/manual/mca-spice-plus-part-b-kit.md"
+  },
+  {
+    "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+    "title": "FAQs on Incorporation and Allied Matters",
+    "kind": "faq",
+    "authoritySlug": "mca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "mca-spice-plus",
+      "bank-account",
+      "epfo",
+      "esic",
+      "mh-professional-tax"
+    ],
+    "language": "en",
+    "manualText": "data/sources/manual/mca-spice-plus-faqs.md"
+  },
+  {
+    "url": "https://www.pib.gov.in/PressReleaseIframePage.aspx?PRID=1656755",
+    "title": "SPICe+ Portal deployed by MCA",
+    "kind": "circular",
+    "authoritySlug": "mca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "mca-spice-plus"
+    ],
+    "language": "en",
+    "manualText": "data/sources/manual/pib-spice-plus-portal.md"
+  },
+  {
+    "url": "https://www.labour.gov.in/static/uploads/2025/07/b0620548445580767b5c0d18c95c26f7.pdf",
+    "title": "The Code on Social Security, 2020",
+    "kind": "act_or_rule",
+    "authoritySlug": "mole",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "epfo",
+      "esic"
+    ],
+    "language": "en",
+    "manualText": "data/sources/manual/code-on-social-security-2020.md"
+  },
+  {
+    "url": "https://www.nsws.gov.in/",
+    "title": "India’s National Single Window System for Business Approvals | NSWS",
+    "kind": "portal",
+    "authoritySlug": "nsws",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.startupindia.gov.in/content/sih/en/startupgov/startup_recognition_page.html",
+    "title": "DPIIT Startup Recognition & Tax Exemption",
+    "kind": "guideline",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.startupindia.gov.in/content/dam/invest-india/NSWS%20Startup%20Application%20Guide.pdf",
+    "title": "Startup DPIIT Recognition Application on National Single Window System",
+    "kind": "guideline",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.startupindia.gov.in/content/sih/en/about_us/faqs.html",
+    "title": "FAQ | Startup India",
+    "kind": "faq",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.startupindia.gov.in/content/dam/invest-india/recognition/userguide.pdf",
+    "title": "Startup DPIIT Recognition Application on National Single Window System: A Guide",
+    "kind": "guideline",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://tutorial.gst.gov.in/userguide/registration/Apply_for_Registration_Normal_Taxpayer.htm",
+    "title": "Manual > Registration Application > Normal Taxpayer",
+    "kind": "guideline",
+    "authoritySlug": "gstn",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "gst-registration"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://udyamregistration.gov.in/",
+    "title": "Udyam Registration : Zero cost, No Fee and Free Registration of MSMEs",
+    "kind": "portal",
+    "authoritySlug": "msme",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "udyam"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://udyamregistration.gov.in/docs/process_msme_regisration_new_pan_Yes.pdf",
+    "title": "Udyam Registration Form – For New Entrepreneurs (With Pan Yes)",
+    "kind": "guideline",
+    "authoritySlug": "msme",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "udyam"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.epfo.gov.in/employer-documents/",
+    "title": "Employer Documents",
+    "kind": "guideline",
+    "authoritySlug": "epfo",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "epfo"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.epfo.gov.in/epf-mp-act-1952/",
+    "title": "EPF & MP Act 1952",
+    "kind": "act_or_rule",
+    "authoritySlug": "epfo",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "epfo"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.epfo.gov.in/faq-epfo",
+    "title": "FAQ",
+    "kind": "faq",
+    "authoritySlug": "epfo",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "epfo"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://portal.esic.gov.in/ESICInsurance1/ESICInsurancePortal/Employer_Employee_registration_through_portal.pdf",
+    "title": "Employer Registration",
+    "kind": "guideline",
+    "authoritySlug": "esic",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "esic"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://roap.esic.gov.in/attachments/circularfile/2020_Applicability_of_ESI_under_Code_on_Social_Security_2020_and_registration_through_SPREE_1766053840.pdf",
+    "title": "Applicability of ESI under Code on Social Security, 2020 and registration through SPREE",
+    "kind": "circular",
+    "authoritySlug": "esic",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "esic"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://esic.gov.in/attachments/files/faq.pdf",
+    "title": "Frequently Asked Questions on ESI Scheme",
+    "kind": "faq",
+    "authoritySlug": "esic",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "esic"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://ipindia.gov.in/trade-marks-learn-filing-process-step-by-step",
+    "title": "Filing Process (Step-by-Step)",
+    "kind": "guideline",
+    "authoritySlug": "ipindia",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "ip-trademark"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://ipindia.gov.in/trademark-application-workflow",
+    "title": "Trademark Application Workflow",
+    "kind": "guideline",
+    "authoritySlug": "ipindia",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "ip-trademark"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://ipindia.gov.in/pages/trade-marks/learn/forms-and-official-fees",
+    "title": "Forms & Official Fees",
+    "kind": "fee_schedule",
+    "authoritySlug": "ipindia",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "ip-trademark"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://foscos.fssai.gov.in/assets/docs/Revised_31thMarch2026KindofBusinessEligibility.pdf",
+    "title": "Kind of Business Criteria License/Registration Fee Per Annum [Updated on 01.04.2026]",
+    "kind": "fee_schedule",
+    "authoritySlug": "fssai",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "fssai"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://cca.gov.in/digital_signature.html",
+    "title": "How to get Digital Signature Certificate | CCA",
+    "kind": "guideline",
+    "authoritySlug": "cca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dsc"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://cca.gov.in/licensed_ca.html",
+    "title": "Licensed CAs | CCA",
+    "kind": "other",
+    "authoritySlug": "cca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dsc"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://cca.gov.in/faq.html",
+    "title": "FAQ | CCA",
+    "kind": "faq",
+    "authoritySlug": "cca",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dsc"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://labour.maharashtra.gov.in/en/services",
+    "title": "Services | IELMD",
+    "kind": "portal",
+    "authoritySlug": "mh-labour",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-shops-establishments"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://labour.maharashtra.gov.in/en/RTS/rts-services",
+    "title": "RTS Services | IELMD",
+    "kind": "guideline",
+    "authoritySlug": "mh-labour",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-shops-establishments"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://mahakamgar.maharashtra.gov.in/Site/Upload/PDF/Regulation_of_Employment_Conditions_of_Service_Rules_2018.pdf",
+    "title": "Maharashtra Shops and Establishments (Regulation of Employment and Conditions of Service) Rules, 2018",
+    "kind": "act_or_rule",
+    "authoritySlug": "mh-labour",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-shops-establishments"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mahagst.gov.in/en",
+    "title": "MAHAGST",
+    "kind": "portal",
+    "authoritySlug": "mahagst",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-professional-tax"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://mahagst.gov.in/public/uploads/mvatservices/1760602838Procedure%20for_Certificate%20of%20Registration%20PTRC%20under%20the%20Maharashtra%20State%20Tax%20on%20Professions%20Trades%20Callings%20and%20Employments%20Act%201975%20(2)%20(1).pdf",
+    "title": "Certificate of Registration (PTRC) under The Maharashtra State Tax on Professions, Trades, Callings and Employments Act, 1975",
+    "kind": "guideline",
+    "authoritySlug": "mahagst",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-professional-tax"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mahagst.gov.in/public/uploads/mvatservices/1760511840Procedure%20for_Enrolment%20Certificate%20PTEC%20under%20the%20Maharashtra%20State%20Tax%20on%20Professions%20Trades%20Callings%20and%20Employments%20Act%201975%20(2)%20(1).pdf",
+    "title": "Enrolment Certificate (PTEC) under The Maharashtra State Tax on Professions, Trades, Callings and Employments Act, 1975",
+    "kind": "guideline",
+    "authoritySlug": "mahagst",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-professional-tax"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mahagst.gov.in/public/uploads/whatisnew/1773477619Relaxation%20in%20Registration%20and%20filing%20of%20returns%20under%20Maharashtra%20Tax%20on%20Trade,%20Callings%20and%20Proffesion%20Act-reg.pdf",
+    "title": "Trade Circular No. 01T of 2026: Relaxation in registration and filing of returns under Maharashtra Tax on Trade, Callings and Profession Act",
+    "kind": "circular",
+    "authoritySlug": "mahagst",
+    "jurisdictionLevel": "state",
+    "state": "Maharashtra",
+    "modules": [
+      "mh-professional-tax"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(D%20Ward)/RTI%20Manuals/RTI%2017%20Manual%20AE%20WW%20D%20Ward.pdf",
+    "title": "Section 4 Manuals as per provision of RTI Act 2005 of ‘D’ Ward: Assistant Engineer Water Work Department",
+    "kind": "guideline",
+    "authoritySlug": "mcgm",
+    "jurisdictionLevel": "city",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "modules": [
+      "mcgm-new-water-connection"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Hydrallic%20Engineer/RTI%20Manuals/Deputy%20Hydraulic%20Engineer%20(City)/RTI_Hydraulic%20Engineer_02_E09.pdf",
+    "title": "Chapter 9 (Manual 8): Procedure followed in decision making process, Dy. H.E. (City)",
+    "kind": "guideline",
+    "authoritySlug": "mcgm",
+    "jurisdictionLevel": "city",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "modules": [
+      "mcgm-new-water-connection"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mcgm.gov.in/com.mcgm.acitizenservices_healthservices/CheckList/Health_License_us_394_412.htm",
+    "title": "Checklist - Health License",
+    "kind": "guideline",
+    "authoritySlug": "mcgm",
+    "jurisdictionLevel": "city",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "modules": [
+      "mcgm-health-licence"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/CBA/Health/Instruction%20Book%20late2.pdf",
+    "title": "Instructions for online application of Health Licence Under Section 394 / 412A of MMC Act",
+    "kind": "guideline",
+    "authoritySlug": "mcgm",
+    "jurisdictionLevel": "city",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "modules": [
+      "mcgm-health-licence"
+    ],
+    "language": "en"
+  }
+]
