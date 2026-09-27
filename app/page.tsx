@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
+import { LandingSearch } from "@/components/landing/LandingSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -16,39 +17,20 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] p-6 md:p-12 flex flex-col items-center">
-      <div className="w-full max-w-4xl flex flex-col gap-8">
-        {/* Brand header */}
-        <header className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <svg
-              className="w-8 h-8 shrink-0"
-              viewBox="0 0 32 32"
-              fill="none"
-              aria-label="CivicWeave Mark"
-            >
-              <path
-                d="M4 8h24M8 16h20M4 24h24"
-                stroke="var(--cw-brand)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M12 4v24M20 4v24"
-                stroke="var(--cw-available)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--cw-text)]">
-                CivicWeave
-              </h1>
-              <p className="text-xs uppercase tracking-widest text-[var(--cw-text-muted)] font-medium">
-                Your city. In order.
-              </p>
-            </div>
+      <div className="w-full max-w-4xl flex flex-col gap-12">
+        {/* Landing Natural-Language Search (§9.3) */}
+        <LandingSearch templates={templates} />
+
+        {/* Below the fold: Published journeys */}
+        <section className="flex flex-col gap-4 pt-6 border-t border-[var(--cw-border)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--cw-text-muted)]">
+              Published Civic Journeys
+            </h2>
+            <span className="text-[11px] text-[var(--cw-text-muted)] font-medium">
+              {templates.length} available
+            </span>
           </div>
-        </header>
 
         {templates.length === 0 ? (
           <div
@@ -101,6 +83,7 @@ export default async function HomePage() {
             ))}
           </div>
         )}
+        </section>
       </div>
     </main>
   );
