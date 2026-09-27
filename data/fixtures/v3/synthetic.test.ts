@@ -116,7 +116,7 @@ describe("Synthetic v3 demo and stress templates", () => {
     const presentOfficeTypes = new Set(
       journey.steps
         .filter((s) => s.kind !== "milestone")
-        .map((s) => (s.kind !== "milestone" ? s.officeType : null))
+        .map((s) => s.officeType)
     );
     for (const officeType of OFFICE_TYPES) {
       expect(presentOfficeTypes.has(officeType)).toBe(true);

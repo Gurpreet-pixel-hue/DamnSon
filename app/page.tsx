@@ -1,5 +1,5 @@
 import { ExplorerShell } from "@/components/explorer/ExplorerShell";
-import { loadGraphForPage } from "./loadGraph";
+import { loadJourneyForPage } from "./loadJourney";
 
 interface PageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -9,7 +9,7 @@ export default async function HomePage(props: PageProps) {
   const resolvedSearchParams = props.searchParams
     ? await props.searchParams
     : undefined;
-  const initialGraph = await loadGraphForPage(resolvedSearchParams);
+  const initialBundle = await loadJourneyForPage(resolvedSearchParams);
 
-  return <ExplorerShell initialGraph={initialGraph} />;
+  return <ExplorerShell initialBundle={initialBundle} />;
 }

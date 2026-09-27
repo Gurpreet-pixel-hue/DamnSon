@@ -1,5 +1,6 @@
 import type { ComposedJourney } from "@/lib/contract/compose";
 import type { OfficeType } from "@/lib/contract/schema";
+export type { OfficeType } from "@/lib/contract/schema";
 import { deriveStepStates } from "./progress";
 import { computeMetroLayout } from "./layout";
 import { summarizeTime } from "./totals";
