@@ -500,6 +500,15 @@ export function planCity(options: PlanCityOptions): CityPlan {
     });
   }
 
+  // 4b. Empty blocks become small parks (§11.8)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (cells[r]![c] === "building" && !occupied[r]![c]) {
+        cells[r]![c] = "park";
+      }
+    }
+  }
+
   // 5. Place Trees & Palms (H1: nearest-first up to 180)
   const trees: PlacedInstance[] = [];
   const MAX_TREES = 180;
@@ -539,31 +548,34 @@ export function planCity(options: PlanCityOptions): CityPlan {
     });
   }
 
-  // B. Trees in park cells
+  // B. Trees in park cells (2–3 trees per park cell, §11.8)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (cells[r]![c] === "park") {
-        const px = bounds.minX + (c + 0.5) * cellSize + (rand() - 0.5) * 0.4;
-        const pz = bounds.minZ + (r + 0.5) * cellSize + (rand() - 0.5) * 0.4;
-        const parkTrees = ["tree-oak", "tree-simple", "tree-pine", "tree-bush"];
-        const kind = parkTrees[Math.floor(rand() * parkTrees.length)]!;
-        const rotY = rand() * Math.PI * 2;
-        const sJitter = 0.8 + rand() * 0.35;
+        const numTrees = 2 + Math.floor(rand() * 2); // 2 to 3 trees
+        for (let t = 0; t < numTrees; t++) {
+          const px = bounds.minX + (c + 0.5) * cellSize + (rand() - 0.5) * 0.8;
+          const pz = bounds.minZ + (r + 0.5) * cellSize + (rand() - 0.5) * 0.8;
+          const parkTrees = ["tree-simple", "tree-oak", "tree-pine", "tree-bush"];
+          const kind = parkTrees[Math.floor(rand() * parkTrees.length)]!;
+          const rotY = rand() * Math.PI * 2;
+          const sJitter = 0.75 + rand() * 0.35;
 
-        let minDistSq = Infinity;
-        for (const s of stations) {
-          const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
-          if (dSq < minDistSq) minDistSq = dSq;
+          let minDistSq = Infinity;
+          for (const s of stations) {
+            const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
+            if (dSq < minDistSq) minDistSq = dSq;
+          }
+
+          candidateTrees.push({
+            kind,
+            position: [px, 0.17, pz],
+            rotationY: rotY,
+            scale: [sJitter, sJitter, sJitter],
+            distSq: minDistSq,
+            tieBreaker: rand(),
+          });
         }
-
-        candidateTrees.push({
-          kind,
-          position: [px, 0.17, pz],
-          rotationY: rotY,
-          scale: [sJitter, sJitter, sJitter],
-          distSq: minDistSq,
-          tieBreaker: rand(),
-        });
       }
     }
   }

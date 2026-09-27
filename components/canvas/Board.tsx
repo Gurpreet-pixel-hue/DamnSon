@@ -221,6 +221,9 @@ export function Board({ plan }: BoardProps) {
         castShadow
       />
 
+      {/* Park grass patches: flat grass tint on park cells at y = 0.171 (§11.8) */}
+      <ParkGrass plan={plan} />
+
       {/* Coastal Water (water surface at y = 0.02) */}
       <mesh
         ref={(el) => {
@@ -236,4 +239,55 @@ export function Board({ plan }: BoardProps) {
       />
     </group>
   );
+}
+
+function ParkGrass({ plan }: { plan: CityPlan }) {
+  const { cellGrid, bounds } = plan;
+  const { rows, cols, cellSize, cells } = cellGrid;
+
+  const parkCells = useMemo(() => {
+    const list: [number, number][] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (cells[r]?.[c] === "park") {
+          const cx = bounds.minX + (c + 0.5) * cellSize;
+          const cz = bounds.minZ + (r + 0.5) * cellSize;
+          list.push([cx, cz]);
+        }
+      }
+    }
+    return list;
+  }, [rows, cols, cellSize, cells, bounds]);
+
+  const instancedMesh = useMemo(() => {
+    if (parkCells.length === 0) return null;
+    const geom = new THREE.PlaneGeometry(cellSize - 0.04, cellSize - 0.04);
+    geom.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshStandardMaterial({
+      color: PALETTE.park, // #B7CF95 grass tint per §11.8 & palette.ts
+      roughness: 0.9,
+      metalness: 0.05,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
+    const mesh = new THREE.InstancedMesh(geom, mat, parkCells.length);
+    mesh.receiveShadow = true;
+    const m = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, 1);
+
+    for (let i = 0; i < parkCells.length; i++) {
+      const [x, z] = parkCells[i]!;
+      pos.set(x, 0.171, z);
+      m.compose(pos, quat, scale);
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    return mesh;
+  }, [parkCells, cellSize]);
+
+  if (!instancedMesh) return null;
+  return <primitive object={instancedMesh} />;
 }
