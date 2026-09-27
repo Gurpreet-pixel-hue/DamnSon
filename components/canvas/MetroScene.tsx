@@ -9,6 +9,7 @@ import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
 import { Board } from "./Board";
+import { Roads } from "./city/Roads";
 import { CityBatches } from "./CityBatches";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
@@ -228,8 +229,11 @@ export function MetroScene({
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
       {isDebug && <DebugCollector />}
 
-      {/* 1. Board slab, coastal water shader, roads, kerbs, and lighting */}
+      {/* 1. Board slab, coastal water shader, and lighting */}
       <Board plan={plan} />
+
+      {/* 1b. Kenney road tiles in BatchedMesh (+1 draw, visual-direction §10.2) */}
+      <Roads plan={plan} />
 
       {/* 2. BatchedMesh city buildings and props */}
       <CityBatches plan={plan} visibleProps={visibleProps} />

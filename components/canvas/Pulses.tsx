@@ -84,7 +84,7 @@ export function Pulses({ metro }: PulsesProps) {
       const p1 = lut.points[i1];
       if (p0 && p1) {
         const x = p0[0] + frac * (p1[0] - p0[0]);
-        const y = p0[1] + frac * (p1[1] - p0[1]);
+        const y = p0[1] + frac * (p1[1] - p0[1]) + 0.02;
         const z = p0[2] + frac * (p1[2] - p0[2]);
 
         _tempObj.position.set(x, y, z);

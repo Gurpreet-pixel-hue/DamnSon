@@ -12,6 +12,7 @@ import {
   LOW_DETAIL_BUILDINGS,
   type CityKindInfo,
 } from "./cityKinds";
+import { buildRoadGraph, type RoadGraph } from "./roadGraph";
 
 export interface StationLocation {
   id: string;
@@ -58,6 +59,8 @@ export interface CityPlan {
   buildings: PlacedInstance[];
   trees: PlacedInstance[];
   props: PlacedInstance[];
+  roads: PlacedInstance[];
+  roadGraph: RoadGraph;
   roadSegments: Array<{ from: [number, number]; to: [number, number] }>;
 }
 
@@ -495,7 +498,18 @@ export function planCity(options: PlanCityOptions): CityPlan {
     occupied[r]![c] = true;
     placedVariantGrid[r]![c] = variant.name;
 
-    const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
+    // Buildings face the street: rotation points front at nearest road cell (§10.2)
+    let rotY = Math.floor(rand() * 4) * (Math.PI / 2);
+    if (r + 1 < rows && cells[r + 1]?.[c] === "road") {
+      rotY = 0; // Front faces South (+Z)
+    } else if (r > 0 && cells[r - 1]?.[c] === "road") {
+      rotY = Math.PI; // Front faces North (-Z)
+    } else if (c > 0 && cells[r]?.[c - 1] === "road") {
+      rotY = Math.PI / 2; // Front faces West (-X)
+    } else if (c + 1 < cols && cells[r]?.[c + 1] === "road") {
+      rotY = (3 * Math.PI) / 2; // Front faces East (+X)
+    }
+
     const sJitter = 0.9 + rand() * 0.2;
 
     // Uniform scale: scale.x === scale.y === scale.z (visual-direction §10.1)
@@ -691,6 +705,48 @@ export function planCity(options: PlanCityOptions): CityPlan {
     });
   }
 
+  // D. Traffic lights at intersections within 2 cells of a station (§10.2)
+  for (const s of stations) {
+    if (props.length >= MAX_PROPS) break;
+    const sc = Math.floor((s.position3D[0] - bounds.minX) / cellSize);
+    const sr = Math.floor((s.position3D[2] - bounds.minZ) / cellSize);
+    let added = false;
+    for (let dr = -2; dr <= 2 && !added; dr++) {
+      for (let dc = -2; dc <= 2 && !added; dc++) {
+        const r = sr + dr;
+        const c = sc + dc;
+        if (r >= 0 && r < rows && c >= 0 && c < cols && r % 4 === 0 && c % 4 === 0) {
+          const tx = bounds.minX + (c + 0.5) * cellSize + 0.6;
+          const tz = bounds.minZ + (r + 0.5) * cellSize + 0.6;
+          props.push({
+            kind: "prop-traffic-light",
+            position: [tx, 0.17, tz],
+            rotationY: 0,
+            scale: [0.9, 0.9, 0.9],
+          });
+          added = true;
+        }
+      }
+    }
+  }
+
+  // 7. Build road graph and road tile instances (§10.2)
+  const roadGraph = buildRoadGraph({
+    bounds,
+    cellSize,
+    rows,
+    cols,
+    cells,
+    stations,
+  });
+
+  const roads: PlacedInstance[] = roadGraph.roadCells.map((rc) => ({
+    kind: rc.tile,
+    position: rc.position,
+    rotationY: rc.rotationY,
+    scale: [cellSize, 1, cellSize],
+  }));
+
   return {
     bounds,
     promenadeZ,
@@ -704,6 +760,8 @@ export function planCity(options: PlanCityOptions): CityPlan {
     buildings,
     trees,
     props,
+    roads,
+    roadGraph,
     roadSegments,
   };
 }

@@ -42,21 +42,21 @@ export function computeTrackCurves(metro: MetroVM): {
     const toStation = stationMap.get(track.to);
     if (!fromStation || !toStation) continue;
 
-    // Route lines float at y = 0.25 above the street cells (F2)
+    // Route painted as surface lanes on the road at y = 0.19 (§10.2)
     const p0 = new THREE.Vector3(
       fromStation.position3D[0] + 0.7,
-      0.25,
+      0.19,
       fromStation.position3D[2]
     );
     const p3 = new THREE.Vector3(
       toStation.position3D[0] - 0.7,
-      0.25,
+      0.19,
       toStation.position3D[2]
     );
 
     const deltaX = p3.x - p0.x;
-    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, 0.25, p0.z);
-    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, 0.25, p3.z);
+    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, 0.19, p0.z);
+    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, 0.19, p3.z);
 
     const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
     const points = curve.getPoints(23); // 24 points
