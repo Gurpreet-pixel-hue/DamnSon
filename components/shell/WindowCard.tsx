@@ -135,7 +135,7 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
     <div
       ref={cardRef}
       data-testid="3d-window-card"
-      className={`relative flex-1 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-xs overflow-hidden flex flex-col h-[calc(100dvh-120px)] min-h-[560px] ${className}`}
+      className={`relative flex-1 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-xs overflow-hidden flex flex-col h-full min-h-[480px] ${className}`}
     >
       {/* Stage-header band (56px inside top of card) */}
       <div
@@ -199,12 +199,13 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
             <button
               type="button"
               data-testid="footer-toggle-2d"
-              onClick={() => setViewMode("2d")}
-              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
-                viewMode === "2d"
-                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
-                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
-              }`}
+              aria-disabled="true"
+              title="2D view arrives with FE-4"
+              onClick={(e) => {
+                e.preventDefault();
+                // 2D view arrives with FE-4: clicking it does nothing
+              }}
+              className="px-2 py-0.5 rounded-md font-semibold text-[var(--cw-text-muted)] cursor-not-allowed opacity-60 transition-colors"
             >
               2D
             </button>

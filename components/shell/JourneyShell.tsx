@@ -114,7 +114,7 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   return (
     <div
       data-testid="journey-shell"
-      className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] flex flex-col p-4 gap-4 overflow-x-hidden"
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-[var(--cw-background)] text-[var(--cw-text)] flex flex-col p-4 gap-4 box-border"
     >
       {/* 72px Top Bar */}
       <TopBar
@@ -125,8 +125,8 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         onShare={() => void shareLink()}
       />
 
-      {/* Notifications / Banners container */}
-      <div className="flex flex-col gap-2 empty:hidden">
+      {/* Notifications / Banners container (auto height) */}
+      <div className="shrink-0 flex flex-col gap-2 empty:hidden">
         {/* Verification notice banner (P2) */}
         {journey && <VerificationBanner journey={journey} />}
 
@@ -140,8 +140,8 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         )}
       </div>
 
-      {/* Main Shell Grid Layout: Rail, Framed 3D Window, Docked Drawer */}
-      <div className="flex-1 flex gap-4 min-h-[560px] relative">
+      {/* Main Shell Row: Rail, Framed 3D Window, Docked Drawer */}
+      <div className="flex-1 min-h-0 flex gap-4 relative">
         {/* Left Rail */}
         <LeftRail />
 

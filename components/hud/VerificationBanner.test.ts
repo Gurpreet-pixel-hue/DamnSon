@@ -149,5 +149,58 @@ describe("summarizeVerification (P2 & §8.8)", () => {
     expect(summary.unverifiedCount).toBe(1);
     expect(summary.flaggedCount).toBe(1);
     expect(summary.isPartiallyVerified).toBe(true);
+    expect(summary.unverifiedSteps.length).toBe(1);
+    expect(summary.flaggedSteps.length).toBe(1);
+  });
+});
+
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { VerificationBanner } from "./VerificationBanner";
+
+describe("VerificationBanner component (A4)", () => {
+  it("renders compact one-line banner with SVG warning glyph and Details disclosure", () => {
+    const journey: ComposedJourney = {
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "",
+      jurisdiction: { country: "IN", state: "MH" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
+      steps: [
+        makeMockActionStep("step-1", "unverified"),
+        makeMockActionStep("step-2", "flagged", "Out of date"),
+      ],
+      edges: [],
+    };
+
+    const html = renderToStaticMarkup(React.createElement(VerificationBanner, { journey }));
+    expect(html).toContain("1 step isn&#x27;t verified yet · 1 flagged as possibly out of date — check the official source before acting");
+    expect(html).toContain("Details");
+    expect(html).toContain("svg");
+    expect(html).toContain('data-testid="verification-banner"');
+    expect(html).toContain('data-testid="verification-details"');
+  });
+
+  it("renders nothing when all steps are verified", () => {
+    const journey: ComposedJourney = {
+      taskId: "test",
+      revision: 1,
+      title: "Test",
+      summary: "",
+      jurisdiction: { country: "IN", state: "MH" },
+      category: "business_and_trade",
+      facts: {},
+      excluded: [],
+      questions: [],
+      steps: [makeMockActionStep("step-1", "verified")],
+      edges: [],
+    };
+
+    const html = renderToStaticMarkup(React.createElement(VerificationBanner, { journey }));
+    expect(html).toBe("");
   });
 });
