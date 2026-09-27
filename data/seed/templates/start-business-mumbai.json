@@ -33,7 +33,7 @@
   "questions": [
     {
       "fact": "business.entity_type",
-      "text": "What type of business entity will you register?",
+      "text": "What type of company will you register?",
       "options": [
         {
           "value": "private_limited",
@@ -42,20 +42,9 @@
         {
           "value": "opc",
           "label": "One Person Company"
-        },
-        {
-          "value": "llp",
-          "label": "LLP"
-        },
-        {
-          "value": "partnership",
-          "label": "Partnership"
-        },
-        {
-          "value": "proprietorship",
-          "label": "Proprietorship"
         }
-      ]
+      ],
+      "help": "This journey covers Private Limited and One Person Companies; other entity types are not modelled yet."
     },
     {
       "fact": "business.sector",
@@ -120,16 +109,30 @@
     {
       "moduleId": "founder-kyc",
       "version": 1,
-      "requirement": "mandatory",
-      "activation": null,
-      "reason": "Every director's identity is verified in SPICe+"
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "Directors' identity details are part of SPICe+ (companies only)"
     },
     {
       "moduleId": "dsc",
       "version": 1,
-      "requirement": "mandatory",
-      "activation": null,
-      "reason": "Each director signs the SPICe+ filing with a DSC"
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "Each director signs the SPICe+ filing with a DSC (companies only)"
     },
     {
       "moduleId": "mca-spice-plus",
@@ -148,9 +151,16 @@
     {
       "moduleId": "bank-account",
       "version": 1,
-      "requirement": "mandatory",
-      "activation": null,
-      "reason": "The company needs a bank account"
+      "requirement": "conditional",
+      "activation": {
+        "fact": "business.entity_type",
+        "op": "in",
+        "value": [
+          "private_limited",
+          "opc"
+        ]
+      },
+      "reason": "New companies apply for the bank account through AGILE-PRO-S with SPICe+ (MCA FAQ 40)"
     },
     {
       "moduleId": "gst-registration",
@@ -331,6 +341,6 @@
   ],
   "meta": {
     "origin": "curated",
-    "updatedAt": "2026-09-27T18:00:00+05:30"
+    "updatedAt": "2026-09-28T12:00:00+05:30"
   }
 }
