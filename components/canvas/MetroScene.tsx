@@ -5,7 +5,7 @@ import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
-import type { MetroVM } from "@/lib/graph/viewModel";
+import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { Ground } from "./Ground";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
@@ -93,10 +93,11 @@ function DebugCollector() {
 interface MetroSceneProps {
   metro: MetroVM;
   slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  selectionRef?: React.RefObject<StationVM[]>;
   onDprChange?: (dpr: number) => void;
 }
 
-export function MetroScene({ metro, slotsRef, onDprChange }: MetroSceneProps) {
+export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: MetroSceneProps) {
   const [bloomEnabled, setBloomEnabled] = useState(true);
 
   // Hook keyboard navigation
@@ -126,7 +127,13 @@ export function MetroScene({ metro, slotsRef, onDprChange }: MetroSceneProps) {
       <Stations stations={metro.stations} />
       <Tracks metro={metro} />
       <Pulses metro={metro} />
-      {slotsRef && <LabelProjector metro={metro} slotsRef={slotsRef} />}
+      {slotsRef && (
+        <LabelProjector
+          metro={metro}
+          slotsRef={slotsRef}
+          selectionRef={selectionRef}
+        />
+      )}
       <CameraRig metro={metro} />
 
       <EffectComposer>

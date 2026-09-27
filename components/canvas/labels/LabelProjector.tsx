@@ -4,12 +4,12 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
-import { useViewStore } from "@/lib/store/useViewStore";
-import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
+import { MAX_LABEL_SLOTS } from "./selectLabels";
 
 export interface LabelProjectorProps {
   metro: MetroVM;
   slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
+  selectionRef?: React.RefObject<StationVM[]>;
 }
 
 // Pre-allocated scratch vectors to guarantee 0 allocations in useFrame
@@ -18,23 +18,15 @@ const scratchCamPos = new THREE.Vector3();
 const scratchCamForward = new THREE.Vector3();
 const scratchCamToStation = new THREE.Vector3();
 
-export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
+export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) {
   const { camera, size } = useThree();
-
-  const hoveredStepId = useViewStore((s) => s.hoveredStepId);
-  const focusedStepId = useViewStore((s) => s.focusedStepId);
 
   // Cached matrix elements (16 floats each)
   const cachedWorldMatrix = useRef(new Float32Array(16));
   const cachedProjMatrix = useRef(new Float32Array(16));
   const cachedWidth = useRef(0);
   const cachedHeight = useRef(0);
-  const cachedMetro = useRef<MetroVM | null>(null);
-  const cachedHovered = useRef<string | null>(null);
-  const cachedFocused = useRef<string | null>(null);
-
-  // Cache selected stations array when inputs change
-  const cachedStations = useRef<StationVM[]>([]);
+  const cachedStations = useRef<StationVM[] | null>(null);
 
   useFrame(() => {
     const wm = camera.matrixWorld.elements;
@@ -52,12 +44,11 @@ export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
 
     const sizeChanged =
       size.width !== cachedWidth.current || size.height !== cachedHeight.current;
-    const inputChanged =
-      metro !== cachedMetro.current ||
-      hoveredStepId !== cachedHovered.current ||
-      focusedStepId !== cachedFocused.current;
 
-    if (!matrixChanged && !sizeChanged && !inputChanged) {
+    const stations = selectionRef?.current ?? [];
+    const stationsChanged = stations !== cachedStations.current;
+
+    if (!matrixChanged && !sizeChanged && !stationsChanged) {
       return;
     }
 
@@ -72,14 +63,10 @@ export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
       cachedWidth.current = size.width;
       cachedHeight.current = size.height;
     }
-    if (inputChanged) {
-      cachedMetro.current = metro;
-      cachedHovered.current = hoveredStepId;
-      cachedFocused.current = focusedStepId;
-      cachedStations.current = selectLabels(metro, hoveredStepId, focusedStepId);
+    if (stationsChanged) {
+      cachedStations.current = stations;
     }
 
-    const stations = cachedStations.current;
     const slots = slotsRef.current;
     if (!slots) return;
 
@@ -88,10 +75,16 @@ export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
 
     const halfW = size.width / 2;
     const halfH = size.height / 2;
+    const count = stations.length;
 
     for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
       const el = slots[i];
       if (!el) continue;
+
+      if (i >= count) {
+        el.style.visibility = "hidden";
+        continue;
+      }
 
       const station = stations[i];
       if (!station) {
@@ -99,8 +92,11 @@ export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
         continue;
       }
 
-      const [sx, sy, sz] = station.position3D;
-      scratchVec.set(sx, sy + 1.8, sz);
+      scratchVec.set(
+        station.position3D[0],
+        station.position3D[1] + 1.8,
+        station.position3D[2]
+      );
 
       // Check if station is behind camera plane
       scratchCamToStation.subVectors(scratchVec, scratchCamPos);
@@ -127,8 +123,9 @@ export function LabelProjector({ metro, slotsRef }: LabelProjectorProps) {
         continue;
       }
 
-      el.style.visibility = "visible";
+      // Write transform BEFORE setting visibility to visible
       el.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -50%)`;
+      el.style.visibility = "visible";
     }
   });
 

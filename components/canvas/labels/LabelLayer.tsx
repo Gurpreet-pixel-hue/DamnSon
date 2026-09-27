@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import type { MetroVM } from "@/lib/graph/viewModel";
+import { useMemo, useLayoutEffect } from "react";
+import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 export interface LabelLayerProps {
   metro: MetroVM;
   slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
+  selectionRef?: React.RefObject<StationVM[]>;
 }
 
 const SLOTS = Array.from({ length: MAX_LABEL_SLOTS }, (_, i) => i);
 
-export function LabelLayer({ metro, slotsRef }: LabelLayerProps) {
+export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const focusedStepId = useViewStore((s) => s.focusedStepId);
   const setHoveredStepId = useViewStore((s) => s.setHoveredStepId);
@@ -24,6 +25,12 @@ export function LabelLayer({ metro, slotsRef }: LabelLayerProps) {
     () => selectLabels(metro, hoveredStepId, focusedStepId),
     [metro, hoveredStepId, focusedStepId]
   );
+
+  useLayoutEffect(() => {
+    if (selectionRef) {
+      selectionRef.current = activeStations;
+    }
+  }, [activeStations, selectionRef]);
 
   return (
     <div
