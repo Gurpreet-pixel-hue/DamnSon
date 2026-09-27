@@ -13,6 +13,8 @@ class TokenError(Exception):
 
 
 def verify(authorization_header: str, secret: str, now: int) -> None:
+    if not secret:
+        raise TokenError("Empty or missing secret")
     if not authorization_header.startswith("Bearer "):
         raise TokenError("invalid header format")
 

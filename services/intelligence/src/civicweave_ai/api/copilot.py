@@ -114,10 +114,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     chunk_map = {str(c["id"]): c for c in chunks}
 
     # Context string
-    context_text = "\n\n".join(
-        f"--- Chunk ID: {c['id']} ---\nTitle: {c['title']}\nURL: {c['url']}\nText: {c['text']}"
-        for c in chunk_map.values()
-    )
+    context_text = "\n\n".join(f"--- Chunk ID: {c['id']} ---\nTitle: {c['title']}\nURL: {c['url']}\nText: {c['text']}" for c in chunk_map.values())
 
     # 4. LLM Generation & 2-Attempt Citation Repair
     system_prompt = (
@@ -153,9 +150,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
 
                 chunk_data = chunk_map[c.chunkId]
                 if c.quote not in chunk_data["text"]:
-                    errors.append(
-                        f"Error: exact quote '{c.quote}' not found in chunk '{c.chunkId}'."
-                    )
+                    errors.append(f"Error: exact quote '{c.quote}' not found in chunk '{c.chunkId}'.")
                     continue
 
                 valid_citations.append(c)
@@ -175,9 +170,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
                             official=is_official_url(chunk_data["url"]),
                         )
                     )
-                return CopilotResponse(
-                    answer=llm_res.answer, language=req.locale, citations=final_citations
-                )
+                return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
 
             # Repair needed
             attempts += 1

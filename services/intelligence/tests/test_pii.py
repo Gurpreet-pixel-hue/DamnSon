@@ -19,3 +19,11 @@ def test_redact_aadhaar() -> None:
     assert redact("Aadhaar 1234 5678 9012") == "Aadhaar [redacted]"
     assert redact("Aadhaar 1234-5678-9012") == "Aadhaar [redacted]"
     assert redact("Aadhaar 123456789012") == "Aadhaar [redacted]"
+
+
+def test_redact_regression_cases() -> None:
+    assert redact("+91 9876543210") == "[redacted]"
+    assert redact("+919876543210") == "[redacted]"
+    assert redact("919876543210") == "[redacted]"
+    assert redact("123456789012") == "[redacted]"
+    assert redact("987654321012") == "[redacted]"

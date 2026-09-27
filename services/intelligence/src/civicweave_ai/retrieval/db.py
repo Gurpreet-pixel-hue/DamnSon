@@ -30,9 +30,7 @@ def search_chunks(
     # 2. Call Postgres function
     results = []
     try:
-        with psycopg.connect(
-            settings.knowledge_database_url, autocommit=True, row_factory=dict_row
-        ) as conn:
+        with psycopg.connect(settings.knowledge_database_url, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
                 # The search_chunks function takes:
                 # query_embedding vector(768), match_count int, filter_state text, filter_city text,

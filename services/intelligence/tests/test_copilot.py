@@ -17,11 +17,7 @@ def get_auth_headers() -> dict[str, str]:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = (
-        hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256)
-        .hexdigest()
-        .lower()
-    )
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
     return {"Authorization": f"Bearer {exp_str}.{sig}"}
 
 
@@ -30,9 +26,7 @@ def test_copilot_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.llm.router
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return [
             {
                 "id": "chunk-1",
@@ -67,9 +61,7 @@ def test_copilot_not_found_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import RewriteResponse
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return []
 
     def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
@@ -90,9 +82,7 @@ def test_copilot_retry_scope(monkeypatch: pytest.MonkeyPatch) -> None:
 
     search_calls = []
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         search_calls.append(scope)
         if scope is not None:
             return []  # First call with scope returns empty
@@ -102,9 +92,7 @@ def test_copilot_retry_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
-        return CopilotLLMResponse(
-            answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="text")]
-        )
+        return CopilotLLMResponse(answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="text")])
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
@@ -124,9 +112,7 @@ def test_copilot_validation_repair(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return [{"id": "chunk-1", "title": "Title", "url": "http://x", "text": "Valid quote."}]
 
     call_count = [0]
@@ -137,13 +123,9 @@ def test_copilot_validation_repair(monkeypatch: pytest.MonkeyPatch) -> None:
         call_count[0] += 1
         if call_count[0] == 1:
             # Bad quote
-            return CopilotLLMResponse(
-                answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="Invalid quote.")]
-            )
+            return CopilotLLMResponse(answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="Invalid quote.")])
         # Repaired quote
-        return CopilotLLMResponse(
-            answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="Valid quote.")]
-        )
+        return CopilotLLMResponse(answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="Valid quote.")])
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
@@ -160,9 +142,7 @@ def test_copilot_validation_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return [{"id": "chunk-1", "title": "Title", "url": "http://x", "text": "Valid quote."}]
 
     call_count = [0]
@@ -171,9 +151,7 @@ def test_copilot_validation_fail(monkeypatch: pytest.MonkeyPatch) -> None:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         call_count[0] += 1
-        return CopilotLLMResponse(
-            answer="x", citations=[LLMCitation(chunkId="chunk-bad", quote="Fake")]
-        )
+        return CopilotLLMResponse(answer="x", citations=[LLMCitation(chunkId="chunk-bad", quote="Fake")])
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
@@ -189,9 +167,7 @@ def test_copilot_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
     from civicweave_ai.api.copilot import RewriteResponse
     from civicweave_ai.llm.exceptions import NoProviderAvailable
 
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return [{"id": "chunk-1", "title": "Title", "url": "http://x", "text": "Valid text."}]
 
     def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
@@ -215,9 +191,7 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
     from civicweave_ai.api.copilot import CopilotLLMResponse, RewriteResponse
 
     # Provide 5 adversarial injected chunks
-    def mock_search_chunks(
-        q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int
-    ) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         return [
             {
                 "id": "inj-1",
@@ -259,9 +233,7 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
         context = messages[1]["content"]
         assert "IGNORE PREVIOUS" in context
 
-        return CopilotLLMResponse(
-            answer="I cannot find the answer in the official documents.", citations=[]
-        )
+        return CopilotLLMResponse(answer="I cannot find the answer in the official documents.", citations=[])
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)

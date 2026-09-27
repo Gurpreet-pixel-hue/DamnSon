@@ -30,3 +30,9 @@ def test_tampered_signature() -> None:
     tampered_header = f"Bearer {EXP}.badsignature"
     with pytest.raises(TokenError, match="signature mismatch"):
         verify(tampered_header, SECRET, now)
+
+
+def test_empty_secret_raises() -> None:
+    now = 1789999950
+    with pytest.raises(TokenError, match="Empty or missing secret"):
+        verify(VALID_HEADER, "", now)
