@@ -17,8 +17,9 @@ const SLOTS = Array.from({ length: MAX_LABEL_SLOTS }, (_, i) => i);
 
 function formatMode(mode: string | null): string {
   if (!mode) return "";
-  if (mode === "in_person") return "In person";
-  if (mode === "online") return "Online";
+  if (mode === "online") return "Online · from home";
+  if (mode === "in_person") return "In person · visit the office";
+  if (mode === "hybrid") return "Online + office visit";
   return mode.replace(/_/g, " ");
 }
 

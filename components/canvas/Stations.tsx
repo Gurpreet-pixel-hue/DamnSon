@@ -25,6 +25,9 @@ const _currentColor = new THREE.Color();
 
 function getArchetypeKey(station: StationVM): ArchetypeKey {
   if (station.kind === "milestone") return "milestone";
+  if (station.mode === "online" || station.officeType === "online_portal") {
+    return "online_portal";
+  }
   if (station.officeType && ARCHETYPE_KEYS.includes(station.officeType)) {
     return station.officeType;
   }
@@ -132,12 +135,18 @@ export function Stations({ stations }: StationsProps) {
   const padMeshRef = useRef<THREE.InstancedMesh>(null);
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
+  const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
 
   // Available non-optional stations for next-up beacons
   const nextUpStations = useMemo(() => {
     return stations.filter(
       (s) => s.state === "available" && s.applicability !== "optional"
     );
+  }, [stations]);
+
+  // Hybrid stations for floating roof screen (§10.5)
+  const hybridStations = useMemo(() => {
+    return stations.filter((s) => s.mode === "hybrid");
   }, [stations]);
 
   // Geometries for Plaza Pads, Plaza Rings, and Beacons
@@ -196,6 +205,19 @@ export function Stations({ stations }: StationsProps) {
     []
   );
 
+  // Floating screen for hybrid stations (§10.5)
+  const hybridScreenGeometry = useMemo(() => new THREE.BoxGeometry(0.8, 0.5, 0.08), []);
+  const hybridScreenMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: PALETTE.available,
+        emissive: PALETTE.available,
+        emissiveIntensity: 0.5,
+        roughness: 0.5,
+      }),
+    []
+  );
+
   // Animation timing
   const animStartRef = useRef<number | null>(null);
   const animDoneRef = useRef(false);
@@ -247,7 +269,11 @@ export function Stations({ stations }: StationsProps) {
         }
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.21, z);
+        const bob =
+          key === "online_portal" && !prefersReducedMotion
+            ? Math.sin((time * Math.PI * 2) / 3.0) * 0.08
+            : 0;
+        _tempObj.position.set(x, 0.21 + bob, z);
         // G3: Stations render at 1.25x scale
         _tempObj.scale.set(1.25, 1.25 * scaleY, 1.25);
         _tempObj.rotation.set(0, 0, 0);
@@ -332,6 +358,25 @@ export function Stations({ stations }: StationsProps) {
       }
 
       beaconMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // 4. Update hybrid floating roof screens (§10.5)
+    const hybridMesh = hybridMeshRef.current;
+    if (hybridMesh && hybridStations.length > 0) {
+      for (let i = 0; i < hybridStations.length; i++) {
+        const station = hybridStations[i];
+        if (!station) continue;
+
+        const [x, , z] = station.position3D;
+        const bob = !prefersReducedMotion ? Math.sin((time * Math.PI * 2) / 3.0) * 0.05 : 0;
+        _tempObj.position.set(x, 2.75 + bob, z);
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        hybridMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      hybridMesh.instanceMatrix.needsUpdate = true;
     }
 
     if (allFinished) {
@@ -440,6 +485,14 @@ export function Stations({ stations }: StationsProps) {
         <instancedMesh
           ref={beaconMeshRef}
           args={[beaconGeometry, beaconMaterial, nextUpStations.length]}
+        />
+      )}
+
+      {/* Instanced Hybrid Roof Screens (§10.5) */}
+      {hybridStations.length > 0 && (
+        <instancedMesh
+          ref={hybridMeshRef}
+          args={[hybridScreenGeometry, hybridScreenMaterial, hybridStations.length]}
         />
       )}
 
