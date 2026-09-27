@@ -100,6 +100,28 @@
     "language": "en"
   },
   {
+    "url": "https://www.startupindia.gov.in/content/sih/en/about_us/faqs.html",
+    "title": "FAQ | Startup India",
+    "kind": "faq",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
+    "url": "https://www.startupindia.gov.in/content/dam/invest-india/recognition/userguide.pdf",
+    "title": "Startup DPIIT Recognition Application on National Single Window System: A Guide",
+    "kind": "guideline",
+    "authoritySlug": "dpiit",
+    "jurisdictionLevel": "national",
+    "modules": [
+      "dpiit-recognition"
+    ],
+    "language": "en"
+  },
+  {
     "url": "https://tutorial.gst.gov.in/userguide/registration/Apply_for_Registration_Normal_Taxpayer.htm",
     "title": "Manual > Registration Application > Normal Taxpayer",
     "kind": "guideline",
