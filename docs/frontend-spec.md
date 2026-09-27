@@ -7,7 +7,7 @@ v1, decided 2026-09-26. Target: laptops (≥ 1280 px wide). Below 1024 px wide t
 A procedure is drawn as a metro line.
 
 - **Stations** are steps; **tracks** are dependencies.
-- **Left → right is time.** Each column is one `analyzeGraph` layer, so steps in the same column can be done in parallel.
+- **Left → right is time.** Each column is one `analyzeJourney` layer, so steps in the same column can be done in parallel.
 - A station's **building** shows *where* the step happens (its `officeType`).
 - **Online steps float** 2.2 units above the street; in-person and hybrid steps stand on the ground.
 - The 2D view is the same map drawn flat, using the same layout, so switching views never reorders anything.
@@ -38,7 +38,7 @@ A procedure is drawn as a metro line.
 | `computeMetroLayout(path)` | Per step: `layer`, `lane`, `position3D`, `position2D`. Lanes are ordered by the barycenter of prerequisite lanes, ties broken by node order |
 | `encodeShareState` / `decodeShareState` | `?task=…&a=qid.y,qid.n&done=id,id` (sorted, stable). Unknown ids are dropped on decode |
 
-**Optional steps** are drawn on a thin side spur. They never block other steps (`analyzeGraph` rejects optional prerequisites) and are excluded from totals and the critical path.
+**Optional steps** are drawn on a thin side spur. They never block other steps (`analyzeJourney` rejects optional prerequisites) and are excluded from totals and the critical path.
 
 ## 3D scene (R3F)
 
@@ -166,7 +166,7 @@ A procedure is drawn as a metro line.
 
 ## Admin (M4)
 
-- The same map, plus red and amber markers on stations with `analyzeGraph` errors and warnings.
+- The same map, plus red and amber markers on stations with `analyzeJourney` errors and warnings.
 - An issue list; editing a step revalidates the whole graph before save.
 
 ## Colour tokens

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "demo-premises",
+  "version": 1,
+  "title": "[Synthetic] Premises and Utilities",
+  "summary": "Synthetic module for site inspection and utilities.",
+  "authority": {
+    "slug": "demo-util-auth",
+    "name": "Example Utility Authority",
+    "tier": "municipal",
+    "officialUrl": "https://www.india.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "noc-fire",
+      "title": "[Synthetic] Fire safety NOC",
+      "description": "On-site safety inspection by fire station.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-util-auth",
+      "department": "Example Fire Department",
+      "mode": "in_person",
+      "officeType": "fire_services",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 2, "maxDays": 5, "dayType": "calendar" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "utility-meter",
+      "title": "[Synthetic] Commercial electric connection",
+      "description": "Electric utility meter connection.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-util-auth",
+      "department": "Example Utility Provider",
+      "mode": "hybrid",
+      "officeType": "utility_provider",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "range", "minINR": 500, "maxINR": 1500, "recurrence": "one_time", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 3, "maxDays": 7, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-fire-util",
+      "from": "noc-fire",
+      "to": "utility-meter",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": ["noc-fire"],
+  "exitSteps": ["utility-meter"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}

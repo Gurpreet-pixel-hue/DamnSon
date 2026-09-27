@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/server/db/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PublishStatus {
+  draft
+  in_review
+  published
+  superseded
+  rejected
+}
+
+enum Role {
+  citizen
+  officer
+  admin
+  super_admin
+}
+
+enum FeedbackKind {
+  wrong_fee
+  wrong_document
+  broken_link
+  outdated
+  wrong_order
+  request
+  copilot_error
+  other
+}
+
+model ApprovalModule {
+  id                 String                  @id // "mca-spice-plus"
+  title              String
+  authoritySlug      String                  @map("authority_slug")
+  publishedVersionId String?                 @unique @map("published_version_id") @db.Uuid
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  versions           ApprovalModuleVersion[]
+
+  @@map("approval_modules")
+}
+
+model ApprovalModuleVersion {
+  id          String         @id @default(uuid()) @db.Uuid
+  moduleId    String         @map("module_id")
+  module      ApprovalModule @relation(fields: [moduleId], references: [id])
+  version     Int
+  content     Json // ApprovalModule v3, validated by zod + analyzeModule before every write
+  contentHash String         @map("content_hash") // sha256 of the canonical JSON
+  status      PublishStatus  @default(draft)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt DateTime?      @map("published_at") @db.Timestamptz
+  publishedBy String?        @map("published_by") @db.Uuid
+
+  @@unique([moduleId, version])
+  @@map("approval_module_versions")
+}
+
+model JourneyTemplate {
+  id                  String                    @id // taskId: "start-business-mumbai"
+  title               String
+  category            String
+  keywords            String[]                  @default([])
+  publishedRevisionId String?                   @unique @map("published_revision_id") @db.Uuid
+  createdAt           DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  revisions           JourneyTemplateRevision[]
+
+  @@map("journey_templates")
+}
+
+model JourneyTemplateRevision {
+  id          String          @id @default(uuid()) @db.Uuid
+  templateId  String          @map("template_id")
+  template    JourneyTemplate @relation(fields: [templateId], references: [id])
+  revision    Int
+  content     Json // JourneyTemplate v3; pins module versions
+  contentHash String          @map("content_hash")
+  status      PublishStatus   @default(draft)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  publishedAt DateTime?       @map("published_at") @db.Timestamptz
+  publishedBy String?         @map("published_by") @db.Uuid
+
+  @@unique([templateId, revision])
+  @@map("journey_template_revisions")
+}
+
+model Feedback {
+  id         String       @id @default(uuid()) @db.Uuid
+  kind       FeedbackKind
+  templateId String?      @map("template_id")
+  stepId     String?      @map("step_id")
+  revision   Int?
+  message    String?      @db.VarChar(1000)
+  ipHash     String?      @map("ip_hash") // daily-salted hash, never the raw IP
+  status     String       @default("open")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("feedback")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @map("actor_id") @db.Uuid
+  actorRole  Role?    @map("actor_role")
+  action     String // "module.save_draft", "template.publish"
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  beforeHash String?  @map("before_hash")
+  afterHash  String?  @map("after_hash")
+  at         DateTime @default(now()) @db.Timestamptz
+
+  @@map("audit_log")
+}

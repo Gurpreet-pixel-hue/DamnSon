@@ -15,4 +15,4 @@ description: "Performance, interaction and fallback rules for the React Three Fi
 - **Post-processing:** one `<EffectComposer>`. Bloom only on emissive materials (use `luminanceThreshold`). Turn effects off when drei `<PerformanceMonitor>` reports a decline.
 - **Events:** use R3F pointer events with `e.stopPropagation()` and set the cursor on hover. Every click action must also be reachable from the 2D view and the keyboard.
 - **Fallback:** if WebGL is unavailable or the context is lost, switch to the 2D view automatically and say why.
-- **Layout:** positions come from `analyzeGraph()` layers (x = layer, z = index within the layer) or from a layout helper in `lib/graph`. They are never stored in graph data.
+- **Layout:** positions come from computeMetroLayout(journey). They are never stored in graph data.
