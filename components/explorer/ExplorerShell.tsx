@@ -248,7 +248,7 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
         ) : viewMode === "3d" ? (
           <SceneContainer metro={metro} />
         ) : (
-          <FlowchartView />
+          <FlowchartView metro={metro} />
         )}
       </main>
 

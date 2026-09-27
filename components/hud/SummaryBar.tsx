@@ -3,7 +3,15 @@ import type { ComposedJourney } from "@/lib/contract/compose";
 import { summarizeFees, summarizeTime, type FeeSummary, type TimeSummary } from "@/lib/graph/totals";
 import { planOfficeTrips, type OfficeTrip } from "@/lib/graph/trips";
 import { deriveStepStates, nextUpStepIds } from "@/lib/graph/progress";
-import { formatFees, formatTime, formatNextUp, formatOfficeVisits, formatINR } from "@/lib/graph/summary";
+import {
+  formatFees,
+  formatTime,
+  formatNextUp,
+  formatOfficeVisits,
+  formatINR,
+  deriveFeeTile,
+  deriveTimeTile,
+} from "@/lib/graph/summary";
 
 export interface TileValue {
   value: string;
@@ -87,73 +95,10 @@ export function deriveSummaryValues(
   }
 
   // 2. Fee tile
-  let feesTile: TileValue;
-  const isFree =
-    feeSummary.minINR === 0 &&
-    feeSummary.maxINR === 0 &&
-    feeSummary.unconfirmedCount === 0 &&
-    feeSummary.mayApplyCount === 0 &&
-    feeSummary.annualMinINR === 0 &&
-    feeSummary.annualMaxINR === 0 &&
-    feeSummary.annualUnconfirmedCount === 0;
-
-  if (isFree) {
-    feesTile = { value: "Free", fullText: "Free" };
-  } else {
-    const effectiveMaxOneTime = feeSummary.maxINR - (feeSummary.conditionalMaxINR || 0);
-    let val = "";
-    if (feeSummary.minINR === 0 && effectiveMaxOneTime === 0) {
-      val = "₹0";
-    } else if (feeSummary.minINR === effectiveMaxOneTime) {
-      val = formatINR(feeSummary.minINR);
-    } else {
-      val = `${formatINR(feeSummary.minINR)}–${formatINR(effectiveMaxOneTime)}`;
-    }
-
-    let sub = "";
-    if (feeSummary.unconfirmedCount > 0) {
-      sub = `+${feeSummary.unconfirmedCount} to confirm`;
-    } else if (feeSummary.annualMaxINR > 0 || feeSummary.annualUnconfirmedCount > 0) {
-      sub = "per year";
-    } else if (feeSummary.mayApplyCount > 0 && feeSummary.conditionalMaxINR > 0) {
-      sub = `up to ${formatINR(feeSummary.conditionalMaxINR)} more if conditions apply`;
-    }
-
-    feesTile = {
-      value: val,
-      subtext: sub || undefined,
-      fullText: feesText,
-    };
-  }
+  const feesTile = deriveFeeTile(feeSummary);
 
   // 3. Time tile
-  let timeTile: TileValue;
-  if (
-    timeSummary.minDays === 0 &&
-    timeSummary.maxDays === 0 &&
-    !timeSummary.openEnded &&
-    timeSummary.unknownCount === 0
-  ) {
-    timeTile = { value: "Immediate", fullText: "Immediate" };
-  } else {
-    const val =
-      timeSummary.minDays === timeSummary.maxDays
-        ? `${timeSummary.minDays} ${timeSummary.minDays === 1 ? "day" : "days"}`
-        : `${timeSummary.minDays}–${timeSummary.maxDays} days`;
-
-    let sub = "";
-    if (timeSummary.openEnded) {
-      sub = "open-ended";
-    } else if (timeSummary.unknownCount > 0) {
-      sub = `+${timeSummary.unknownCount} unknown`;
-    }
-
-    timeTile = {
-      value: val,
-      subtext: sub || undefined,
-      fullText: timeText,
-    };
-  }
+  const timeTile = deriveTimeTile(timeSummary, stepTitles);
 
   // 4. Visits tile
   let visitsTile: TileValue;

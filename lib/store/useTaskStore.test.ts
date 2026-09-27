@@ -48,7 +48,7 @@ function loadExampleStartupJourney() {
   return { journey, facts };
 }
 
-describe("useTaskStore v2", () => {
+describe("useTaskStore v3", () => {
   it("toggles step completion immutably and per task", () => {
     const memory = new MemoryStorage();
     const store = createTaskStore(memory);
@@ -102,10 +102,34 @@ describe("useTaskStore v2", () => {
     });
   });
 
+  it("toggles document checklist items immutably and per task", () => {
+    const memory = new MemoryStorage();
+    const store = createTaskStore(memory);
+
+    expect(store.getState().documentChecklist).toEqual({});
+
+    store.getState().toggleDocumentCheck("task-1", "doc-pan");
+    expect(store.getState().documentChecklist["task-1"]).toEqual({
+      "doc-pan": true,
+    });
+
+    store.getState().toggleDocumentCheck("task-1", "doc-aadhaar");
+    expect(store.getState().documentChecklist["task-1"]).toEqual({
+      "doc-pan": true,
+      "doc-aadhaar": true,
+    });
+
+    store.getState().toggleDocumentCheck("task-1", "doc-pan");
+    expect(store.getState().documentChecklist["task-1"]).toEqual({
+      "doc-pan": false,
+      "doc-aadhaar": true,
+    });
+  });
+
   it("discards v1 legacy persisted state on migration", async () => {
     const memory = new MemoryStorage();
     memory.setItem(
-      "damnson-progress-v2",
+      "damnson-progress-v3",
       JSON.stringify({
         state: {
           completedByTask: { "task-v1": ["step-old"] },
@@ -119,16 +143,17 @@ describe("useTaskStore v2", () => {
     await store.persist.rehydrate();
     expect(store.getState().completedByTask).toEqual({});
     expect(store.getState().factsByTask).toEqual({});
+    expect(store.getState().documentChecklist).toEqual({});
   });
 
-  it("handles corrupted storage by rehydrating broken fields to empty objects without throwing", async () => {
+  it("migrates v2 state cleanly with empty documentChecklist", async () => {
     const memory = new MemoryStorage();
     memory.setItem(
-      "damnson-progress-v2",
+      "damnson-progress-v3",
       JSON.stringify({
         state: {
-          completedByTask: "not-an-object",
-          factsByTask: "not-an-object",
+          completedByTask: { "task-1": ["s1"] },
+          factsByTask: { "task-1": { "business.sector": "it_saas" } },
         },
         version: 2,
       })
@@ -136,8 +161,32 @@ describe("useTaskStore v2", () => {
 
     const store = createTaskStore(memory);
     await store.persist.rehydrate();
+    expect(store.getState().completedByTask).toEqual({ "task-1": ["s1"] });
+    expect(store.getState().factsByTask).toEqual({
+      "task-1": { "business.sector": "it_saas" },
+    });
+    expect(store.getState().documentChecklist).toEqual({});
+  });
+
+  it("handles corrupted storage by rehydrating broken fields to empty objects without throwing", async () => {
+    const memory = new MemoryStorage();
+    memory.setItem(
+      "damnson-progress-v3",
+      JSON.stringify({
+        state: {
+          completedByTask: "not-an-object",
+          factsByTask: "not-an-object",
+          documentChecklist: "not-an-object",
+        },
+        version: 3,
+      })
+    );
+
+    const store = createTaskStore(memory);
+    await store.persist.rehydrate();
     expect(store.getState().completedByTask).toEqual({});
     expect(store.getState().factsByTask).toEqual({});
+    expect(store.getState().documentChecklist).toEqual({});
   });
 
   it("round-trips valid persisted storage cleanly", async () => {
@@ -145,12 +194,13 @@ describe("useTaskStore v2", () => {
     const validData = {
       completedByTask: { "task-1": ["s1", "s2"] },
       factsByTask: { "task-1": { "business.sector": "it_saas" } },
+      documentChecklist: { "task-1": { "doc-1": true } },
     };
     memory.setItem(
-      "damnson-progress-v2",
+      "damnson-progress-v3",
       JSON.stringify({
         state: validData,
-        version: 2,
+        version: 3,
       })
     );
 
@@ -158,6 +208,7 @@ describe("useTaskStore v2", () => {
     await store.persist.rehydrate();
     expect(store.getState().completedByTask).toEqual(validData.completedByTask);
     expect(store.getState().factsByTask).toEqual(validData.factsByTask);
+    expect(store.getState().documentChecklist).toEqual(validData.documentChecklist);
   });
 
   it("enforces milestone guards per C1: canMarkDone, deriveStepStates, sanitizeShareState", () => {

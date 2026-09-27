@@ -173,12 +173,12 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
         className="pointer-events-none absolute top-0 inset-x-0 h-14 z-10"
       />
 
-      {/* Main viewport canvas area */}
+      {/* Main viewport canvas / flowchart area */}
       <div className="relative flex-1 w-full overflow-hidden bg-[var(--cw-background)]">
         {viewMode === "3d" ? (
           metro && <SceneContainer metro={metro} />
         ) : (
-          <FlowchartView />
+          metro && <FlowchartView metro={metro} />
         )}
 
         {/* Debug overlay inside card, bottom-left */}
@@ -241,12 +241,15 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
             Whole route
           </button>
 
-          {/* 3D / 2D Toggle */}
+          {/* 3D / 2D Toggle (Enabled in FE-4) */}
           <div className="flex items-center rounded-lg border border-[var(--cw-border)] bg-[var(--cw-background)] p-0.5 text-xs">
             <button
               type="button"
               data-testid="footer-toggle-3d"
-              onClick={() => setViewMode("3d")}
+              onClick={() => {
+                useViewStore.getState().setWebglFallbackReason(null);
+                setViewMode("3d");
+              }}
               className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
                 viewMode === "3d"
                   ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
@@ -258,13 +261,15 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
             <button
               type="button"
               data-testid="footer-toggle-2d"
-              aria-disabled="true"
-              title="2D view arrives with FE-4"
-              onClick={(e) => {
-                e.preventDefault();
-                // 2D view arrives with FE-4: clicking it does nothing
+              onClick={() => {
+                useViewStore.getState().setWebglFallbackReason(null);
+                setViewMode("2d");
               }}
-              className="px-2 py-0.5 rounded-md font-semibold text-[var(--cw-text-muted)] cursor-not-allowed opacity-60 transition-colors"
+              className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                viewMode === "2d"
+                  ? "bg-[var(--cw-surface)] text-[var(--cw-text)] shadow-xs"
+                  : "text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
+              }`}
             >
               2D
             </button>
