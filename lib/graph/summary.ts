@@ -159,3 +159,129 @@ export function formatOfficeVisits(
 
   return `${trips.length} office visits`;
 }
+
+export interface TileValue {
+  value: string;
+  subtext?: string;
+  fullText: string;
+}
+
+/**
+ * Derives honest fee tile per FE-4 Fixes (commit 2):
+ * - Known fee range 0–0 with unconfirmed fees -> "To confirm" + "N fees to confirm", never "₹0".
+ * - Free only when everything is 0 with no unconfirmed/annual fees.
+ */
+export function deriveFeeTile(summary: FeeSummary): TileValue {
+  const isFree =
+    summary.minINR === 0 &&
+    summary.maxINR === 0 &&
+    summary.unconfirmedCount === 0 &&
+    summary.mayApplyCount === 0 &&
+    summary.annualMinINR === 0 &&
+    summary.annualMaxINR === 0 &&
+    summary.annualUnconfirmedCount === 0;
+
+  if (isFree) {
+    return { value: "Free", fullText: "Free" };
+  }
+
+  const effectiveMaxOneTime = summary.maxINR - (summary.conditionalMaxINR || 0);
+  const feesText = formatFees(summary);
+
+  // When known fee range is 0–0 and any fee is still unconfirmed, show "To confirm" with "N fees to confirm" underneath, never "₹0".
+  if (summary.minINR === 0 && effectiveMaxOneTime === 0) {
+    if (summary.unconfirmedCount > 0 || summary.annualUnconfirmedCount > 0) {
+      const totalUnconfirmed = summary.unconfirmedCount + summary.annualUnconfirmedCount;
+      return {
+        value: "To confirm",
+        subtext: `${totalUnconfirmed} ${totalUnconfirmed === 1 ? "fee" : "fees"} to confirm`,
+        fullText: feesText,
+      };
+    }
+    return {
+      value: "₹0",
+      fullText: feesText,
+    };
+  }
+
+  let val = "";
+  if (summary.minINR === effectiveMaxOneTime) {
+    val = formatINR(summary.minINR);
+  } else {
+    val = `${formatINR(summary.minINR)}–${formatINR(effectiveMaxOneTime)}`;
+  }
+
+  let sub = "";
+  if (summary.unconfirmedCount > 0) {
+    sub = `+${summary.unconfirmedCount} to confirm`;
+  } else if (summary.annualMaxINR > 0 || summary.annualUnconfirmedCount > 0) {
+    sub = "per year";
+  } else if (summary.mayApplyCount > 0 && summary.conditionalMaxINR > 0) {
+    sub = `up to ${formatINR(summary.conditionalMaxINR)} more if conditions apply`;
+  }
+
+  return {
+    value: val,
+    subtext: sub || undefined,
+    fullText: feesText,
+  };
+}
+
+/**
+ * Derives honest time tile per FE-4 Fixes (commit 2):
+ * - Known range 0–x and some durations unknown -> "x+ days" + "N unknown", not "0–x days".
+ * - Known range 0–0 and some durations unknown -> "To confirm" + "N unknown".
+ */
+export function deriveTimeTile(
+  summary: TimeSummary,
+  stepTitles?: Map<string, string> | Record<string, string>
+): TileValue {
+  const timeText = formatTime(summary, stepTitles);
+
+  if (
+    summary.minDays === 0 &&
+    summary.maxDays === 0 &&
+    !summary.openEnded &&
+    summary.unknownCount === 0
+  ) {
+    return { value: "Immediate", fullText: "Immediate" };
+  }
+
+  // Known range 0–x with unknown durations -> "x+ days" with "N unknown"
+  if (summary.minDays === 0 && summary.maxDays > 0 && summary.unknownCount > 0) {
+    return {
+      value: `${summary.maxDays}+ days`,
+      subtext: `${summary.unknownCount} unknown`,
+      fullText: timeText,
+    };
+  }
+
+  // Known range 0–0 with unknown durations
+  if (summary.minDays === 0 && summary.maxDays === 0 && summary.unknownCount > 0) {
+    return {
+      value: "To confirm",
+      subtext: `${summary.unknownCount} unknown`,
+      fullText: timeText,
+    };
+  }
+
+  let val = "";
+  if (summary.minDays === summary.maxDays) {
+    val = `${summary.minDays} ${summary.minDays === 1 ? "day" : "days"}`;
+  } else {
+    val = `${summary.minDays}–${summary.maxDays} days`;
+  }
+
+  let sub = "";
+  if (summary.openEnded) {
+    sub = "open-ended";
+  } else if (summary.unknownCount > 0) {
+    sub = `+${summary.unknownCount} unknown`;
+  }
+
+  return {
+    value: val,
+    subtext: sub || undefined,
+    fullText: timeText,
+  };
+}

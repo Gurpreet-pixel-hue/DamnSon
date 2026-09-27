@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { formatFees, formatTime, formatNextUp, formatOfficeVisits } from "./summary";
+import {
+  formatFees,
+  formatTime,
+  formatNextUp,
+  formatOfficeVisits,
+  deriveFeeTile,
+  deriveTimeTile,
+} from "./summary";
 import type { FeeSummary, TimeSummary } from "./totals";
 import type { OfficeTrip } from "./trips";
 
@@ -189,6 +196,66 @@ describe("lib/graph/summary", () => {
         },
       ];
       expect(formatOfficeVisits(trips)).toBe("2 office visits");
+    });
+  });
+
+  describe("deriveFeeTile & deriveTimeTile (FE-4 Fixes Commit 2)", () => {
+    it("derives 'To confirm' with subtext when known fee range is 0–0 and unconfirmed fees exist", () => {
+      const summary: FeeSummary = {
+        minINR: 0,
+        maxINR: 0,
+        unconfirmedCount: 3,
+        mayApplyCount: 0,
+        annualMinINR: 0,
+        annualMaxINR: 0,
+        annualUnconfirmedCount: 0,
+        conditionalMaxINR: 0,
+      };
+      const tile = deriveFeeTile(summary);
+      expect(tile.value).toBe("To confirm");
+      expect(tile.subtext).toBe("3 fees to confirm");
+    });
+
+    it("derives 'Free' when all fees are 0 and no unconfirmed fees exist", () => {
+      const summary: FeeSummary = {
+        minINR: 0,
+        maxINR: 0,
+        unconfirmedCount: 0,
+        mayApplyCount: 0,
+        annualMinINR: 0,
+        annualMaxINR: 0,
+        annualUnconfirmedCount: 0,
+        conditionalMaxINR: 0,
+      };
+      const tile = deriveFeeTile(summary);
+      expect(tile.value).toBe("Free");
+      expect(tile.subtext).toBeUndefined();
+    });
+
+    it("derives 'x+ days' with 'N unknown' when known range is 0–x and unknown durations exist", () => {
+      const summary: TimeSummary = {
+        minDays: 0,
+        maxDays: 7,
+        openEnded: false,
+        unknownCount: 2,
+        criticalStepIds: ["s1"],
+      };
+      const tile = deriveTimeTile(summary);
+      expect(tile.value).toBe("7+ days");
+      expect(tile.subtext).toBe("2 unknown");
+    });
+
+    it("derives 'To confirm' when known time range is 0–0 and unknown durations exist", () => {
+      const summary: TimeSummary = {
+        minDays: 0,
+        maxDays: 0,
+        openEnded: false,
+        unknownCount: 1,
+        criticalStepIds: [],
+      };
+      const tile = deriveTimeTile(summary);
+      expect(tile.value).toBe("To confirm");
+      expect(tile.subtext).toBe("1 unknown");
     });
   });
 });
