@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "CivicWeave · Your city. In order.",
@@ -7,6 +10,7 @@ export const metadata = {
 };
 
 export default async function HomePage() {
+  await connection();
   const repo = getJourneyRepository();
   const templates = await repo.listTemplates();
 

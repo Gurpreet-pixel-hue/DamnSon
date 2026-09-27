@@ -33,7 +33,7 @@ export async function generateMetadata({
 export default async function JourneyPage({ params, searchParams }: JourneyPageProps) {
   const { taskId } = await params;
   const sParams = searchParams ? await searchParams : undefined;
-  if (sParams?.["error"] === "1") {
+  if (process.env.NODE_ENV !== "production" && sParams?.["error"] === "1") {
     throw new Error("Simulated repository failure: network timeout connecting to database");
   }
 
