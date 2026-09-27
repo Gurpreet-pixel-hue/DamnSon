@@ -597,29 +597,54 @@ async function main() {
   const cityBuffer = cityBase.buffer;
 
   const cityBuildingList = [
-    // Low
-    { name: "low-commercial-a", path: "kenney-city-kit-commercial/building-c.glb", slot: 0 },
-    { name: "low-commercial-b", path: "kenney-city-kit-commercial/building-e.glb", slot: 0 },
-    { name: "low-suburban-a", path: "kenney-city-kit-suburban/building-type-a.glb", slot: 1 },
-    { name: "low-suburban-b", path: "kenney-city-kit-suburban/building-type-c.glb", slot: 1 },
-    { name: "low-suburban-c", path: "kenney-city-kit-suburban/building-type-g.glb", slot: 1 },
-    { name: "low-industrial-a", path: "kenney-city-kit-industrial/building-g.glb", slot: 2 },
+    // Low (16 variants)
+    { name: "suburban-a", path: "kenney-city-kit-suburban/building-type-a.glb", slot: 1, tier: "low" },
+    { name: "suburban-b", path: "kenney-city-kit-suburban/building-type-b.glb", slot: 1, tier: "low" },
+    { name: "suburban-c", path: "kenney-city-kit-suburban/building-type-c.glb", slot: 1, tier: "low" },
+    { name: "suburban-d", path: "kenney-city-kit-suburban/building-type-d.glb", slot: 1, tier: "low" },
+    { name: "suburban-e", path: "kenney-city-kit-suburban/building-type-e.glb", slot: 1, tier: "low" },
+    { name: "suburban-f", path: "kenney-city-kit-suburban/building-type-f.glb", slot: 1, tier: "low" },
+    { name: "suburban-g", path: "kenney-city-kit-suburban/building-type-g.glb", slot: 1, tier: "low" },
+    { name: "suburban-h", path: "kenney-city-kit-suburban/building-type-h.glb", slot: 1, tier: "low" },
+    { name: "suburban-i", path: "kenney-city-kit-suburban/building-type-i.glb", slot: 1, tier: "low" },
+    { name: "suburban-j", path: "kenney-city-kit-suburban/building-type-j.glb", slot: 1, tier: "low" },
+    { name: "low-commercial-a", path: "kenney-city-kit-commercial/building-c.glb", slot: 0, tier: "low" },
+    { name: "low-commercial-b", path: "kenney-city-kit-commercial/building-e.glb", slot: 0, tier: "low" },
+    { name: "low-commercial-c", path: "kenney-city-kit-commercial/building-a.glb", slot: 0, tier: "low" },
+    { name: "low-commercial-d", path: "kenney-city-kit-commercial/building-b.glb", slot: 0, tier: "low" },
+    { name: "low-industrial-a", path: "kenney-city-kit-industrial/building-g.glb", slot: 2, tier: "low" },
+    { name: "low-industrial-b", path: "kenney-city-kit-industrial/building-r.glb", slot: 2, tier: "low" },
 
-    // Mid
-    { name: "mid-commercial-a", path: "kenney-city-kit-commercial/building-d.glb", slot: 0 },
-    { name: "mid-commercial-b", path: "kenney-city-kit-commercial/building-f.glb", slot: 0 },
-    { name: "mid-commercial-c", path: "kenney-city-kit-commercial/building-h.glb", slot: 0 },
-    { name: "mid-industrial-a", path: "kenney-city-kit-industrial/building-c.glb", slot: 2 },
-    { name: "mid-industrial-b", path: "kenney-city-kit-industrial/building-e.glb", slot: 2 },
-    { name: "mid-industrial-c", path: "kenney-city-kit-industrial/building-m.glb", slot: 2 },
+    // Mid (10 variants)
+    { name: "mid-commercial-a", path: "kenney-city-kit-commercial/building-d.glb", slot: 0, tier: "mid" },
+    { name: "mid-commercial-b", path: "kenney-city-kit-commercial/building-f.glb", slot: 0, tier: "mid" },
+    { name: "mid-commercial-c", path: "kenney-city-kit-commercial/building-h.glb", slot: 0, tier: "mid" },
+    { name: "mid-commercial-d", path: "kenney-city-kit-commercial/building-i.glb", slot: 0, tier: "mid" },
+    { name: "mid-commercial-e", path: "kenney-city-kit-commercial/building-j.glb", slot: 0, tier: "mid" },
+    { name: "mid-commercial-f", path: "kenney-city-kit-commercial/building-k.glb", slot: 0, tier: "mid" },
+    { name: "mid-industrial-a", path: "kenney-city-kit-industrial/building-c.glb", slot: 2, tier: "mid" },
+    { name: "mid-industrial-b", path: "kenney-city-kit-industrial/building-e.glb", slot: 2, tier: "mid" },
+    { name: "mid-industrial-c", path: "kenney-city-kit-industrial/building-m.glb", slot: 2, tier: "mid" },
+    { name: "mid-industrial-d", path: "kenney-city-kit-industrial/building-n.glb", slot: 2, tier: "mid" },
 
-    // Tall
-    { name: "tall-commercial-a", path: "kenney-city-kit-commercial/building-l.glb", slot: 0 },
-    { name: "tall-commercial-b", path: "kenney-city-kit-commercial/building-m.glb", slot: 0 },
-    { name: "tall-skyscraper-a", path: "kenney-city-kit-commercial/building-skyscraper-a.glb", slot: 0 },
-    { name: "tall-skyscraper-b", path: "kenney-city-kit-commercial/building-skyscraper-b.glb", slot: 0 },
-    { name: "tall-skyscraper-c", path: "kenney-city-kit-commercial/building-skyscraper-c.glb", slot: 0 },
-    { name: "tall-skyscraper-e", path: "kenney-city-kit-commercial/building-skyscraper-e.glb", slot: 0 },
+    // Tall & Low-Detail (17 variants)
+    { name: "low-detail-a", path: "kenney-city-kit-commercial/low-detail-building-a.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-b", path: "kenney-city-kit-commercial/low-detail-building-b.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-c", path: "kenney-city-kit-commercial/low-detail-building-c.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-d", path: "kenney-city-kit-commercial/low-detail-building-d.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-e", path: "kenney-city-kit-commercial/low-detail-building-e.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-f", path: "kenney-city-kit-commercial/low-detail-building-f.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-g", path: "kenney-city-kit-commercial/low-detail-building-g.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-h", path: "kenney-city-kit-commercial/low-detail-building-h.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-i", path: "kenney-city-kit-commercial/low-detail-building-i.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-j", path: "kenney-city-kit-commercial/low-detail-building-j.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-k", path: "kenney-city-kit-commercial/low-detail-building-k.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-l", path: "kenney-city-kit-commercial/low-detail-building-l.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-m", path: "kenney-city-kit-commercial/low-detail-building-m.glb", slot: 0, tier: "tall" },
+    { name: "low-detail-n", path: "kenney-city-kit-commercial/low-detail-building-n.glb", slot: 0, tier: "tall" },
+    { name: "tall-skyscraper-a", path: "kenney-city-kit-commercial/building-skyscraper-a.glb", slot: 0, tier: "tall" },
+    { name: "tall-skyscraper-b", path: "kenney-city-kit-commercial/building-skyscraper-b.glb", slot: 0, tier: "tall" },
+    { name: "tall-skyscraper-c", path: "kenney-city-kit-commercial/building-skyscraper-c.glb", slot: 0, tier: "tall" },
   ];
 
   const cityKindsMetadata = [];
@@ -647,7 +672,7 @@ async function main() {
     const width = +(maxX - minX).toFixed(2);
     const height = +(maxY - minY).toFixed(2);
     const depth = +(maxZ - minZ).toFixed(2);
-    const tier = height <= 2.4 ? "low" : height <= 3.6 ? "mid" : "tall";
+    const tier = b.tier || (height <= 2.4 ? "low" : height <= 3.6 ? "mid" : "tall");
     const footprint = (width <= 1.75 && depth <= 1.75) ? "1x1" : "2x2";
 
     cityKindsMetadata.push({
@@ -772,6 +797,7 @@ export function getCityKind(name: string): CityKindInfo | undefined {
 export const LOW_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "low");
 export const MID_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "mid");
 export const TALL_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "tall");
+export const LOW_DETAIL_BUILDINGS = CITY_KINDS.filter((k) => k.name.startsWith("low-detail-"));
 export const TREES = CITY_KINDS.filter((k) => k.tier === "tree");
 export const PROPS = CITY_KINDS.filter((k) => k.tier === "prop");
 `;

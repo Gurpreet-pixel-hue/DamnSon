@@ -34,6 +34,7 @@ async function main() {
   let id = 1;
   const callbacks = new Map();
   const consoleMessages = [];
+  const localhostRequests = new Set();
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -49,6 +50,12 @@ async function main() {
       consoleMessages.push({ type, text });
       console.log(`[BROWSER ${type.toUpperCase()}] ${text}`);
     }
+    if (data.method === "Network.requestWillBeSent") {
+      const url = data.params.request.url;
+      if (url.includes("localhost:3000")) {
+        localhostRequests.add(url);
+      }
+    }
   };
 
   function send(method, params = {}) {
@@ -61,6 +68,7 @@ async function main() {
 
   await send("Page.enable");
   await send("Runtime.enable");
+  await send("Network.enable");
   await send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 900,
@@ -103,7 +111,8 @@ async function main() {
       return "Debug overlay not found";
     })()`,
   });
-  console.log("Stress Debug Overlay text:\n", debugEval.result.value);
+  const overlayText = debugEval?.result?.result?.value ?? debugEval?.result?.value ?? JSON.stringify(debugEval);
+  console.log("Stress Debug Overlay text:\n", overlayText);
 
   // 3. Selected Station
   console.log("\n--- Capturing 3. Selected Station ---");
@@ -185,6 +194,23 @@ async function main() {
     const artSideBySide = path.join(ARTIFACTS_DIR, "screenshot-fe1v-side-by-side.png");
     fs.copyFileSync(sideBySidePath, artSideBySide);
     console.log(`Saved side-by-side: ${sideBySidePath} & ${artSideBySide}`);
+  }
+
+  // Print Network Request List (localhost only)
+  console.log("\n--- Network Request List (localhost only) ---");
+  const sortedRequests = Array.from(localhostRequests).sort();
+  for (const req of sortedRequests) {
+    console.log(`  ${req}`);
+  }
+
+  // Print Console Messages Summary
+  console.log("\n--- Browser Console Messages ---");
+  if (consoleMessages.length === 0) {
+    console.log("  (No console messages)");
+  } else {
+    for (const msg of consoleMessages) {
+      console.log(`  [${msg.type.toUpperCase()}] ${msg.text}`);
+    }
   }
 
   // Cleanup Chrome

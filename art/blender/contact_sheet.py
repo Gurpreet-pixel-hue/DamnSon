@@ -6,7 +6,8 @@ import shutil
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 ART_OUT = os.path.join(PROJECT_ROOT, "art", "out")
-REVIEW_DIR = os.path.join(PROJECT_ROOT, ".next", "claude-review", "fe-1v")
+REVIEW_DIR = os.path.join(PROJECT_ROOT, "art", "out", "review")
+ARTIFACTS_DIR = "/Users/shridhartawate/.gemini/antigravity/brain/36d77528-1f30-4659-bc8a-479ce47b7084"
 os.makedirs(ART_OUT, exist_ok=True)
 os.makedirs(REVIEW_DIR, exist_ok=True)
 
@@ -25,33 +26,36 @@ def reset_scene():
     scene.render.resolution_percentage = 100
     scene.view_settings.view_transform = 'Standard'
 
-    # World background (light cream)
+    # World background with ambient at 0.6 per E10
     if not scene.world:
         scene.world = bpy.data.worlds.new("World")
     scene.world.use_nodes = True
     bg_node = scene.world.node_tree.nodes.get("Background")
     if bg_node:
-        bg_node.inputs[0].default_value = (0.96, 0.94, 0.89, 1.0) # #F5EFE3
-        bg_node.inputs[1].default_value = 1.0
+        bg_node.inputs[0].default_value = (0.95, 0.93, 0.90, 1.0)
+        bg_node.inputs[1].default_value = 0.6
 
 def setup_lighting_and_camera(min_x, max_x, min_y, max_y):
-    # Sun light
+    center_x = (min_x + max_x) / 2.0
+    center_y = (min_y + max_y) / 2.0
+
+    target_empty = bpy.data.objects.new("CamTarget", None)
+    bpy.context.collection.objects.link(target_empty)
+    target_empty.location = (center_x, center_y, 0)
+
+    # Sun light from (-1, 2, 1.5) per E10
     light_data = bpy.data.lights.new(name="Sun", type='SUN')
-    light_data.energy = 4.0
-    light_data.color = (1.0, 0.90, 0.75) # Warm sun #FFE6C0
+    light_data.energy = 2.4
+    light_data.color = (1.0, 0.98, 0.95)
     light_obj = bpy.data.objects.new(name="Sun", object_data=light_data)
     bpy.context.collection.objects.link(light_obj)
-    light_obj.location = (-18, 30, 40)
-    light_obj.rotation_euler = (math.radians(45), math.radians(15), math.radians(-35))
+    # Position sun along (-1, 2, 1.5) direction from target center
+    light_obj.location = (center_x - 50.0, center_y + 100.0, 75.0)
 
-    # Add fill light for shadows
-    fill_data = bpy.data.lights.new(name="Fill", type='SUN')
-    fill_data.energy = 1.5
-    fill_data.color = (0.85, 0.90, 1.0)
-    fill_obj = bpy.data.objects.new(name="Fill", object_data=fill_data)
-    bpy.context.collection.objects.link(fill_obj)
-    fill_obj.location = (18, -30, 40)
-    fill_obj.rotation_euler = (math.radians(45), math.radians(-15), math.radians(145))
+    track_sun = light_obj.constraints.new(type='TRACK_TO')
+    track_sun.target = target_empty
+    track_sun.track_axis = 'TRACK_NEGATIVE_Z'
+    track_sun.up_axis = 'UP_Y'
 
     # Orthographic camera
     cam_data = bpy.data.cameras.new(name="Camera")
@@ -131,12 +135,13 @@ def render_contact_sheet(pack_name, folder_path):
         base_name = os.path.splitext(os.path.basename(glb_path))[0]
         curve = bpy.data.curves.new(type="FONT", name=f"Label_{base_name}")
         curve.body = base_name
-        curve.size = 0.32
+        curve.size = 0.65
+        curve.extrude = 0.03
         curve.align_x = 'CENTER'
         curve.align_y = 'TOP'
 
         txt_obj = bpy.data.objects.new(name=f"Text_{base_name}", object_data=curve)
-        txt_obj.location = (gx, gy - 1.8, 0.02)
+        txt_obj.location = (gx, gy - 2.2, 0.02)
         txt_obj.rotation_euler = (math.radians(35), 0, 0) # Face isometric camera
         txt_obj.active_material = text_mat
         bpy.context.collection.objects.link(txt_obj)
@@ -162,6 +167,9 @@ def render_contact_sheet(pack_name, folder_path):
 
     review_path = os.path.join(REVIEW_DIR, f"contact-{pack_name}.png")
     shutil.copyfile(out_path, review_path)
+    if os.path.exists(ARTIFACTS_DIR):
+        artifact_path = os.path.join(ARTIFACTS_DIR, f"contact-{pack_name}.png")
+        shutil.copyfile(out_path, artifact_path)
     print(f"✓ Saved {out_path} and copied to {review_path}")
 
 def main():
