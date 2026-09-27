@@ -13,7 +13,6 @@ export const StationNode = memo(function StationNode({
     isFocusedStage,
     isSelected,
     isHovered,
-    ariaLabel,
     onSelect,
     onHover,
   } = data;
@@ -33,19 +32,10 @@ export const StationNode = memo(function StationNode({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={ariaLabel}
       data-testid={`2d-station-node-${station.id}`}
       data-step-id={station.id}
       data-state={station.state}
       onClick={() => onSelect(station.id)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect(station.id);
-        }
-      }}
       onMouseEnter={() => onHover(station.id)}
       onMouseLeave={() => onHover(null)}
       className={`w-[200px] h-[72px] rounded-xl border p-2 flex flex-col justify-between select-none cursor-pointer transition-all duration-150 relative box-border ${getBorderAndBg()} ${

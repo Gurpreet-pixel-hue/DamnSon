@@ -5,6 +5,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  useReactFlow,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -12,7 +13,7 @@ import type { MetroVM } from "@/lib/graph/viewModel";
 import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useSceneKeyboard } from "@/components/canvas/useSceneKeyboard";
-import { buildFlow2DGraph } from "@/lib/graph/flow2d";
+import { buildFlow2DGraph, type FlowStationNode } from "@/lib/graph/flow2d";
 import { StationNode } from "./StationNode";
 
 export interface FlowchartViewProps {
@@ -24,6 +25,68 @@ const nodeTypes: NodeTypes = {
 };
 
 const EMPTY_METRO: MetroVM = { stations: [], tracks: [] };
+
+function FlowAutoFramer({
+  metro,
+  nodes,
+  focusStage,
+  wholeRouteView,
+  stepperBottomInset,
+}: {
+  metro: MetroVM;
+  nodes: FlowStationNode[];
+  focusStage: number;
+  wholeRouteView: boolean;
+  stepperBottomInset: number;
+}) {
+  const { fitView } = useReactFlow();
+
+  React.useEffect(() => {
+    if (metro.stations.length === 0 || nodes.length === 0) return;
+
+    if (wholeRouteView) {
+      void fitView({
+        padding: 0.15,
+        minZoom: 0.1,
+        maxZoom: 1.5,
+        duration: 350,
+      });
+      return;
+    }
+
+    // Focused stage stations (layer is 0-indexed; focusStage is 1-indexed)
+    const stageStations = metro.stations.filter((s) => s.layer === focusStage - 1);
+    const focusedIds = new Set(stageStations.map((s) => s.id));
+    const targetIds = new Set(focusedIds);
+
+    // Include immediate neighbours
+    for (const track of metro.tracks) {
+      if (focusedIds.has(track.from)) targetIds.add(track.to);
+      if (focusedIds.has(track.to)) targetIds.add(track.from);
+    }
+
+    const nodesToFit = nodes.filter((n) => targetIds.has(n.id));
+
+    if (nodesToFit.length > 0) {
+      void fitView({
+        nodes: nodesToFit,
+        padding: 0.25,
+        minZoom: 0.6,
+        maxZoom: 1.2,
+        duration: 350,
+      });
+    } else {
+      void fitView({
+        padding: 0.25,
+        minZoom: 0.6,
+        maxZoom: 1.2,
+        duration: 350,
+      });
+    }
+  }, [focusStage, wholeRouteView, stepperBottomInset, metro, nodes, fitView]);
+
+  return null;
+}
 
 export default function FlowchartView({ metro = EMPTY_METRO }: FlowchartViewProps) {
   const activeMetro = metro ?? EMPTY_METRO;
@@ -37,6 +100,8 @@ export default function FlowchartView({ metro = EMPTY_METRO }: FlowchartViewProp
   const setFocusedStepId = useViewStore((s) => s.setFocusedStepId);
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
   const webglFallbackReason = useViewStore((s) => s.webglFallbackReason);
 
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
@@ -90,8 +155,6 @@ export default function FlowchartView({ metro = EMPTY_METRO }: FlowchartViewProp
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.35 }}
         minZoom={0.2}
         maxZoom={1.5}
         nodesDraggable={false}
@@ -100,6 +163,13 @@ export default function FlowchartView({ metro = EMPTY_METRO }: FlowchartViewProp
       >
         <Background color="#E4DACA" gap={20} size={1.5} />
         <Controls showInteractive={false} className="!bottom-4 !right-4" />
+        <FlowAutoFramer
+          metro={activeMetro}
+          nodes={nodes}
+          focusStage={focusStage}
+          wholeRouteView={wholeRouteView}
+          stepperBottomInset={stepperBottomInset}
+        />
       </ReactFlow>
 
       {/* Advisory notice when 2D view is triggered via fallback / resize (PRD §11.3 & Amendment 6) */}
