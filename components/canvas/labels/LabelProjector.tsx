@@ -17,18 +17,35 @@ const scratchVec = new THREE.Vector3();
 const scratchCamPos = new THREE.Vector3();
 const scratchCamForward = new THREE.Vector3();
 const scratchCamToStation = new THREE.Vector3();
+const EMPTY_STATIONS: StationVM[] = [];
 
 export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) {
   const { camera, size } = useThree();
 
-  // Cached matrix elements (16 floats each)
-  const cachedWorldMatrix = useRef(new Float32Array(16));
-  const cachedProjMatrix = useRef(new Float32Array(16));
+  // Cached matrix elements (16 floats each in Float64Array to preserve exact IEEE-754 precision)
+  const cachedWorldMatrix = useRef(new Float64Array(16));
+  const cachedProjMatrix = useRef(new Float64Array(16));
   const cachedWidth = useRef(0);
   const cachedHeight = useRef(0);
   const cachedStations = useRef<StationVM[] | null>(null);
 
+  // Development projection counter to verify 0 projections/sec when camera is static
+  const devProjectionsRef = useRef(0);
+  const devLastSecRef = useRef(0);
+
   useFrame(() => {
+    if (process.env.NODE_ENV !== "production") {
+      const now = performance.now();
+      if (now - devLastSecRef.current >= 1000) {
+        if (typeof window !== "undefined") {
+          (window as unknown as { __devProjectionsPerSec?: number }).__devProjectionsPerSec =
+            devProjectionsRef.current;
+        }
+        devProjectionsRef.current = 0;
+        devLastSecRef.current = now;
+      }
+    }
+
     const wm = camera.matrixWorld.elements;
     const pm = camera.projectionMatrix.elements;
     const cwm = cachedWorldMatrix.current;
@@ -45,11 +62,15 @@ export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) 
     const sizeChanged =
       size.width !== cachedWidth.current || size.height !== cachedHeight.current;
 
-    const stations = selectionRef?.current ?? [];
+    const stations = selectionRef?.current ?? EMPTY_STATIONS;
     const stationsChanged = stations !== cachedStations.current;
 
     if (!matrixChanged && !sizeChanged && !stationsChanged) {
       return;
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      devProjectionsRef.current++;
     }
 
     // Update caches

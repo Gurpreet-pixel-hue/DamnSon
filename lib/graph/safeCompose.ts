@@ -9,7 +9,7 @@ import type { Facts } from "@/lib/contract/facts";
 
 export type SafeComposeResult =
   | { ok: true; journey: ComposedJourney }
-  | { ok: false; codes: string[]; issues?: GraphIssue[] };
+  | { ok: false; codes: string[]; message?: string; issues?: GraphIssue[] };
 
 export function safeCompose(
   template: JourneyTemplate,
@@ -32,8 +32,11 @@ export function safeCompose(
     return { ok: true, journey };
   } catch (err) {
     if (err instanceof ComposeError) {
-      return { ok: false, codes: ["COMPOSE_ERROR"] };
+      return { ok: false, codes: ["COMPOSE_ERROR"], message: err.message };
     }
-    throw err;
+    if (err instanceof Error) {
+      return { ok: false, codes: ["UNEXPECTED_ERROR"], message: err.message };
+    }
+    return { ok: false, codes: ["UNEXPECTED_ERROR"], message: String(err) };
   }
 }

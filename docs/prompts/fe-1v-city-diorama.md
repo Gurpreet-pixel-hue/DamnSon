@@ -1,5 +1,5 @@
 FE-1V · Civic Metro visual upgrade: "City diorama" (branch frontend)
-Needs: FE-1.1 committed. PR #2 merged before anything is pushed.
+Needs: FE-2 merged (PR #14; main = d2e7be2). The scene is fed by fromJourney on contract v3.
 
 Read first:
 - AGENTS.md
@@ -9,14 +9,21 @@ Read first:
 
 Open docs/reference/civic-metro-target.jpg and study it. It is AI concept art: match its composition and UI language, not its photorealism.
 
-Goal: the 3D scene and its overlays look like the reference, in a stylised low-poly form, at 60 fps. Same data (fromV2 today, fromJourney after FE-2), same interaction, same keyboard map, same reduced-motion rules. components/canvas keeps consuming only MetroVM.
+Goal: the 3D scene and its overlays look like the reference, in a stylised low-poly form, at 60 fps. Same data (fromJourney on contract v3), same interaction, same keyboard map, same reduced-motion rules. components/canvas keeps consuming only MetroVM.
 
 Out of scope (docs/visual-direction.md §8 maps these to later milestones): summary bar, drawer contents, left navigation, 2D view, trip plan and map, search. Restyle the existing HUD pieces (search bar, 3D/2D and critical-path toggles, progress card) to the light tokens, but don't add new panels.
 
 ## Git: start of session (report verbatim)
-1. git status is clean and you're on frontend. git fetch origin --prune. git pull --ff-only origin frontend.
-2. gh pr view 2 --json state,mergedAt. If it's MERGED: git merge --no-edit origin/main (a normal merge; on a conflict, abort and report). If it's OPEN: work locally and don't push.
-3. main now contains .gitkeep files in folders you fill. Delete the .gitkeep in every folder that has real files once your commit lands.
+1. git status is clean apart from the untracked art/, and you're on frontend.
+2. git fetch origin --prune && git merge --ff-only origin/main && git log --oneline -3. It must fast-forward to d2e7be2 or later; if it doesn't, stop and report.
+3. main contains .gitkeep files in folders you fill. Delete the .gitkeep in every folder that has real files once your commit lands.
+
+## Phase 0 · FE-2 review follow-ups (small, commit before Stage 1)
+1. ExplorerShell calls lib/graph/safeCompose instead of repeating its try/catch inline, and the `void templateRevision` workaround goes away. Memoisation stays on (template.revision, facts).
+2. The progress count covers action steps only (PRD §8.8): exclude milestones. The demo reads "of 11" and the stress graph "of 24". Add a unit test for the count helper.
+3. The composition error state also shows the ComposeError message (for example the missing module id), not only the code.
+4. LabelProjector caches the camera matrices in Float64Array (not Float32Array), so the "unchanged" check really skips work. Verify with a counter in development: while the camera is still, projections per second drop to 0.
+Commit: `fix(explorer): FE-2 review follow-ups`. Run verify.
 
 ## Plan first (wait for my approval)
 The plan must include:
@@ -110,6 +117,6 @@ Commits, small and citing the direction doc:
 - feat(canvas): labels, stage headers, legend (§4)
 - feat(art): hero landmarks (§6)
 
-Push only once PR #2 is merged. At the end, open a PR frontend → main titled "FE-1V: City diorama visual direction". Its body contains the budget table with measured numbers, the side-by-side image path, art/SOURCES.md, deviations and follow-ups. Mention the new top-level art/ folder as a PRD §6.2 addition. Don't merge it.
+Push frontend when Stage 2 is done (or after Stage 1 if I say so). At the end, open a PR frontend → main titled "FE-1V: City diorama visual direction". Its body contains the budget table with measured numbers, the side-by-side image path, art/SOURCES.md, deviations and follow-ups. Mention the new top-level art/ folder as a PRD §6.2 addition. Don't merge it.
 
 Report: git start-of-session output, verify tail, all numbers verbatim, screenshot paths, deviations (every config or global-behaviour change counts), follow-ups.

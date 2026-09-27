@@ -2,12 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import {
-  composeJourney,
-  ComposeError,
-  type ComposedJourney,
-} from "@/lib/contract/compose";
-import { analyzeJourney } from "@/lib/contract/analyze";
+import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
 import type { JourneyBundle } from "@/app/loadJourney";
 import { useViewStore } from "@/lib/store/useViewStore";
@@ -146,44 +141,22 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
     (taskId ? completedByTask[taskId] : undefined) ?? EMPTY_COMPLETED;
   const completed = useMemo(() => new Set(completedList), [completedList]);
 
-  // C2: Memoise composed journey on (template.revision, facts) with try/catch
-  const templateRevision = initialBundle?.template.revision;
-  const composeResult = useMemo<{
-    ok: boolean;
-    journey?: ComposedJourney;
-    errorCodes?: string[];
-  }>(() => {
-    if (!initialBundle) return { ok: true };
-    void templateRevision;
-    try {
-      const journey = composeJourney(
-        initialBundle.template,
-        initialBundle.modules,
-        facts
-      );
-      const analysis = analyzeJourney(journey);
-      if (!analysis.ok) {
-        return {
-          ok: false,
-          errorCodes: analysis.issues
-            .filter((i) => i.severity === "error")
-            .map((i) => i.code),
-        };
-      }
-      return { ok: true, journey };
-    } catch (err) {
-      if (err instanceof ComposeError) {
-        return { ok: false, errorCodes: ["COMPOSE_ERROR"] };
-      }
-      return { ok: false, errorCodes: ["UNEXPECTED_ERROR"] };
-    }
-  }, [initialBundle, templateRevision, facts]);
+  // C2 / Phase 0: Memoise composed journey on (template.revision, facts) via safeCompose
+  const template = initialBundle?.template;
+  const modules = initialBundle?.modules;
+  const templateRevision = template?.revision;
+
+  const composeResult = useMemo<SafeComposeResult | { ok: true; journey?: undefined }>(() => {
+    if (!template || !modules || templateRevision === undefined) return { ok: true };
+    return safeCompose(template, modules, facts);
+  }, [template, modules, templateRevision, facts]);
 
   // C2: Memoise MetroVM on (composed journey, completed)
+  const journey = composeResult.ok ? composeResult.journey : undefined;
   const metro = useMemo<MetroVM | null>(() => {
-    if (!composeResult.journey) return null;
-    return fromJourney(composeResult.journey, completed);
-  }, [composeResult.journey, completed]);
+    if (!journey) return null;
+    return fromJourney(journey, completed);
+  }, [journey, completed]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#09090b]">
@@ -215,7 +188,7 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
         className="h-full w-full"
       >
         {!composeResult.ok ? (
-          // C2: Render error state with issue codes instead of map
+          // C2 / Phase 0: Render error state with issue codes and message instead of map
           <div
             data-testid="composition-error"
             className="flex h-full w-full flex-col items-center justify-center p-6 text-center"
@@ -224,11 +197,17 @@ export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
               <h2 className="text-lg font-semibold text-red-400">
                 Journey Composition Failed
               </h2>
-              <p className="mt-2 text-xs text-zinc-400">
-                The civic procedure could not be assembled due to contract validation errors:
-              </p>
+              {composeResult.message ? (
+                <p className="mt-2 text-xs font-mono text-zinc-300 break-words">
+                  {composeResult.message}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-zinc-400">
+                  The civic procedure could not be assembled due to contract validation errors:
+                </p>
+              )}
               <ul className="mt-4 space-y-1 text-xs font-mono text-amber-300">
-                {composeResult.errorCodes?.map((code, idx) => (
+                {composeResult.codes?.map((code, idx) => (
                   <li
                     key={idx}
                     className="rounded border border-red-500/20 bg-red-950/40 px-2 py-1"
