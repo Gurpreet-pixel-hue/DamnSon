@@ -81,3 +81,20 @@ export function getFactEditorModel(key: FactKey, currentFacts: Facts): FactEdito
     def,
   };
 }
+
+/**
+ * Formats a fact value for human-readable display in the situation rail (§8.6 & FE-4 Fixes):
+ * - Booleans show Yes/No
+ * - Numbers show as digits (e.g. "2")
+ * - Enums replace underscores with spaces and capitalize the first letter (e.g. "it_saas" -> "It saas")
+ */
+export function formatFactDisplayValue(value: FactValue | undefined): string {
+  if (value === undefined || value === null) return "Not specified";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    const withSpaces = value.replace(/_/g, " ");
+    return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
+  }
+  return String(value);
+}

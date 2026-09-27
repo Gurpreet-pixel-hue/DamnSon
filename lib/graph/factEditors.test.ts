@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getUsedFacts, getFactEditorModel } from "./factEditors";
+import { getUsedFacts, getFactEditorModel, formatFactDisplayValue } from "./factEditors";
 import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
 import { journeyTemplateSchema, approvalModuleSchema } from "@/lib/contract/schema";
 
@@ -49,5 +49,14 @@ describe("factEditors", () => {
     expect(unsetModel.type).toBe("boolean");
     expect(unsetModel.value).toBeUndefined();
     expect(unsetModel.isSet).toBe(false);
+  });
+
+  it("formats fact values honestly for human reading", () => {
+    expect(formatFactDisplayValue(true)).toBe("Yes");
+    expect(formatFactDisplayValue(false)).toBe("No");
+    expect(formatFactDisplayValue(5)).toBe("5");
+    expect(formatFactDisplayValue("it_saas")).toBe("It saas");
+    expect(formatFactDisplayValue("private_limited")).toBe("Private limited");
+    expect(formatFactDisplayValue(undefined)).toBe("Not specified");
   });
 });

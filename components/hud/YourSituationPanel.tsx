@@ -25,11 +25,11 @@ export function YourSituationPanel({
       data-testid="your-situation-panel"
       className={`flex flex-col gap-3 overflow-y-auto ${className}`}
     >
-      {/* 1. Profile & Facts */}
-      <FactCard template={template} modules={modules} />
-
-      {/* 2. Decisive Questions */}
+      {/* 1. Key Questions (Top 3) */}
       {journey && <QuestionsPanel journey={journey} />}
+
+      {/* 2. Your Answers (FactCard) */}
+      <FactCard template={template} modules={modules} />
 
       {/* 3. Not Needed For You (Excluded steps/modules) */}
       {journey && journey.excluded.length > 0 && (

@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import type { ApprovalModule, JourneyTemplate } from "@/lib/contract/schema";
 import type { FactKey, FactValue } from "@/lib/contract/facts";
-import { getUsedFacts, getFactEditorModel } from "@/lib/graph/factEditors";
+import { getUsedFacts, getFactEditorModel, formatFactDisplayValue } from "@/lib/graph/factEditors";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface FactCardProps {
@@ -25,6 +25,7 @@ export function FactCard({
   const clearFact = useTaskStore((s) => s.clearFact);
 
   const [expandedKey, setExpandedKey] = useState<FactKey | null>(null);
+  const [showAllEditors, setShowAllEditors] = useState(false);
 
   const currentFacts = useMemo(
     () => (targetTaskId ? factsByTask[targetTaskId] ?? {} : {}),
@@ -41,6 +42,13 @@ export function FactCard({
     () => usedFactKeys.map((k) => getFactEditorModel(k, currentFacts)),
     [usedFactKeys, currentFacts]
   );
+
+  const setModels = useMemo(
+    () => editorModels.filter((m) => m.isSet),
+    [editorModels]
+  );
+
+  const visibleModels = showAllEditors ? editorModels : setModels;
 
   const handleValueChange = (key: FactKey, value: FactValue) => {
     if (!targetTaskId) return;
@@ -60,20 +68,36 @@ export function FactCard({
       <div className="flex items-center justify-between border-b border-[var(--cw-border)]/50 pb-2">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-[var(--cw-text)] tracking-tight">
-            Your Profile & Facts
+            Your answers
           </span>
           <span className="text-[10px] text-[var(--cw-text-muted)]">
-            Customises the procedural steps
+            Facts customising your journey
           </span>
         </div>
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)]">
-          {editorModels.filter((m) => m.isSet).length}/{editorModels.length} set
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--cw-border)]/30 text-[var(--cw-text-muted)]">
+            {setModels.length}/{editorModels.length} set
+          </span>
+          <button
+            type="button"
+            data-testid="fact-card-edit-all"
+            onClick={() => setShowAllEditors(!showAllEditors)}
+            className="text-[10px] font-semibold text-[var(--cw-brand)] hover:underline px-1.5 py-0.5 rounded bg-[var(--cw-brand)]/5"
+          >
+            {showAllEditors ? "Done" : "Edit all"}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        {editorModels.map((item) => {
-          const isExpanded = expandedKey === item.key;
+        {!showAllEditors && setModels.length === 0 && (
+          <p className="text-[11px] text-[var(--cw-text-muted)] py-1 leading-relaxed">
+            No custom answers yet. Answer the questions above or click <span className="font-semibold text-[var(--cw-text)]">Edit all</span> to customize details.
+          </p>
+        )}
+
+        {visibleModels.map((item) => {
+          const isExpanded = expandedKey === item.key || showAllEditors;
           const factId = `fact-editor-${item.key.replace(/\./g, "-")}`;
 
           return (
@@ -93,7 +117,7 @@ export function FactCard({
                     {item.label}
                   </span>
                   <span className="text-[10px] text-[var(--cw-text-muted)] truncate">
-                    {item.isSet ? String(item.value) : "Not specified"}
+                    {formatFactDisplayValue(item.value)}
                   </span>
                 </div>
 
@@ -109,14 +133,16 @@ export function FactCard({
                       Clear
                     </button>
                   )}
-                  <button
-                    type="button"
-                    data-testid={`fact-toggle-edit-${item.key}`}
-                    onClick={() => setExpandedKey(isExpanded ? null : item.key)}
-                    className="text-[10px] font-semibold text-[var(--cw-brand)] hover:underline px-1 py-0.5"
-                  >
-                    {isExpanded ? "Done" : item.isSet ? "Edit" : "Set"}
-                  </button>
+                  {!showAllEditors && (
+                    <button
+                      type="button"
+                      data-testid={`fact-toggle-edit-${item.key}`}
+                      onClick={() => setExpandedKey(expandedKey === item.key ? null : item.key)}
+                      className="text-[10px] font-semibold text-[var(--cw-brand)] hover:underline px-1 py-0.5"
+                    >
+                      {expandedKey === item.key ? "Done" : item.isSet ? "Edit" : "Set"}
+                    </button>
+                  )}
                 </div>
               </div>
 
