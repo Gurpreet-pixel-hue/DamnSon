@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "udyam",
+  "version": 1,
+  "title": "Udyam (MSME) registration",
+  "summary": "Free, paperless registration of the enterprise as an MSME on the Udyam portal, based on self-declaration.",
+  "authority": {
+    "slug": "msme",
+    "name": "Ministry of Micro, Small and Medium Enterprises",
+    "tier": "central",
+    "officialUrl": "https://udyamregistration.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "udyam-home",
+      "url": "https://udyamregistration.gov.in/",
+      "title": "Udyam Registration : Zero cost, No Fee and Free Registration of MSMEs",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "msme"
+    },
+    {
+      "id": "udyam-process",
+      "url": "https://udyamregistration.gov.in/docs/process_msme_regisration_new_pan_Yes.pdf",
+      "title": "Udyam Registration Form – For New Entrepreneurs (With Pan Yes)",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "msme"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "register",
+      "title": "Register on the Udyam portal",
+      "description": "MSME registration is fully online, paperless and based on self-declaration: Aadhaar verification with OTP, then PAN verification; investment and turnover details are taken from Government databases.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "msme",
+      "department": "Ministry of MSME (Udyam Registration)",
+      "mode": "online",
+      "officeType": "online_portal",
+      "applicationPortal": {
+        "name": "Udyam Registration",
+        "url": "https://udyamregistration.gov.in/"
+      },
+      "forms": [],
+      "documents": [
+        {
+          "documentTypeId": "aadhaar-number",
+          "name": "Aadhaar number (OTP verification)",
+          "note": "No documents or proof are required to be uploaded."
+        },
+        {
+          "documentTypeId": "company-pan",
+          "name": "PAN of the enterprise",
+          "note": "PAN and GSTIN (as applicable) are required with effect from 01.04.2021."
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "udyam-registration-certificate",
+          "name": "Udyam Registration Certificate"
+        }
+      ],
+      "fee": {
+        "kind": "free",
+        "note": "Zero cost, no fee: registration is free of cost.",
+        "sourceRef": "udyam-home"
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown"
+        },
+        "conditional": []
+      },
+      "sourceIds": [
+        "udyam-home",
+        "udyam-process"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, udyamregistration.gov.in: \"Zero cost, No Fee and Free Registration of MSMEs\"; \"No documents or proof are required to be uploaded for registering an MSME.\""
+      }
+    }
+  ],
+  "edges": [],
+  "entrySteps": [
+    "register"
+  ],
+  "exitSteps": [
+    "register"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-28T12:00:00+05:30"
+  }
+}

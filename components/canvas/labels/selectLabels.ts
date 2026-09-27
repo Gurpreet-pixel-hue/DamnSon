@@ -101,10 +101,10 @@ export function rectsOverlap(a: ScreenRect, b: ScreenRect, margin = 0): boolean 
 }
 
 export const SAFE_INSETS = {
-  left: 24,
-  right: 24,
-  top: 88,
-  bottom: 110,
+  left: 16,
+  right: 16,
+  top: 56,
+  bottom: 52,
 };
 
 export const CANDIDATE_Y_OFFSETS = [-64, -128, -192, 64, 128];

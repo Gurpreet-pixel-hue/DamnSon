@@ -116,3 +116,42 @@ export function sanitizeShareState(
     completed: sanitizedCompleted,
   };
 }
+
+/**
+ * Canonical comparison of two share states (P4).
+ * Sorts facts keys and clones completed ids before sorting (never mutates input arrays).
+ */
+export function areShareStatesEqual(a: ShareState, b: ShareState): boolean {
+  if (a.taskId !== b.taskId) return false;
+
+  const aKeys = Object.keys(a.facts).sort();
+  const bKeys = Object.keys(b.facts).sort();
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (let i = 0; i < aKeys.length; i++) {
+    const k = aKeys[i]!;
+    if (k !== bKeys[i]) return false;
+    if (a.facts[k as FactKey] !== b.facts[k as FactKey]) return false;
+  }
+
+  // Sorted copy of completed IDs (no mutation)
+  const aCompleted = [...a.completed].sort();
+  const bCompleted = [...b.completed].sort();
+  if (aCompleted.length !== bCompleted.length) return false;
+
+  for (let i = 0; i < aCompleted.length; i++) {
+    if (aCompleted[i] !== bCompleted[i]) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Checks if a local state has no progress (no facts and no completed steps) (P3 & P4).
+ */
+export function isLocalStateEmpty(state: { facts?: Facts; completed?: string[] }): boolean {
+  const factKeys = state.facts ? Object.keys(state.facts) : [];
+  const completedCount = state.completed?.length ?? 0;
+  return factKeys.length === 0 && completedCount === 0;
+}
+

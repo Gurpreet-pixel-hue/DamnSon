@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "ip-trademark",
+  "version": 1,
+  "title": "Trademark registration",
+  "summary": "File a trademark application (Form TM-A) with IP India; after examination it is published in the Trade Marks Journal, where third parties may oppose within 4 months.",
+  "authority": {
+    "slug": "ipindia",
+    "name": "Office of the Controller General of Patents, Designs and Trade Marks (IP India)",
+    "tier": "central",
+    "officialUrl": "https://ipindia.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "tm-process",
+      "url": "https://ipindia.gov.in/trade-marks-learn-filing-process-step-by-step",
+      "title": "Filing Process (Step-by-Step)",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "ipindia"
+    },
+    {
+      "id": "tm-workflow",
+      "url": "https://ipindia.gov.in/trademark-application-workflow",
+      "title": "Trademark Application Workflow",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "ipindia"
+    },
+    {
+      "id": "tm-fees",
+      "url": "https://ipindia.gov.in/pages/trade-marks/learn/forms-and-official-fees",
+      "title": "Forms & Official Fees",
+      "kind": "fee_schedule",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "ipindia"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "file",
+      "title": "File the trademark application (TM-A)",
+      "description": "Search existing marks, pick the class(es), file Form TM-A online and pay the fee; then track examination, reply to objections and attend a hearing if scheduled.",
+      "requirement": {
+        "kind": "mandatory"
+      },
+      "authoritySlug": "ipindia",
+      "department": "Trade Marks Registry (IP India)",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [
+        {
+          "name": "Application for registration of a trademark",
+          "code": "TM-A"
+        }
+      ],
+      "documents": [
+        {
+          "documentTypeId": "trademark-representation",
+          "name": "Trademark representation (word or logo) and description of goods/services"
+        },
+        {
+          "documentTypeId": "user-affidavit",
+          "name": "User affidavit (if applicable)"
+        },
+        {
+          "documentTypeId": "power-of-attorney",
+          "name": "Power of Attorney (if applicable)"
+        }
+      ],
+      "outputs": [],
+      "fee": {
+        "kind": "range",
+        "minINR": 4500,
+        "maxINR": 9000,
+        "recurrence": "one_time",
+        "sourceRef": "tm-fees",
+        "note": "E-filing, per class and per mark: ₹4,500 for an individual, startup or small enterprise; ₹9,000 in all other cases (physical filing ₹5,000 / ₹10,000)."
+      },
+      "timeline": {
+        "officialSla": {
+          "kind": "unknown",
+          "note": "IP India states no total processing time."
+        },
+        "conditional": [
+          {
+            "condition": "After publication in the Trade Marks Journal, third parties may oppose within 4 months",
+            "duration": {
+              "kind": "open_ended",
+              "note": "4-month opposition window; opposition proceedings have no fixed end."
+            },
+            "sourceRef": "tm-process"
+          }
+        ]
+      },
+      "sourceIds": [
+        "tm-process",
+        "tm-workflow",
+        "tm-fees"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-28",
+        "note": "Checked 2026-09-28, IP India Forms & Official Fees: \"Individual / Startup/Small Enterprise 5,000 4,500\" (physical / e-filing); filing process: \"Third parties may oppose within 4 months\"."
+      }
+    },
+    {
+      "kind": "milestone",
+      "id": "registered",
+      "title": "Trademark registered",
+      "description": "Registration after acceptance, publication and any opposition proceedings.",
+      "requirement": {
+        "kind": "mandatory"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-file-registered",
+      "from": "file",
+      "to": "registered",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": [
+    "file"
+  ],
+  "exitSteps": [
+    "registered"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-28T12:00:00+05:30"
+  }
+}

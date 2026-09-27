@@ -3,14 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { analyzeTemplate } from "@/lib/contract/analyze";
 import type { PublishedJourneyResponse, TemplateSummary } from "@/lib/contract/api";
-import { composeJourney, type ComposedActionStep, type ComposedStep } from "@/lib/contract/compose";
 import {
   approvalModuleSchema,
   journeyTemplateSchema,
   type ApprovalModule,
   type JourneyTemplate,
 } from "@/lib/contract/schema";
-import { searchTemplates } from "./search";
+import { applyListFilters, toSummary } from "./summary";
 import type { JourneyRepository } from "./types";
 
 export interface FileJourneyRepositoryOptions {
@@ -28,7 +27,6 @@ interface Journey {
 }
 
 const moduleKey = (moduleId: string, version: number): string => `${moduleId}@${version}`;
-const isActionStep = (step: ComposedStep): step is ComposedActionStep => step.kind !== "milestone";
 
 function jsonFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -50,25 +48,6 @@ function readJson(file: string): unknown | undefined {
     console.error(`journeys: ${path.basename(file)} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
-}
-
-/** Counts come from the maximal composition, so a summary describes the whole procedure, not one citizen's path. */
-function toSummary(journey: Journey): TemplateSummary {
-  const { template, modules } = journey;
-  const actionSteps = composeJourney(template, modules, {}, { maximal: true }).steps.filter(isActionStep);
-  const { state, city } = template.jurisdiction;
-  return {
-    taskId: template.taskId,
-    revision: template.revision,
-    title: template.title,
-    summary: template.summary,
-    category: template.category,
-    jurisdiction: city === undefined ? { state } : { state, city },
-    keywords: [...template.keywords],
-    questionFacts: template.questions.map((question) => question.fact),
-    stepCount: actionSteps.length,
-    verifiedStepCount: actionSteps.filter((step) => step.review.status === "verified").length,
-  };
 }
 
 /**
@@ -157,20 +136,8 @@ export function createFileJourneyRepository(options: FileJourneyRepositoryOption
 
   return {
     listTemplates(opts): Promise<TemplateSummary[]> {
-      const { journeys } = load();
-      let summaries = journeys.map(toSummary);
-
-      const city = opts?.city?.trim().toLowerCase();
-      if (city !== undefined && city.length > 0) {
-        summaries = summaries.filter((s) => s.jurisdiction.city?.toLowerCase() === city);
-      }
-
-      const q = opts?.q?.trim();
-      if (q !== undefined && q.length > 0) return Promise.resolve(searchTemplates(summaries, q));
-
-      return Promise.resolve(
-        summaries.sort((a, b) => a.title.localeCompare(b.title) || a.taskId.localeCompare(b.taskId)),
-      );
+      const summaries = load().journeys.map((journey) => toSummary(journey.template, journey.modules));
+      return Promise.resolve(applyListFilters(summaries, opts));
     },
 
     getPublishedJourney(taskId): Promise<PublishedJourneyResponse | null> {

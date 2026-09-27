@@ -28,3 +28,9 @@
 {"id": "q28", "locale": "en", "query": "Bombay mein cloud kitchen kholna hai, khana deliver karenge", "expectedTaskId": "start-business-mumbai", "expectedFacts": {"business.serves_food": true}}
 {"id": "q29", "locale": "en", "query": "Mumbai mein startup shuru kiya hai, 20 employees hain, kya registrations chahiye?", "expectedTaskId": "start-business-mumbai", "expectedFacts": {"employees.count": 20}}
 {"id": "q30", "locale": "en", "query": "Mumbai mein company banani hai aur DPIIT recognition bhi chahiye", "expectedTaskId": "start-business-mumbai", "expectedFacts": {"intent.dpiit": true}}
+{"id": "q31", "locale": "en", "query": "How do I get a new water connection for my building in Mumbai?", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
+{"id": "q32", "locale": "en", "query": "Apply for a BMC water connection for a commercial shop", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
+{"id": "q33", "locale": "hi", "query": "मुंबई में नए पानी कनेक्शन के लिए कैसे आवेदन करें?", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
+{"id": "q34", "locale": "hi", "query": "BMC से नया पानी का कनेक्शन कैसे मिलेगा?", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
+{"id": "q35", "locale": "mr", "query": "मुंबईत नवीन पाणी जोडणी कशी मिळवायची?", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
+{"id": "q36", "locale": "mr", "query": "आमच्या इमारतीसाठी BMC कडून पाणी जोडणी हवी आहे", "expectedTaskId": "new-water-connection-mumbai", "expectedFacts": {}}
