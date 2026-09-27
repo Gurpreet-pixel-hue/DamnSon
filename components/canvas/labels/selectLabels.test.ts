@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
+import { selectLabels } from "./selectLabels";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 
 function makeDummyStation(

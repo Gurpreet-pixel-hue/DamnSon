@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useLayoutEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { PALETTE } from "./palette";
@@ -232,7 +232,7 @@ export function Board({ plan }: BoardProps) {
   );
 
   // Update shadow camera bounds whenever board bounds change
-  useMemo(() => {
+  useLayoutEffect(() => {
     if (shadowLightRef.current) {
       const cam = shadowLightRef.current.shadow.camera;
       const halfW = bounds.width / 2 + 5;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -74,7 +74,9 @@ function DebugCollector() {
       scene.traverse((obj) => {
         if (
           obj.visible &&
-          (obj instanceof THREE.Mesh || obj instanceof THREE.Line || (obj as any).isBatchedMesh)
+          (obj instanceof THREE.Mesh ||
+            obj instanceof THREE.Line ||
+            Boolean((obj as unknown as { isBatchedMesh?: boolean }).isBatchedMesh))
         ) {
           count++;
         }
@@ -110,7 +112,6 @@ export function MetroScene({
   selectionRef,
   onDprChange,
 }: MetroSceneProps) {
-  const { scene, gl } = useThree();
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
 
   // Performance degradation stages:
@@ -123,13 +124,6 @@ export function MetroScene({
 
   // Hook keyboard navigation
   useSceneKeyboard(metro);
-
-  // Configure renderer tone mapping and fog per visual-direction §5
-  useEffect(() => {
-    gl.toneMapping = THREE.NeutralToneMapping;
-    gl.toneMappingExposure = 1.0;
-    scene.fog = new THREE.Fog(PALETTE.sky, 60, 160);
-  }, [gl, scene]);
 
   // Compute deterministic city plan
   const plan = useMemo(() => {
@@ -176,6 +170,7 @@ export function MetroScene({
 
   return (
     <>
+      <fog attach="fog" args={[PALETTE.sky, 60, 160]} />
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
       {isDebug && <DebugCollector />}
 

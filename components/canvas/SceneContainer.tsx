@@ -86,6 +86,8 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
           preserveDrawingBuffer: isDebug,
         }}
         onCreated={({ gl }) => {
+          gl.toneMapping = THREE.NeutralToneMapping;
+          gl.toneMappingExposure = 1.0;
           if (isDebug) {
             gl.info.autoReset = false;
           }

@@ -7,12 +7,9 @@
  */
 
 import {
-  CITY_KINDS,
   LOW_BUILDINGS,
   MID_BUILDINGS,
   TALL_BUILDINGS,
-  TREES,
-  PROPS,
   type CityKindInfo,
 } from "./cityKinds";
 
@@ -404,7 +401,6 @@ export function planCity(options: PlanCityOptions): CityPlan {
   const MAX_TREES = 180;
 
   // A. Palms along the promenade road (every second cell)
-  const promRow = Math.max(0, Math.min(rows - 1, Math.floor((promenadeZ - bounds.minZ) / cellSize)));
   for (let c = 0; c < cols && trees.length < MAX_TREES; c += 2) {
     const px = bounds.minX + (c + 0.5) * cellSize;
     const pz = promenadeZ + 1.0; // Place on pavement facing water

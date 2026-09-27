@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeTrackCurves, type TrackCurveData } from "./Tracks";
-import { PALETTE } from "./palette";
 
 interface PulsesProps {
   metro: MetroVM;
