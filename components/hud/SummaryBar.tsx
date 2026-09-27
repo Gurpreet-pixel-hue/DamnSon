@@ -162,7 +162,7 @@ export function deriveSummaryValues(
     visitsTile = { value: val, fullText: val };
   } else {
     const val = `${trips.length} ${trips.length === 1 ? "visit" : "visits"}`;
-    const offices = new Set(trips.map((t) => t.officeName ?? t.department)).size;
+    const offices = new Set(trips.map((t) => t.name)).size;
     const sub = `across ${offices} ${offices === 1 ? "office" : "offices"}`;
     visitsTile = {
       value: val,

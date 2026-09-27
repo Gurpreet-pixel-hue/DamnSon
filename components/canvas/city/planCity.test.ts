@@ -404,7 +404,6 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
       const stations: StationLocation[] = metro.stations.map((s) => ({
         id: s.id,
         position3D: s.position3D,
-        height: s.height,
       }));
       const tracks: TrackLocation[] = metro.tracks.map((t) => ({
         id: t.id,
@@ -447,7 +446,7 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
       const metro = fromJourney(composeResult.journey, new Set());
       const plan = planCity({
         taskId: bundle.template.taskId,
-        stations: metro.stations.map((s) => ({ id: s.id, position3D: s.position3D, height: s.height })),
+        stations: metro.stations.map((s) => ({ id: s.id, position3D: s.position3D })),
         tracks: metro.tracks.map((t) => ({ id: t.id, from: t.from, to: t.to })),
       });
 

@@ -378,6 +378,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
     distSq: number;
     dist: number;
     minStationCellDist: number;
+    minNetworkCellDist: number;
     nearestStation: StationLocation | null;
     tieBreaker: number;
   }

@@ -82,6 +82,10 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         feesText: "Free",
         timeText: "Immediate",
         officeVisitsText: "No office visits",
+        nextUpTile: { value: "Loading...", fullText: "Loading..." },
+        feesTile: { value: "Free", fullText: "Free" },
+        timeTile: { value: "Immediate", fullText: "Immediate" },
+        visitsTile: { value: "No office visits", fullText: "No office visits" },
       };
     }
     return deriveSummaryValues(journey, completed);
