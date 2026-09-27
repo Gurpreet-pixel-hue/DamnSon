@@ -7,7 +7,7 @@ import shutil
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 ART_OUT = os.path.join(PROJECT_ROOT, "art", "out")
 REVIEW_DIR = os.path.join(PROJECT_ROOT, "art", "out", "review")
-ARTIFACTS_DIR = "/Users/shridhartawate/.gemini/antigravity/brain/36d77528-1f30-4659-bc8a-479ce47b7084"
+EXTRA_DIR = os.environ.get("REVIEW_EXTRA_DIR")
 os.makedirs(ART_OUT, exist_ok=True)
 os.makedirs(REVIEW_DIR, exist_ok=True)
 
@@ -167,8 +167,8 @@ def render_contact_sheet(pack_name, folder_path):
 
     review_path = os.path.join(REVIEW_DIR, f"contact-{pack_name}.png")
     shutil.copyfile(out_path, review_path)
-    if os.path.exists(ARTIFACTS_DIR):
-        artifact_path = os.path.join(ARTIFACTS_DIR, f"contact-{pack_name}.png")
+    if EXTRA_DIR and os.path.exists(EXTRA_DIR):
+        artifact_path = os.path.join(EXTRA_DIR, f"contact-{pack_name}.png")
         shutil.copyfile(out_path, artifact_path)
     print(f"✓ Saved {out_path} and copied to {review_path}")
 

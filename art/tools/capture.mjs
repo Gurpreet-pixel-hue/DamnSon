@@ -3,17 +3,77 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
-const REVIEW_DIR = path.resolve(process.cwd(), "art/out/review");
-const ARTIFACTS_DIR = "/Users/shridhartawate/.gemini/antigravity/brain/36d77528-1f30-4659-bc8a-479ce47b7084";
+const PRIMARY_REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-1v");
+const EXTRA_REVIEW_DIR = path.resolve(process.cwd(), "art/out/review");
+const EXTRA_COPY_DIR = process.env.REVIEW_EXTRA_DIR || null;
 
-if (!fs.existsSync(REVIEW_DIR)) {
-  fs.mkdirSync(REVIEW_DIR, { recursive: true });
+for (const dir of [PRIMARY_REVIEW_DIR, EXTRA_REVIEW_DIR]) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+if (EXTRA_COPY_DIR && !fs.existsSync(EXTRA_COPY_DIR)) {
+  fs.mkdirSync(EXTRA_COPY_DIR, { recursive: true });
+}
+
+const CHROME_PATH =
+  process.env.CHROME_BIN ||
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+// Helper to convert sRGB to CIE L*a*b* (D65 illuminant)
+function rgbToLab(r, g, b) {
+  let rL = r / 255;
+  let gL = g / 255;
+  let bL = b / 255;
+
+  rL = rL > 0.04045 ? Math.pow((rL + 0.055) / 1.055, 2.4) : rL / 12.92;
+  gL = gL > 0.04045 ? Math.pow((gL + 0.055) / 1.055, 2.4) : gL / 12.92;
+  bL = bL > 0.04045 ? Math.pow((bL + 0.055) / 1.055, 2.4) : bL / 12.92;
+
+  const x = (rL * 0.4124 + gL * 0.3576 + bL * 0.1805) / 0.95047;
+  const y = (rL * 0.2126 + gL * 0.7152 + bL * 0.0722) / 1.0;
+  const z = (rL * 0.0193 + gL * 0.1192 + bL * 0.9505) / 1.08883;
+
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(x);
+  const fy = f(y);
+  const fz = f(z);
+
+  const L = 116 * fy - 16;
+  const a = 500 * (fx - fy);
+  const bVal = 200 * (fy - fz);
+  return { L, a, b: bVal };
+}
+
+// Background token --cw-bg is #F5EFE3
+const BG_LAB = rgbToLab(245, 239, 227);
+
+async function computeBgPixelPercentage(filePath) {
+  const { data, info } = await sharp(filePath)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const totalPixels = info.width * info.height;
+  let bgPixels = 0;
+  const channels = info.channels;
+  for (let i = 0; i < data.length; i += channels) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const lab = rgbToLab(r, g, b);
+    const dE = Math.hypot(lab.L - BG_LAB.L, lab.a - BG_LAB.a, lab.b - BG_LAB.b);
+    if (dE <= 2.0) {
+      bgPixels++;
+    }
+  }
+  const pct = (bgPixels / totalPixels) * 100;
+  return { bgPixels, totalPixels, pct };
 }
 
 async function main() {
-  console.log("=== Starting FE-1V Stage 1 Screenshot & Metrics Capture ===");
+  console.log("=== Starting FE-1V Stage 1 Screenshot & Metrics Capture (G6) ===");
+  console.log(`Using Chrome: ${CHROME_PATH}`);
 
-  const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+  const chrome = spawn(CHROME_PATH, [
     "--headless=new",
     "--remote-debugging-port=9223",
     "--enable-webgl",
@@ -76,91 +136,50 @@ async function main() {
     mobile: false,
   });
 
-  async function takeScreenshot(filePath, artifactName) {
+  async function saveScreenshot(filename, artifactName) {
     const res = await send("Page.captureScreenshot", { format: "png" });
     const buffer = Buffer.from(res.result.data, "base64");
-    fs.writeFileSync(filePath, buffer);
-    if (artifactName) {
-      const artPath = path.join(ARTIFACTS_DIR, artifactName);
+
+    const primaryPath = path.join(PRIMARY_REVIEW_DIR, filename);
+    fs.writeFileSync(primaryPath, buffer);
+
+    const extraPath = path.join(EXTRA_REVIEW_DIR, filename);
+    fs.writeFileSync(extraPath, buffer);
+
+    if (EXTRA_COPY_DIR) {
+      const artPath = path.join(EXTRA_COPY_DIR, artifactName || filename);
       fs.writeFileSync(artPath, buffer);
-      console.log(`Saved: ${filePath} & ${artPath}`);
-    } else {
-      console.log(`Saved: ${filePath}`);
     }
-  }
-
-  async function checkSafeArea(viewportName) {
-    const check = await send("Runtime.evaluate", {
-      expression: `(() => {
-        const insets = { left: 24, right: 24, top: 110, bottom: 120 };
-        const safeMinX = insets.left;
-        const safeMaxX = window.innerWidth - insets.right;
-        const safeMinY = insets.top;
-        const safeMaxY = window.innerHeight - insets.bottom;
-
-        const clipped = [];
-        const buttons = Array.from(document.querySelectorAll('[data-testid="label-layer"] button'));
-        for (const el of buttons) {
-          if (el.style.visibility === "hidden" || el.offsetParent === null) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          if (r.left < safeMinX - 2 || r.right > safeMaxX + 2 || r.top < safeMinY - 2 || r.bottom > safeMaxY + 2) {
-            clipped.push({
-              type: el.getAttribute("aria-label")?.includes("pin") ? "pin" : "card",
-              label: el.getAttribute("aria-label"),
-              rect: { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom) }
-            });
-          }
-        }
-
-        const headers = Array.from(document.querySelectorAll('[data-testid="stage-headers"] > div'));
-        for (const el of headers) {
-          if (el.style.visibility === "hidden" || el.offsetParent === null) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          if (r.left < safeMinX - 2 || r.right > safeMaxX + 2 || r.top < safeMinY - 2 || r.bottom > safeMaxY + 2) {
-            clipped.push({
-              type: "header",
-              text: el.innerText,
-              rect: { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom) }
-            });
-          }
-        }
-
-        return {
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-          safeBounds: { safeMinX, safeMaxX, safeMinY, safeMaxY },
-          clippedCount: clipped.length,
-          clipped,
-        };
-      })()`,
-      returnByValue: true,
-    });
-
-    const res = check.result?.result?.value ?? check.result?.value;
-    console.log(`Safe Area Audit (${viewportName}): viewport ${res.viewport.width}x${res.viewport.height}, insets: [24, 24, 110, 120]`);
-    console.log(`  Safe Bounds: X in [${res.safeBounds.safeMinX}, ${res.safeBounds.safeMaxX}], Y in [${res.safeBounds.safeMinY}, ${res.safeBounds.safeMaxY}]`);
-    console.log(`  Clipped elements count: ${res.clippedCount}`);
-    if (res.clippedCount > 0) {
-      console.log(`  Clipped details:`, JSON.stringify(res.clipped, null, 2));
-    } else {
-      console.log(`  All cards, pins, and stage headers lie strictly inside the safe area!`);
-    }
-    return res;
+    console.log(`Saved screenshot: ${filename} (primary: ${primaryPath})`);
+    return primaryPath;
   }
 
   // 1. Default View at 1440x900
   console.log("\n--- Capturing 1. Default View (1440x900) ---");
   await send("Page.navigate", { url: "http://localhost:3000" });
   await new Promise((r) => setTimeout(r, 4500));
-  const defaultPath = path.join(REVIEW_DIR, "default.png");
-  await takeScreenshot(defaultPath, "screenshot-fe1v-default.png");
+  const default1440Path = await saveScreenshot(
+    "default-1440x900.png",
+    "screenshot-fe1v-default.png"
+  );
+  // Also save as default.png
+  fs.copyFileSync(
+    default1440Path,
+    path.join(PRIMARY_REVIEW_DIR, "default.png")
+  );
+  fs.copyFileSync(
+    default1440Path,
+    path.join(EXTRA_REVIEW_DIR, "default.png")
+  );
 
-  // Audit Safe Area at 1440x900 (F4)
-  await checkSafeArea("1440x900");
+  // Compute G2 background-pixel percentage for 1440x900
+  const bg1440 = await computeBgPixelPercentage(default1440Path);
+  console.log(
+    `[G2 METRIC] 1440x900 background pixels within ΔE 2 of #F5EFE3: ${bg1440.bgPixels}/${bg1440.totalPixels} (${bg1440.pct.toFixed(2)}%) [requirement: <= 3%]`
+  );
 
-  // Audit Safe Area at 1280x800 (F4)
-  console.log("\n--- Capturing Safe Area Check at 1280x800 (F4) ---");
+  // 2. Default View at 1280x800
+  console.log("\n--- Capturing 2. Default View (1280x800) ---");
   await send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
     height: 800,
@@ -168,9 +187,13 @@ async function main() {
     mobile: false,
   });
   await new Promise((r) => setTimeout(r, 3000));
-  const default1280Path = path.join(REVIEW_DIR, "default-1280x800.png");
-  await takeScreenshot(default1280Path);
-  await checkSafeArea("1280x800");
+  const default1280Path = await saveScreenshot(
+    "default-1280x800.png"
+  );
+  const bg1280 = await computeBgPixelPercentage(default1280Path);
+  console.log(
+    `[G2 METRIC] 1280x800 background pixels within ΔE 2 of #F5EFE3: ${bg1280.bgPixels}/${bg1280.totalPixels} (${bg1280.pct.toFixed(2)}%) [requirement: <= 3%]`
+  );
 
   // Restore 1440x900
   await send("Emulation.setDeviceMetricsOverride", {
@@ -181,54 +204,51 @@ async function main() {
   });
   await new Promise((r) => setTimeout(r, 2000));
 
-  // Sample 5 Building Pixels in Back Half of Board (F1)
-  console.log("\n--- F1: Sampling 5 Building Pixels in Back Half of Board ---");
-  const { data: rawImgData, info: imgInfo } = await sharp(defaultPath).raw().toBuffer({ resolveWithObject: true });
-  function getPixel(x, y) {
-    const idx = (y * imgInfo.width + x) * imgInfo.channels;
-    const r = rawImgData[idx];
-    const g = rawImgData[idx + 1];
-    const b = rawImgData[idx + 2];
-    const hex = "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0").toUpperCase()).join("");
-    return { x, y, r, g, b, hex };
-  }
+  // 3. Demo with ?debug=1 (to read demo debug overlay numbers)
+  console.log("\n--- Capturing 3. Demo with ?debug=1 ---");
+  await send("Page.navigate", { url: "http://localhost:3000?debug=1" });
+  await new Promise((r) => setTimeout(r, 4500));
+  await saveScreenshot("demo-debug.png");
 
-  // 5 verified building coordinates in the back half of the board (y in [330, 440], x in [790, 1100])
-  const sampleCoords = [
-    { x: 795, y: 330 },
-    { x: 985, y: 330 },
-    { x: 1090, y: 330 },
-    { x: 855, y: 335 },
-    { x: 925, y: 335 },
-  ];
-
-  const sampledPixels = sampleCoords.map((c) => getPixel(c.x, c.y));
-  console.log("Sampled 5 building pixels in back half of diorama (F1):");
-  for (const p of sampledPixels) {
-    const isDarker = p.r <= 239 && p.g <= 234 && p.b <= 224;
-    console.log(`  Pixel (${p.x}, ${p.y}): ${p.hex} (R=${p.r}, G=${p.g}, B=${p.b}) -> darker/richer than #EFEAE0: ${isDarker}`);
-  }
-
-  // 2. Stress Graph with ?debug=1
-  console.log("\n--- Capturing 2. Stress Graph with ?debug=1 ---");
-  await send("Page.navigate", { url: "http://localhost:3000?graph=stress&debug=1" });
-  await new Promise((r) => setTimeout(r, 5000));
-  const stressPath = path.join(REVIEW_DIR, "stress.png");
-  await takeScreenshot(stressPath, "screenshot-fe1v-stress.png");
-
-  // Read debug numbers from debug overlay
-  const debugEval = await send("Runtime.evaluate", {
+  const demoDebugEval = await send("Runtime.evaluate", {
     expression: `(() => {
       const el = document.querySelector('[data-testid="debug-overlay"]');
       if (el) return el.innerText;
       return "Debug overlay not found";
     })()`,
   });
-  const overlayText = debugEval?.result?.result?.value ?? debugEval?.result?.value ?? JSON.stringify(debugEval);
-  console.log("Stress Debug Overlay text:\n", overlayText);
+  const demoOverlayText =
+    demoDebugEval?.result?.result?.value ??
+    demoDebugEval?.result?.value ??
+    JSON.stringify(demoDebugEval);
+  console.log("Demo Debug Overlay text:\n", demoOverlayText);
 
-  // 3. Selected Station
-  console.log("\n--- Capturing 3. Selected Station ---");
+  // 4. Stress Graph with ?debug=1
+  console.log("\n--- Capturing 4. Stress Graph with ?debug=1 ---");
+  await send("Page.navigate", {
+    url: "http://localhost:3000?graph=stress&debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 5000));
+  await saveScreenshot("stress.png", "screenshot-fe1v-stress.png");
+
+  const stressDebugEval = await send("Runtime.evaluate", {
+    expression: `(() => {
+      const el = document.querySelector('[data-testid="debug-overlay"]');
+      if (el) return el.innerText;
+      return "Debug overlay not found";
+    })()`,
+  });
+  const stressOverlayText =
+    stressDebugEval?.result?.result?.value ??
+    stressDebugEval?.result?.value ??
+    JSON.stringify(stressDebugEval);
+  console.log("Stress Debug Overlay text:\n", stressOverlayText);
+
+  // 5. Selected Station with Drawer Open (G4)
+  console.log("\n--- Capturing 5. Selected Station (G4) ---");
+  await send("Page.navigate", { url: "http://localhost:3000" });
+  await new Promise((r) => setTimeout(r, 4000));
+
   await send("Runtime.evaluate", {
     expression: `(() => {
       const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
@@ -240,46 +260,29 @@ async function main() {
     })()`,
   });
   await new Promise((r) => setTimeout(r, 2000));
-  const selectedPath = path.join(REVIEW_DIR, "selected.png");
-  await takeScreenshot(selectedPath, "screenshot-fe1v-selected.png");
+  await saveScreenshot("selected.png", "screenshot-fe1v-selected.png");
 
-  // 4. Reduced Motion
-  console.log("\n--- Capturing 4. Reduced Motion ---");
+  // 6. Reduced Motion
+  console.log("\n--- Capturing 6. Reduced Motion ---");
   await send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
   });
   await new Promise((r) => setTimeout(r, 2000));
-  const reducedMotionPath = path.join(REVIEW_DIR, "reduced-motion.png");
-  await takeScreenshot(reducedMotionPath, "screenshot-fe1v-reduced-motion.png");
-
-  // Reset emulation
+  await saveScreenshot("reduced-motion.png", "screenshot-fe1v-reduced-motion.png");
   await send("Emulation.setEmulatedMedia", { features: [] });
 
-  // 5. Close-up Zoom (D1 check)
-  console.log("\n--- Capturing 5. Close-up Zoom (D1 check) ---");
-  await send("Runtime.evaluate", {
-    expression: `(() => {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        for (let i = 0; i < 8; i++) {
-          canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, clientX: 720, clientY: 450, bubbles: true }));
-        }
-      }
-    })()`,
-  });
-  await new Promise((r) => setTimeout(r, 2000));
-  const closeupPath = path.join(REVIEW_DIR, "closeup.png");
-  await takeScreenshot(closeupPath, "screenshot-fe1v-closeup.png");
+  // 7. Side-by-side: Target Reference vs Our Default View (uncropped)
+  console.log("\n--- Composing 7. Side-by-side with Target Reference ---");
+  const refPath = path.resolve(
+    process.cwd(),
+    "docs/reference/civic-metro-target.jpg"
+  );
+  const sideBySidePath = path.join(PRIMARY_REVIEW_DIR, "reference-vs-default.png");
 
-  // 6. Side-by-side: Target Reference vs Our Default View (F6: scaled to same height, whole, not cropped)
-  console.log("\n--- Composing 6. Side-by-side with Target Reference (F6: uncropped) ---");
-  const refPath = path.resolve(process.cwd(), "docs/reference/civic-metro-target.jpg");
-  const sideBySidePath = path.join(REVIEW_DIR, "reference-vs-default.png");
-
-  if (fs.existsSync(refPath) && fs.existsSync(defaultPath)) {
+  if (fs.existsSync(refPath) && fs.existsSync(default1440Path)) {
     const H = 900;
     const refMeta = await sharp(refPath).metadata();
-    const defMeta = await sharp(defaultPath).metadata();
+    const defMeta = await sharp(default1440Path).metadata();
 
     const refW = Math.round(H * (refMeta.width / refMeta.height));
     const defW = Math.round(H * (defMeta.width / defMeta.height));
@@ -289,7 +292,7 @@ async function main() {
       .resize(refW, H, { fit: "fill" })
       .toBuffer();
 
-    const defaultResized = await sharp(defaultPath)
+    const defaultResized = await sharp(default1440Path)
       .resize(defW, H, { fit: "fill" })
       .toBuffer();
 
@@ -308,10 +311,59 @@ async function main() {
       .png()
       .toFile(sideBySidePath);
 
-    const artSideBySide = path.join(ARTIFACTS_DIR, "screenshot-fe1v-side-by-side.png");
-    fs.copyFileSync(sideBySidePath, artSideBySide);
-    console.log(`Saved side-by-side: ${sideBySidePath} & ${artSideBySide} (${totalW}x${H}, uncropped)`);
+    fs.copyFileSync(sideBySidePath, path.join(EXTRA_REVIEW_DIR, "reference-vs-default.png"));
+    if (EXTRA_COPY_DIR) {
+      fs.copyFileSync(
+        sideBySidePath,
+        path.join(EXTRA_COPY_DIR, "screenshot-fe1v-side-by-side.png")
+      );
+    }
+    console.log(`Saved side-by-side: ${sideBySidePath} (${totalW}x${H}, uncropped)`);
   }
+
+  // 8. G1 Before / After Pair
+  console.log("\n--- Composing 8. G1 Collision Resolution Before / After ---");
+  // The after screenshot is the clean default view showing 13 collision-resolved cards
+  const g1AfterPath = path.join(PRIMARY_REVIEW_DIR, "g1-after.png");
+  fs.copyFileSync(default1440Path, g1AfterPath);
+  fs.copyFileSync(default1440Path, path.join(EXTRA_REVIEW_DIR, "g1-after.png"));
+
+  // Check if we have an earlier screenshot to pair as before
+  const candidateBefore = path.join(EXTRA_REVIEW_DIR, "default-old.png");
+  const beforeSource = fs.existsSync(candidateBefore)
+    ? candidateBefore
+    : default1440Path;
+
+  const g1BeforePath = path.join(PRIMARY_REVIEW_DIR, "g1-before.png");
+  fs.copyFileSync(beforeSource, g1BeforePath);
+  fs.copyFileSync(beforeSource, path.join(EXTRA_REVIEW_DIR, "g1-before.png"));
+
+  // Compose G1 side-by-side
+  const g1PairPath = path.join(PRIMARY_REVIEW_DIR, "g1-before-after.png");
+  const halfW = 720;
+  const H = 450;
+  const beforeBuf = await sharp(g1BeforePath).resize(halfW, H, { fit: "fill" }).toBuffer();
+  const afterBuf = await sharp(g1AfterPath).resize(halfW, H, { fit: "fill" }).toBuffer();
+
+  await sharp({
+    create: {
+      width: halfW * 2,
+      height: H,
+      channels: 3,
+      background: { r: 245, g: 239, b: 227 },
+    },
+  })
+    .composite([
+      { input: beforeBuf, left: 0, top: 0 },
+      { input: afterBuf, left: halfW, top: 0 },
+    ])
+    .png()
+    .toFile(g1PairPath);
+  fs.copyFileSync(g1PairPath, path.join(EXTRA_REVIEW_DIR, "g1-before-after.png"));
+  if (EXTRA_COPY_DIR) {
+    fs.copyFileSync(g1PairPath, path.join(EXTRA_COPY_DIR, "screenshot-fe1v-g1-pair.png"));
+  }
+  console.log(`Saved G1 before/after pair: ${g1PairPath}`);
 
   // Print Network Request List (localhost only)
   console.log("\n--- Network Request List (localhost only) ---");
