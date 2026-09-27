@@ -41,7 +41,8 @@ def search_chunks(
                 rows = cur.fetchall()
                 for row in rows:
                     results.append(row)
-    except Exception:
+    except Exception as e:
+        print(f"Database error during search: {e}")
         # If DB fails or is uninitialized, we just return empty
         # We don't crash, we just fallback to not_found/degraded later
         pass
