@@ -79,7 +79,7 @@ export function StageHeaderProjector({
         continue;
       }
 
-      scratchVec.set(h.x, 0.4, h.z);
+      scratchVec.set(h.x, 0.57, h.z);
 
       scratchCamToHeader.subVectors(scratchVec, scratchCamPos);
       if (scratchCamToHeader.dot(scratchCamForward) <= 0) {

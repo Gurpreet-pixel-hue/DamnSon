@@ -40,6 +40,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         )
       );
     }
+    // E7: station bounds plus 3 units of margin
+    box.expandByScalar(3);
     return box;
   }, [metro.stations]);
 

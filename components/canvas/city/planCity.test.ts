@@ -74,6 +74,79 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     }
   });
 
+  it("ensures every prop-boat cell is a water cell (E4)", () => {
+    const plan = planCity({
+      taskId: "boats-water-check",
+      stations: dummyStations,
+      tracks: dummyTracks,
+    });
+
+    const boatProps = plan.props.filter((p) => p.kind.includes("boat"));
+    expect(boatProps.length).toBeGreaterThan(0);
+
+    const { cells, cellSize } = plan.cellGrid;
+    for (const boat of boatProps) {
+      const c = Math.floor((boat.position[0] - plan.bounds.minX) / cellSize);
+      const r = Math.floor((boat.position[2] - plan.bounds.minZ) / cellSize);
+      expect(cells[r]?.[c], `Boat at [${boat.position[0]}, ${boat.position[2]}] must be on water cell`).toBe("water");
+      expect(boat.position[1], "Boat must float at y = 0.02 water level").toBe(0.02);
+    }
+  });
+
+  it("ensures every building sits inside a 3x3 block and never on a street, plaza or road (E5)", () => {
+    const plan = planCity({
+      taskId: "block-placement-check",
+      stations: dummyStations,
+      tracks: dummyTracks,
+    });
+
+    const { cells, cellSize } = plan.cellGrid;
+    for (const b of plan.buildings) {
+      const c = Math.floor((b.position[0] - plan.bounds.minX) / cellSize);
+      const r = Math.floor((b.position[2] - plan.bounds.minZ) / cellSize);
+
+      // Must be inside block: r % 4 !== 0 and c % 4 !== 0
+      expect(r % 4, `Building cell row ${r} must not be on street row`).not.toBe(0);
+      expect(c % 4, `Building cell col ${c} must not be on street col`).not.toBe(0);
+
+      const cellType = cells[r]?.[c];
+      expect(cellType, `Building cell must be 'building'`).toBe("building");
+    }
+  });
+
+  it("ensures no two adjacent cells have the same building variant (E5)", () => {
+    const plan = planCity({
+      taskId: "no-adjacent-duplicates-check",
+      stations: dummyStations,
+      tracks: dummyTracks,
+    });
+
+    const { rows, cols, cellSize } = plan.cellGrid;
+    const grid: (string | null)[][] = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => null)
+    );
+
+    for (const b of plan.buildings) {
+      const c = Math.floor((b.position[0] - plan.bounds.minX) / cellSize);
+      const r = Math.floor((b.position[2] - plan.bounds.minZ) / cellSize);
+      grid[r]![c] = b.kind;
+    }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const current = grid[r]![c];
+        if (!current) continue;
+
+        if (r > 0 && grid[r - 1]?.[c]) {
+          expect(grid[r - 1]![c], `Building at [${r}, ${c}] must not duplicate adjacent north [${r - 1}, ${c}]`).not.toBe(current);
+        }
+        if (c > 0 && grid[r]?.[c - 1]) {
+          expect(grid[r]![c - 1], `Building at [${r}, ${c}] must not duplicate adjacent west [${r}, ${c - 1}]`).not.toBe(current);
+        }
+      }
+    }
+  });
+
   it("enforces maximum caps on buildings, trees, and props", () => {
     const plan = planCity({
       taskId: "caps-check",

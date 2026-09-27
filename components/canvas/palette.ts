@@ -24,7 +24,7 @@ export const PALETTE = {
   // Scene-only colours from docs/visual-direction.md §2:
   seaDeep: "#4E97AE",
   seaShallow: "#8CC3D1",
-  land: "#EADFC8",
+  land: "#E6DFD2",
   park: "#B7CF95",
   road: "#D6CCBA",
   roadEdge: "#C4B8A2",
@@ -38,7 +38,7 @@ export const PALETTE = {
   trackNormal: "#9AA3AD",
 
   // Aliases for legacy scene components
-  ground: "#EADFC8",
+  ground: "#E6DFD2",
   stationBase: "#F2EBDD",
   normalTrack: "#9AA3AD",
 } as const;

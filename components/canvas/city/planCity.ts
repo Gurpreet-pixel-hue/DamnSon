@@ -9,7 +9,7 @@
 import {
   LOW_BUILDINGS,
   MID_BUILDINGS,
-  TALL_BUILDINGS,
+  LOW_DETAIL_BUILDINGS,
   type CityKindInfo,
 } from "./cityKinds";
 
@@ -223,6 +223,24 @@ export function planCity(options: PlanCityOptions): CityPlan {
     to: [bounds.maxX, promenadeZ],
   });
 
+  // Add street grid lines across land (every 4th row and col per E5)
+  for (let r = 0; r < rows; r += 4) {
+    const sz = bounds.minZ + (r + 0.5) * cellSize;
+    if (sz <= promenadeZ) {
+      roadSegments.push({
+        from: [bounds.minX, sz],
+        to: [bounds.maxX, sz],
+      });
+    }
+  }
+  for (let c = 0; c < cols; c += 4) {
+    const sx = bounds.minX + (c + 0.5) * cellSize;
+    roadSegments.push({
+      from: [sx, bounds.minZ],
+      to: [sx, promenadeZ],
+    });
+  }
+
   // 2. Classify Grid Cells
   // Cells array: cells[r][c]
   const cells: CellType[][] = Array.from({ length: rows }, () =>
@@ -273,6 +291,11 @@ export function planCity(options: PlanCityOptions): CityPlan {
         }
       }
 
+      // E5: Streets: every 4th cell row and column (x and z) is a street cell
+      if (r % 4 === 0 || c % 4 === 0) {
+        isRoad = true;
+      }
+
       if (isRoad) {
         cells[r]![c] = "road";
         continue;
@@ -282,9 +305,9 @@ export function planCity(options: PlanCityOptions): CityPlan {
     }
   }
 
-  // 3. Park clusters: seeded clusters, about 8% of free cells
-  const parkTargetCount = Math.floor(freeCellIndices.length * 0.08);
-  const numClusters = Math.max(1, Math.min(5, Math.floor(parkTargetCount / 4)));
+  // 3. Parks: about 12% of block cells per E5
+  const parkTargetCount = Math.floor(freeCellIndices.length * 0.12);
+  const numClusters = Math.max(1, Math.min(6, Math.floor(parkTargetCount / 4)));
   const parkClusterCenters: Array<{ x: number; z: number; radiusSq: number }> = [];
 
   for (let i = 0; i < numClusters; i++) {
@@ -310,10 +333,25 @@ export function planCity(options: PlanCityOptions): CityPlan {
       }
     }
   }
+  if (parkCount < parkTargetCount) {
+    for (const item of freeCellIndices) {
+      if (parkCount >= parkTargetCount) break;
+      if (cells[item.r]![item.c] !== "park") {
+        cells[item.r]![item.c] = "park";
+        parkCount++;
+      }
+    }
+  }
 
   // 4. Place Buildings
+  // E5: Buildings fill 3x3 blocks between streets.
+  // Density: low-rise 2-6 units from stations; mid-rise 6-14; tall beyond 14 ONLY in back third.
+  // No adjacent duplicates; rotation in 90 deg steps; height Y=0.17 above board basin.
   const buildings: PlacedInstance[] = [];
   const MAX_BUILDINGS = 260;
+  const placedVariantGrid: (string | null)[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => null)
+  );
 
   for (let r = 0; r < rows && buildings.length < MAX_BUILDINGS; r++) {
     for (let c = 0; c < cols && buildings.length < MAX_BUILDINGS; c++) {
@@ -330,66 +368,50 @@ export function planCity(options: PlanCityOptions): CityPlan {
       }
       const dist = Math.sqrt(minDistSq);
 
+      const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
+      const distToCameraTarget = Math.hypot(
+        cx - bounds.centerX,
+        cz - (bounds.minZ + bounds.depth * 0.4)
+      );
+
       let candidatePool: readonly CityKindInfo[];
-      if (dist < 5.0) {
+      if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
+        // E6: anything more than 20 units from camera target uses low-detail buildings
+        candidatePool = LOW_DETAIL_BUILDINGS;
+      } else if (dist <= 6.0) {
         candidatePool = LOW_BUILDINGS;
-      } else if (dist <= 12.0) {
+      } else if (dist <= 14.0) {
         candidatePool = MID_BUILDINGS;
+      } else if (isBackThird) {
+        // E6: tall tier uses low-detail buildings
+        candidatePool = LOW_DETAIL_BUILDINGS;
       } else {
-        candidatePool = TALL_BUILDINGS;
+        candidatePool = MID_BUILDINGS;
       }
 
       if (candidatePool.length === 0) continue;
 
-      const variant = candidatePool[Math.floor(rand() * candidatePool.length)]!;
+      // E5: Never adjacent duplicates
+      const adjacentVariants = new Set<string>();
+      if (r > 0 && placedVariantGrid[r - 1]?.[c]) adjacentVariants.add(placedVariantGrid[r - 1]![c]!);
+      if (r + 1 < rows && placedVariantGrid[r + 1]?.[c]) adjacentVariants.add(placedVariantGrid[r + 1]![c]!);
+      if (c > 0 && placedVariantGrid[r]?.[c - 1]) adjacentVariants.add(placedVariantGrid[r]![c - 1]!);
+      if (c + 1 < cols && placedVariantGrid[r]?.[c + 1]) adjacentVariants.add(placedVariantGrid[r]![c + 1]!);
 
-      // Amendment D3: Check 2x2 vs 1x1 footprint
-      if (variant.footprint === "2x2") {
-        // Must check that all 4 cells are building cells and free
-        const canPlace2x2 =
-          r + 1 < rows &&
-          c + 1 < cols &&
-          cells[r]![c] === "building" &&
-          cells[r]![c + 1] === "building" &&
-          cells[r + 1]![c] === "building" &&
-          cells[r + 1]![c + 1] === "building" &&
-          !occupied[r]![c] &&
-          !occupied[r]![c + 1] &&
-          !occupied[r + 1]![c] &&
-          !occupied[r + 1]![c + 1];
+      let pool: readonly CityKindInfo[] = candidatePool.filter((b) => !adjacentVariants.has(b.name));
+      if (pool.length === 0) pool = candidatePool;
 
-        if (canPlace2x2) {
-          occupied[r]![c] = true;
-          occupied[r]![c + 1] = true;
-          occupied[r + 1]![c] = true;
-          occupied[r + 1]![c + 1] = true;
+      const variant = pool[Math.floor(rand() * pool.length)]!;
 
-          const posX = bounds.minX + (c + 1.0) * cellSize;
-          const posZ = bounds.minZ + (r + 1.0) * cellSize;
-          const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
-          const sJitter = 0.9 + rand() * 0.2;
-
-          buildings.push({
-            kind: variant.name,
-            position: [posX, 0, posZ],
-            rotationY: rotY,
-            scale: [sJitter, sJitter, sJitter],
-          });
-          continue;
-        }
-      }
-
-      // 1x1 placement (or fallback if 2x2 failed)
       occupied[r]![c] = true;
-      const fallback1x1 =
-        candidatePool.find((b) => b.footprint === "1x1") || candidatePool[0]!;
+      placedVariantGrid[r]![c] = variant.name;
 
       const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
       const sJitter = 0.9 + rand() * 0.2;
 
       buildings.push({
-        kind: fallback1x1.name,
-        position: [cx, 0, cz],
+        kind: variant.name,
+        position: [cx, 0.17, cz],
         rotationY: rotY,
         scale: [sJitter, sJitter, sJitter],
       });
@@ -403,7 +425,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
   // A. Palms along the promenade road (every second cell)
   for (let c = 0; c < cols && trees.length < MAX_TREES; c += 2) {
     const px = bounds.minX + (c + 0.5) * cellSize;
-    const pz = promenadeZ + 1.0; // Place on pavement facing water
+    const pz = promenadeZ - 0.5; // On pavement edge along shore
     const palmVariants = ["tree-palm-tall", "tree-palm-bend", "tree-palm-short"];
     const kind = palmVariants[Math.floor(rand() * palmVariants.length)]!;
     const rotY = rand() * Math.PI * 2;
@@ -411,7 +433,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
     trees.push({
       kind,
-      position: [px, 0, pz],
+      position: [px, 0.17, pz],
       rotationY: rotY,
       scale: [sJitter, sJitter, sJitter],
     });
@@ -430,7 +452,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
         trees.push({
           kind,
-          position: [px, 0, pz],
+          position: [px, 0.17, pz],
           rotationY: rotY,
           scale: [sJitter, sJitter, sJitter],
         });
@@ -443,17 +465,31 @@ export function planCity(options: PlanCityOptions): CityPlan {
   const MAX_PROPS = 40;
 
   // A. Boats in the water band (z > promenadeZ)
+  // E4: Boats sit on water only. Every prop-boat cell is a water cell.
+  const waterCellList: Array<{ r: number; c: number; cx: number; cz: number }> = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (cells[r]![c] === "water") {
+        const cx = bounds.minX + (c + 0.5) * cellSize;
+        const cz = bounds.minZ + (r + 0.5) * cellSize;
+        if (cz > promenadeZ + 1.5 && cx > bounds.minX + 3 && cx < bounds.maxX - 3) {
+          waterCellList.push({ r, c, cx, cz });
+        }
+      }
+    }
+  }
+
   const numBoats = 3 + Math.floor(rand() * 3);
-  for (let i = 0; i < numBoats && props.length < MAX_PROPS; i++) {
-    const bx = bounds.minX + 4 + rand() * (bounds.width - 8);
-    const bz = promenadeZ + 2.5 + rand() * 6.0;
+  for (let i = 0; i < numBoats && waterCellList.length > 0 && props.length < MAX_PROPS; i++) {
+    const chosenIdx = Math.floor(rand() * waterCellList.length);
+    const chosenCell = waterCellList.splice(chosenIdx, 1)[0]!;
     const boatKinds = ["prop-boat-small", "prop-boat-large"];
     const kind = boatKinds[Math.floor(rand() * boatKinds.length)]!;
     const rotY = (rand() - 0.5) * 0.8;
 
     props.push({
       kind,
-      position: [bx, -0.05, bz],
+      position: [chosenCell.cx, 0.02, chosenCell.cz],
       rotationY: rotY,
       scale: [1, 1, 1],
     });
@@ -468,7 +504,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
     props.push({
       kind,
-      position: [lx, 0, lz],
+      position: [lx, 0.17, lz],
       rotationY: 0,
       scale: [0.8, 0.8, 0.8],
     });
@@ -477,11 +513,11 @@ export function planCity(options: PlanCityOptions): CityPlan {
   // C. Barriers along roads
   for (let c = 3; c < cols && props.length < MAX_PROPS; c += 6) {
     const bx = bounds.minX + (c + 0.5) * cellSize;
-    const bz = promenadeZ + 0.8;
+    const bz = promenadeZ - 0.2;
 
     props.push({
       kind: "prop-barrier",
-      position: [bx, 0, bz],
+      position: [bx, 0.17, bz],
       rotationY: Math.PI / 2,
       scale: [0.9, 0.9, 0.9],
     });

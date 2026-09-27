@@ -22,7 +22,8 @@ import { PALETTE } from "./palette";
 export interface SceneDebugMetrics {
   sceneDraws: number;
   frameCalls: number;
-  triangles: number;
+  sceneTris: number;
+  frameTris: number;
   fps: number;
 }
 
@@ -30,7 +31,8 @@ export interface SceneDebugMetrics {
 export let currentDebugMetrics: SceneDebugMetrics = {
   sceneDraws: 0,
   frameCalls: 0,
-  triangles: 0,
+  sceneTris: 0,
+  frameTris: 0,
   fps: 60,
 };
 
@@ -40,6 +42,55 @@ export function subscribeDebugMetrics(cb: (m: SceneDebugMetrics) => void): () =>
   return () => listeners.delete(cb);
 }
 
+function countSceneMetrics(root: THREE.Object3D): { draws: number; tris: number } {
+  let draws = 0;
+  let tris = 0;
+
+  function traverseVisible(obj: THREE.Object3D) {
+    if (!obj.visible) return;
+
+    const bm = obj as unknown as THREE.BatchedMesh;
+    if (Boolean(bm.isBatchedMesh) && typeof bm.instanceCount === "number") {
+      draws++;
+      const count = bm.instanceCount;
+      for (let i = 0; i < count; i++) {
+        if (typeof bm.getVisibleAt === "function" && !bm.getVisibleAt(i)) continue;
+        const gId = typeof bm.getGeometryIdAt === "function" ? bm.getGeometryIdAt(i) : -1;
+        if (gId >= 0 && typeof bm.getGeometryRangeAt === "function") {
+          const range = bm.getGeometryRangeAt(gId);
+          if (range) {
+            const count = range.indexCount > 0 ? range.indexCount : range.vertexCount;
+            tris += Math.floor(count / 3);
+          }
+        }
+      }
+    } else if (obj instanceof THREE.InstancedMesh) {
+      draws++;
+      const geom = obj.geometry;
+      if (geom) {
+        const count = geom.index ? geom.index.count : (geom.attributes.position ? geom.attributes.position.count : 0);
+        tris += Math.floor((count / 3) * obj.count);
+      }
+    } else if (obj instanceof THREE.Mesh) {
+      draws++;
+      const geom = obj.geometry;
+      if (geom) {
+        const count = geom.index ? geom.index.count : (geom.attributes.position ? geom.attributes.position.count : 0);
+        tris += Math.floor(count / 3);
+      }
+    } else if (obj instanceof THREE.Line) {
+      draws++;
+    }
+
+    for (const child of obj.children) {
+      traverseVisible(child);
+    }
+  }
+
+  traverseVisible(root);
+  return { draws, tris };
+}
+
 function DebugCollector() {
   const { scene } = useThree();
   const lastTraverseRef = useRef(0);
@@ -47,6 +98,7 @@ function DebugCollector() {
   const lastFpsTimeRef = useRef(0);
   const fpsRef = useRef(60);
   const sceneDrawsRef = useRef(0);
+  const sceneTrisRef = useRef(0);
   const lastCallsRef = useRef(0);
   const lastTrianglesRef = useRef(0);
 
@@ -75,27 +127,19 @@ function DebugCollector() {
       lastFpsTimeRef.current = time;
     }
 
-    // 3. Count scene draws (immediately on first frame, then every 0.5s)
+    // 3. Count scene draws and scene tris (immediately on first frame, then every 0.5s)
     if (sceneDrawsRef.current === 0 || time - lastTraverseRef.current >= 0.5) {
-      let count = 0;
-      scene.traverse((obj) => {
-        if (
-          obj.visible &&
-          (obj instanceof THREE.Mesh ||
-            obj instanceof THREE.Line ||
-            Boolean((obj as unknown as { isBatchedMesh?: boolean }).isBatchedMesh))
-        ) {
-          count++;
-        }
-      });
-      sceneDrawsRef.current = count;
+      const { draws, tris } = countSceneMetrics(scene);
+      sceneDrawsRef.current = draws;
+      sceneTrisRef.current = tris;
       lastTraverseRef.current = time;
 
       // Broadcast metrics
       currentDebugMetrics = {
         sceneDraws: sceneDrawsRef.current,
         frameCalls: lastCallsRef.current,
-        triangles: lastTrianglesRef.current,
+        sceneTris: sceneTrisRef.current,
+        frameTris: lastTrianglesRef.current,
         fps: fpsRef.current,
       };
       listeners.forEach((cb) => cb(currentDebugMetrics));

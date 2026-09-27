@@ -3,10 +3,9 @@ import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 export const MAX_LABEL_SLOTS = 32;
 
 /**
- * Selects stations to display labels for per visual-direction §4:
- * - If stations <= 16: all of them.
- * - If stations > 16: prioritized list of [hovered, focused, selected, next-up, last done].
- *   (Greedy collision culling by that priority order is performed during screen projection in LabelProjector).
+ * Selects and orders stations to display labels for per visual-direction §4 & E7:
+ * Priority order: selected > focused > hovered > next-up > done-last > the rest.
+ * (Greedy collision culling by that priority order is performed during screen projection in LabelProjector).
  */
 export function selectLabels(
   metro: MetroVM,
@@ -22,9 +21,13 @@ export function selectLabels(
   );
   const selectedIds = new Set<string>();
 
-  // 1. Hovered station (highest priority)
-  if (hoveredStepId && stationMap.has(hoveredStepId)) {
-    selectedIds.add(hoveredStepId);
+  // 1. Selected station (highest priority)
+  if (
+    selectedStepId &&
+    stationMap.has(selectedStepId) &&
+    selectedIds.size < maxSlots
+  ) {
+    selectedIds.add(selectedStepId);
   }
 
   // 2. Focused station (second priority)
@@ -36,13 +39,13 @@ export function selectLabels(
     selectedIds.add(focusedStepId);
   }
 
-  // 3. Selected station (third priority)
+  // 3. Hovered station (third priority)
   if (
-    selectedStepId &&
-    stationMap.has(selectedStepId) &&
+    hoveredStepId &&
+    stationMap.has(hoveredStepId) &&
     selectedIds.size < maxSlots
   ) {
-    selectedIds.add(selectedStepId);
+    selectedIds.add(hoveredStepId);
   }
 
   // 4. Next-up stations (state === 'available' and applicability !== 'optional')
@@ -64,12 +67,10 @@ export function selectLabels(
     }
   }
 
-  // 6. If total stations <= 16, include all remaining stations
-  if (metro.stations.length <= 16) {
-    for (const station of metro.stations) {
-      if (selectedIds.size >= maxSlots) break;
-      selectedIds.add(station.id);
-    }
+  // 6. The rest (all remaining stations)
+  for (const station of metro.stations) {
+    if (selectedIds.size >= maxSlots) break;
+    selectedIds.add(station.id);
   }
 
   const result: StationVM[] = [];

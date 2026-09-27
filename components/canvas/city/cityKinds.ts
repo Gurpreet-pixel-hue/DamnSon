@@ -18,6 +18,86 @@ export interface CityKindInfo {
 
 export const CITY_KINDS: readonly CityKindInfo[] = [
   {
+    "name": "suburban-a",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.3,
+    "height": 0.83,
+    "depth": 1.03
+  },
+  {
+    "name": "suburban-b",
+    "tier": "low",
+    "footprint": "2x2",
+    "width": 1.83,
+    "height": 1.14,
+    "depth": 1.14
+  },
+  {
+    "name": "suburban-c",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.29,
+    "height": 1.03,
+    "depth": 1.03
+  },
+  {
+    "name": "suburban-d",
+    "tier": "low",
+    "footprint": "2x2",
+    "width": 1.76,
+    "height": 1.24,
+    "depth": 1.03
+  },
+  {
+    "name": "suburban-e",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.3,
+    "height": 1.14,
+    "depth": 1.03
+  },
+  {
+    "name": "suburban-f",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.43,
+    "height": 1.14,
+    "depth": 1.41
+  },
+  {
+    "name": "suburban-g",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.45,
+    "height": 0.77,
+    "depth": 1.18
+  },
+  {
+    "name": "suburban-h",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.3,
+    "height": 0.74,
+    "depth": 0.92
+  },
+  {
+    "name": "suburban-i",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.29,
+    "height": 0.74,
+    "depth": 1.03
+  },
+  {
+    "name": "suburban-j",
+    "tier": "low",
+    "footprint": "1x1",
+    "width": 1.37,
+    "height": 1.04,
+    "depth": 0.92
+  },
+  {
     "name": "low-commercial-a",
     "tier": "low",
     "footprint": "1x1",
@@ -34,28 +114,20 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "depth": 1.01
   },
   {
-    "name": "low-suburban-a",
+    "name": "low-commercial-c",
     "tier": "low",
     "footprint": "1x1",
-    "width": 1.3,
-    "height": 0.83,
-    "depth": 1.03
+    "width": 0.88,
+    "height": 1.29,
+    "depth": 0.94
   },
   {
-    "name": "low-suburban-b",
+    "name": "low-commercial-d",
     "tier": "low",
     "footprint": "1x1",
-    "width": 1.29,
-    "height": 1.03,
-    "depth": 1.03
-  },
-  {
-    "name": "low-suburban-c",
-    "tier": "low",
-    "footprint": "1x1",
-    "width": 1.45,
-    "height": 0.77,
-    "depth": 1.18
+    "width": 0.97,
+    "height": 1.29,
+    "depth": 0.94
   },
   {
     "name": "low-industrial-a",
@@ -66,8 +138,16 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "depth": 1.28
   },
   {
-    "name": "mid-commercial-a",
+    "name": "low-industrial-b",
     "tier": "low",
+    "footprint": "2x2",
+    "width": 2.48,
+    "height": 1.39,
+    "depth": 1.27
+  },
+  {
+    "name": "mid-commercial-a",
+    "tier": "mid",
     "footprint": "1x1",
     "width": 0.84,
     "height": 1.29,
@@ -75,7 +155,7 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
   },
   {
     "name": "mid-commercial-b",
-    "tier": "low",
+    "tier": "mid",
     "footprint": "1x1",
     "width": 0.84,
     "height": 1.69,
@@ -83,15 +163,39 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
   },
   {
     "name": "mid-commercial-c",
-    "tier": "low",
+    "tier": "mid",
     "footprint": "1x1",
     "width": 0.88,
     "height": 1.29,
     "depth": 1.01
   },
   {
+    "name": "mid-commercial-d",
+    "tier": "mid",
+    "footprint": "1x1",
+    "width": 1.24,
+    "height": 1.68,
+    "depth": 1.3
+  },
+  {
+    "name": "mid-commercial-e",
+    "tier": "mid",
+    "footprint": "2x2",
+    "width": 2.08,
+    "height": 1.69,
+    "depth": 1.34
+  },
+  {
+    "name": "mid-commercial-f",
+    "tier": "mid",
+    "footprint": "2x2",
+    "width": 2.08,
+    "height": 1.47,
+    "depth": 0.94
+  },
+  {
     "name": "mid-industrial-a",
-    "tier": "low",
+    "tier": "mid",
     "footprint": "2x2",
     "width": 1.88,
     "height": 1.25,
@@ -99,7 +203,7 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
   },
   {
     "name": "mid-industrial-b",
-    "tier": "low",
+    "tier": "mid",
     "footprint": "1x1",
     "width": 1.68,
     "height": 1.65,
@@ -107,31 +211,135 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
   },
   {
     "name": "mid-industrial-c",
-    "tier": "low",
+    "tier": "mid",
     "footprint": "1x1",
     "width": 1.32,
     "height": 1.52,
     "depth": 1.7
   },
   {
-    "name": "tall-commercial-a",
-    "tier": "low",
-    "footprint": "1x1",
-    "width": 1.37,
-    "height": 2.27,
-    "depth": 1.4
-  },
-  {
-    "name": "tall-commercial-b",
+    "name": "mid-industrial-d",
     "tier": "mid",
     "footprint": "1x1",
-    "width": 1.24,
-    "height": 3.15,
-    "depth": 1.24
+    "width": 0.98,
+    "height": 1.9,
+    "depth": 1.42
+  },
+  {
+    "name": "low-detail-a",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-b",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2.23,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-c",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2.25,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-d",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.75,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-e",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.8,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-f",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-g",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-h",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 2.1,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-i",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.77,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-j",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.75,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-k",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.55,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-l",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.85,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-m",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 1.98,
+    "depth": 0.5
+  },
+  {
+    "name": "low-detail-n",
+    "tier": "tall",
+    "footprint": "1x1",
+    "width": 0.5,
+    "height": 0.7,
+    "depth": 0.5
   },
   {
     "name": "tall-skyscraper-a",
-    "tier": "mid",
+    "tier": "tall",
     "footprint": "1x1",
     "width": 1.36,
     "height": 2.88,
@@ -152,14 +360,6 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "width": 1.28,
     "height": 4.08,
     "depth": 1.39
-  },
-  {
-    "name": "tall-skyscraper-e",
-    "tier": "tall",
-    "footprint": "1x1",
-    "width": 1.29,
-    "height": 4.08,
-    "depth": 1.24
   },
   {
     "name": "tree-palm-tall",
@@ -278,5 +478,6 @@ export function getCityKind(name: string): CityKindInfo | undefined {
 export const LOW_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "low");
 export const MID_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "mid");
 export const TALL_BUILDINGS = CITY_KINDS.filter((k) => k.tier === "tall");
+export const LOW_DETAIL_BUILDINGS = CITY_KINDS.filter((k) => k.name.startsWith("low-detail-"));
 export const TREES = CITY_KINDS.filter((k) => k.tier === "tree");
 export const PROPS = CITY_KINDS.filter((k) => k.tier === "prop");

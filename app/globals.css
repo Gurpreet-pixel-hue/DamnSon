@@ -64,6 +64,7 @@
   --cw-attention: #D97706;
   --cw-critical: #D92D20;
   --cw-error: #B42318;
+  --cw-land: #E6DFD2;
 
   /* shadcn mappings onto Civic Metro tokens */
   --background: var(--cw-background);

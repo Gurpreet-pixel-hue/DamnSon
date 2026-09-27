@@ -58,36 +58,57 @@ export function Board({ plan }: BoardProps) {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
-  // 1. Diorama Slab Geometry (Extruded rounded box, 0.6 thick)
-  const slabGeometry = useMemo(() => {
+  // 1. Diorama Land Slab Geometry (covers land only, top at y = 0.17)
+  const landSlabGeometry = useMemo(() => {
     const shape = new THREE.Shape();
     const x0 = bounds.minX;
     const x1 = bounds.maxX;
     const z0 = bounds.minZ;
-    const z1 = bounds.maxZ;
+    const z1 = promenadeZ;
     const radius = 2.5;
 
-    // Build rounded rectangle on the XZ plane (using shape in 2D, extruded along -Y)
     shape.moveTo(x0 + radius, z0);
     shape.lineTo(x1 - radius, z0);
     shape.quadraticCurveTo(x1, z0, x1, z0 + radius);
-    shape.lineTo(x1, z1 - radius);
-    shape.quadraticCurveTo(x1, z1, x1 - radius, z1);
-    shape.lineTo(x0 + radius, z1);
-    shape.quadraticCurveTo(x0, z1, x0, z1 - radius);
+    shape.lineTo(x1, z1);
+    shape.lineTo(x0, z1);
     shape.lineTo(x0, z0 + radius);
     shape.quadraticCurveTo(x0, z0, x0 + radius, z0);
 
     const geom = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.6,
+      depth: 0.77,
       bevelEnabled: false,
     });
-
-    // Rotate so extrusion is downward in Y: shape is in XY, rotate to XZ
     geom.rotateX(Math.PI / 2);
-    geom.translate(0, 0, 0); // top at y = 0, bottom at y = -0.6
+    geom.translate(0, 0.17, 0); // Land top at y = 0.17
     return geom;
-  }, [bounds]);
+  }, [bounds, promenadeZ]);
+
+  // 1b. Sea Basin Slab Geometry (floor at y = 0.00, down to -0.60)
+  const basinSlabGeometry = useMemo(() => {
+    const shape = new THREE.Shape();
+    const x0 = bounds.minX;
+    const x1 = bounds.maxX;
+    const z0 = promenadeZ;
+    const z1 = bounds.maxZ;
+    const radius = 2.5;
+
+    shape.moveTo(x0, z0);
+    shape.lineTo(x1, z0);
+    shape.lineTo(x1, z1 - radius);
+    shape.quadraticCurveTo(x1, z1, x1 - radius, z1);
+    shape.lineTo(x0 + radius, z1);
+    shape.quadraticCurveTo(x0, z1, x0, z1 - radius);
+    shape.lineTo(x0, z0);
+
+    const geom = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.60,
+      bevelEnabled: false,
+    });
+    geom.rotateX(Math.PI / 2);
+    geom.translate(0, 0.00, 0);
+    return geom;
+  }, [bounds, promenadeZ]);
 
   // Slab materials: land top, slabSide edges
   const slabMaterials = useMemo(() => {
@@ -103,6 +124,16 @@ export function Board({ plan }: BoardProps) {
     });
     return [topMat, sideMat];
   }, []);
+
+  const basinMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: PALETTE.slabSide,
+        roughness: 0.95,
+        metalness: 0.05,
+      }),
+    []
+  );
 
   // 2. Water Plane Material & Geometry
   const waterGeometry = useMemo(() => {
@@ -177,9 +208,9 @@ export function Board({ plan }: BoardProps) {
       idxArr.push(o, o + 1, o + 2, o, o + 2, o + 3);
     }
 
-    // A. Track roads (width 1.1) and kerbs (width 0.1 on both sides)
+    // A. Track roads (width 1.1) and kerbs (width 0.1 on both sides) at y = 0.172
     for (const seg of roadSegments) {
-      addRibbonSegment(seg.from, seg.to, 1.1, 0.02, roadPositions, roadNormals, roadIndices);
+      addRibbonSegment(seg.from, seg.to, 1.1, 0.172, roadPositions, roadNormals, roadIndices);
 
       // Kerb left
       const dx = seg.to[0] - seg.from[0];
@@ -190,11 +221,11 @@ export function Board({ plan }: BoardProps) {
         const nz = (dx / len);
         const leftP1: [number, number] = [seg.from[0] - nx * 0.58, seg.from[1] - nz * 0.58];
         const leftP2: [number, number] = [seg.to[0] - nx * 0.58, seg.to[1] - nz * 0.58];
-        addRibbonSegment(leftP1, leftP2, 0.1, 0.025, kerbPositions, kerbNormals, kerbIndices);
+        addRibbonSegment(leftP1, leftP2, 0.1, 0.175, kerbPositions, kerbNormals, kerbIndices);
 
         const rightP1: [number, number] = [seg.from[0] + nx * 0.58, seg.from[1] + nz * 0.58];
         const rightP2: [number, number] = [seg.to[0] + nx * 0.58, seg.to[1] + nz * 0.58];
-        addRibbonSegment(rightP1, rightP2, 0.1, 0.025, kerbPositions, kerbNormals, kerbIndices);
+        addRibbonSegment(rightP1, rightP2, 0.1, 0.175, kerbPositions, kerbNormals, kerbIndices);
       }
     }
 
@@ -267,15 +298,23 @@ export function Board({ plan }: BoardProps) {
         shadow-camera-far={120}
       />
 
-      {/* Diorama Slab (0.6 thick) */}
+      {/* Land Slab (covers land only, top at y = 0.17, 0.15 bank drops along promenadeZ) */}
       <mesh
-        geometry={slabGeometry}
+        geometry={landSlabGeometry}
         material={slabMaterials}
         receiveShadow
         castShadow
       />
 
-      {/* Coastal Water */}
+      {/* Sea Basin Slab (floor at y = 0.00) */}
+      <mesh
+        geometry={basinSlabGeometry}
+        material={basinMaterial}
+        receiveShadow
+        castShadow
+      />
+
+      {/* Coastal Water (water surface at y = 0.02) */}
       <mesh
         ref={(el) => {
           if (el) waterMaterialRef.current = el.material as THREE.ShaderMaterial;
@@ -284,7 +323,7 @@ export function Board({ plan }: BoardProps) {
         material={waterMaterial}
         position={[
           bounds.centerX,
-          -0.03,
+          0.02,
           (promenadeZ + bounds.maxZ) / 2,
         ]}
       />

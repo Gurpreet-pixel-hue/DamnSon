@@ -24,6 +24,7 @@ describe("palette tokens consistency with app/globals.css", () => {
       "--cw-attention": "attention",
       "--cw-critical": "critical",
       "--cw-error": "error",
+      "--cw-land": "land",
     };
 
     for (const [cssVar, paletteKey] of Object.entries(tokenMapping)) {
@@ -46,7 +47,7 @@ describe("palette tokens consistency with app/globals.css", () => {
   it("verifies scene-only colors exist in PALETTE", () => {
     expect(PALETTE.seaDeep).toBe("#4E97AE");
     expect(PALETTE.seaShallow).toBe("#8CC3D1");
-    expect(PALETTE.land).toBe("#EADFC8");
+    expect(PALETTE.land).toBe("#E6DFD2");
     expect(PALETTE.park).toBe("#B7CF95");
     expect(PALETTE.road).toBe("#D6CCBA");
     expect(PALETTE.roadEdge).toBe("#C4B8A2");

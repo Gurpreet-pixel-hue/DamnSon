@@ -30,7 +30,7 @@ function makeDummyMetro(stations: StationVM[]): MetroVM {
 }
 
 describe("selectLabels", () => {
-  it("prioritizes hovered first, then focused, then next-up available mandatory stations", () => {
+  it("prioritizes selected first, then focused, then hovered, then next-up available mandatory stations", () => {
     const stations = [
       makeDummyStation("s1", "locked"),
       makeDummyStation("s2", "available"),
@@ -40,9 +40,9 @@ describe("selectLabels", () => {
     ];
     const metro = makeDummyMetro(stations);
 
-    const labels = selectLabels(metro, "s5", "s1");
-    // s5 (hovered), s1 (focused), then s2, s3, s4 (available next-up)
-    expect(labels.map((s) => s.id)).toEqual(["s5", "s1", "s2", "s3", "s4"]);
+    const labels = selectLabels(metro, "s5", "s1", "s4");
+    // s4 (selected), s1 (focused), s5 (hovered), then s2, s3 (available next-up)
+    expect(labels.map((s) => s.id)).toEqual(["s4", "s1", "s5", "s2", "s3"]);
   });
 
   it("shows all stations when count <= 16", () => {
@@ -55,7 +55,7 @@ describe("selectLabels", () => {
     expect(labels).toHaveLength(12);
   });
 
-  it("prioritizes next-up, hovered, focused, selected and last done when count > 16", () => {
+  it("prioritizes selected, focused, hovered, next-up and last done when count > 16", () => {
     const stations = Array.from({ length: 20 }, (_, i) =>
       makeDummyStation(`s${i + 1}`, i === 0 ? "done" : i < 4 ? "available" : "locked")
     );
@@ -64,9 +64,9 @@ describe("selectLabels", () => {
     // Hover s10, focus s12, select s15
     const labels = selectLabels(metro, "s10", "s12", "s15");
     const ids = labels.map((s) => s.id);
-    expect(ids[0]).toBe("s10"); // hovered
+    expect(ids[0]).toBe("s15"); // selected
     expect(ids[1]).toBe("s12"); // focused
-    expect(ids[2]).toBe("s15"); // selected
+    expect(ids[2]).toBe("s10"); // hovered
     expect(ids).toContain("s2"); // next-up available
     expect(ids).toContain("s3"); // next-up available
     expect(ids).toContain("s4"); // next-up available

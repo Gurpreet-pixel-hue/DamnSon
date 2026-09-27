@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { MAX_LABEL_SLOTS } from "./selectLabels";
+import { deriveStageHeaders } from "../StageHeaders";
 
 export interface LabelProjectorProps {
   metro: MetroVM;
@@ -25,6 +26,7 @@ export function LabelProjector({
   selectionRef,
 }: LabelProjectorProps) {
   const { camera, size } = useThree();
+  const headers = useMemo(() => deriveStageHeaders(metro), [metro]);
 
   // Cached matrix elements (16 floats each in Float64Array to preserve exact IEEE-754 precision)
   const cachedWorldMatrix = useRef(new Float64Array(16));
@@ -101,8 +103,25 @@ export function LabelProjector({
     const halfW = size.width / 2;
     const halfH = size.height / 2;
     const count = stations.length;
-    const shouldCull = metro.stations.length > 16;
     const placedBoxes: { minX: number; maxX: number; minY: number; maxY: number }[] = [];
+
+    // Stage headers stay on the board's back-edge row and never overlap cards (cull the card on collision, not the header per E7)
+    for (const h of headers) {
+      scratchVec.set(h.x, 0.57, h.z);
+      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
+      if (scratchCamToStation.dot(scratchCamForward) <= 0) continue;
+
+      scratchVec.project(camera);
+      const hScreenX = scratchVec.x * halfW + halfW;
+      const hScreenY = -scratchVec.y * halfH + halfH;
+
+      placedBoxes.push({
+        minX: hScreenX - 70,
+        maxX: hScreenX + 70,
+        minY: hScreenY - 16,
+        maxY: hScreenY + 16,
+      });
+    }
 
     for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
       const el = slots[i];
@@ -150,32 +169,30 @@ export function LabelProjector({
         continue;
       }
 
-      // Greedy collision culling when station count > 16
-      if (shouldCull) {
-        const box = {
-          minX: screenX - 85,
-          maxX: screenX + 85,
-          minY: screenY - 25,
-          maxY: screenY + 25,
-        };
-        let collides = false;
-        for (const placed of placedBoxes) {
-          if (
-            box.minX < placed.maxX + 6 &&
-            box.maxX > placed.minX - 6 &&
-            box.minY < placed.maxY + 6 &&
-            box.maxY > placed.minY - 6
-          ) {
-            collides = true;
-            break;
-          }
+      // Greedy collision culling always runs (E7: cards up to 260px wide)
+      const box = {
+        minX: screenX - 130,
+        maxX: screenX + 130,
+        minY: screenY - 28,
+        maxY: screenY + 28,
+      };
+      let collides = false;
+      for (const placed of placedBoxes) {
+        if (
+          box.minX < placed.maxX + 6 &&
+          box.maxX > placed.minX - 6 &&
+          box.minY < placed.maxY + 6 &&
+          box.maxY > placed.minY - 6
+        ) {
+          collides = true;
+          break;
         }
-        if (collides) {
-          el.style.visibility = "hidden";
-          continue;
-        }
-        placedBoxes.push(box);
       }
+      if (collides) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+      placedBoxes.push(box);
 
       // Write transform BEFORE setting visibility to visible
       el.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -50%)`;

@@ -207,7 +207,7 @@ export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
               visibility: "hidden", // LabelProjector toggles visibility and transform
               willChange: "transform",
             }}
-            className={`pointer-events-auto absolute left-0 top-0 flex items-center gap-2.5 px-3 py-2 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left focus-visible:outline-none ${
+            className={`pointer-events-auto absolute left-0 top-0 flex items-center gap-2.5 px-3 py-2 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left max-w-[260px] focus-visible:outline-none ${
               isFocused
                 ? "border-[#8A4A0A] ring-2 ring-[#8A4A0A]/30 z-30 scale-105"
                 : isHovered
@@ -217,7 +217,7 @@ export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
           >
             {renderStateIcon(station)}
             <div className="flex flex-col min-w-0 pr-1">
-              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight truncate max-w-[140px]">
+              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight line-clamp-2 break-words">
                 {station.title}
               </span>
               <span className="text-[11px] text-[#697586] leading-tight truncate">

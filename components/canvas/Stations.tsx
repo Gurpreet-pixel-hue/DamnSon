@@ -129,6 +129,7 @@ export function Stations({ stations }: StationsProps) {
 
   // Mesh refs
   const meshRefs = useRef<Map<ArchetypeKey, THREE.InstancedMesh>>(new Map());
+  const padMeshRef = useRef<THREE.InstancedMesh>(null);
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
 
@@ -139,7 +140,22 @@ export function Stations({ stations }: StationsProps) {
     );
   }, [stations]);
 
-  // Geometries for Plaza Rings and Beacons
+  // Geometries for Plaza Pads, Plaza Rings, and Beacons
+  const padGeometry = useMemo(() => {
+    // E9: Plaza pad (plaza colour, radius 1.6, 0.04 high)
+    return new THREE.CylinderGeometry(1.6, 1.6, 0.04, 32);
+  }, []);
+
+  const padMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: PALETTE.plaza,
+        roughness: 0.9,
+        metalness: 0.05,
+      }),
+    []
+  );
+
   const ringGeometry = useMemo(() => {
     // Plaza ring: RingGeometry(1.25, 1.45, 64)
     const geom = new THREE.RingGeometry(1.25, 1.45, 64);
@@ -230,17 +246,17 @@ export function Stations({ stations }: StationsProps) {
           }
         }
 
-        const [x, y, z] = station.position3D;
-        _tempObj.position.set(x, y, z);
+        const [x, , z] = station.position3D;
+        _tempObj.position.set(x, 0.21, z);
         _tempObj.scale.set(1, scaleY, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
         mesh.setMatrixAt(i, _tempObj.matrix);
 
-        // Locked buildings are dimmed with 0.82 grey per visual-direction §3
+        // E9: Locked buildings use a 0.9 multiply, not 0.82
         if (station.state === "locked") {
-          _targetColor.setRGB(0.82, 0.82, 0.82);
+          _targetColor.setRGB(0.9, 0.9, 0.9);
         } else {
           _targetColor.setRGB(1.0, 1.0, 1.0);
         }
@@ -253,7 +269,25 @@ export function Stations({ stations }: StationsProps) {
       }
     }
 
-    // 2. Update status rings (toneMapped=false at 1.4x)
+    // 1b. Update plaza pads (E9: plaza colour, radius 1.6, 0.04 high)
+    const padMesh = padMeshRef.current;
+    if (padMesh && stations.length > 0) {
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (!station) continue;
+
+        const [x, , z] = station.position3D;
+        _tempObj.position.set(x, 0.19, z); // Pad center at 0.19 on y=0.17 land -> top is 0.21
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        padMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      padMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // 2. Update status rings (toneMapped=false at 1.4x, sitting on plaza pad)
     const ringMesh = ringMeshRef.current;
     if (ringMesh && stations.length > 0) {
       for (let i = 0; i < stations.length; i++) {
@@ -261,7 +295,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.03, z);
+        _tempObj.position.set(x, 0.211, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -280,7 +314,7 @@ export function Stations({ stations }: StationsProps) {
       }
     }
 
-    // 3. Update next-up beacons
+    // 3. Update next-up beacons (sitting on plaza pad)
     const beaconMesh = beaconMeshRef.current;
     if (beaconMesh && nextUpStations.length > 0) {
       for (let i = 0; i < nextUpStations.length; i++) {
@@ -288,7 +322,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.03, z);
+        _tempObj.position.set(x, 0.211, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -383,6 +417,15 @@ export function Stations({ stations }: StationsProps) {
         );
       })}
 
+      {/* Instanced Plaza Pads (plaza colour, radius 1.6, 0.04 high per E9) */}
+      {stations.length > 0 && (
+        <instancedMesh
+          ref={padMeshRef}
+          args={[padGeometry, padMaterial, stations.length]}
+          receiveShadow
+        />
+      )}
+
       {/* Instanced Plaza Status Rings */}
       {stations.length > 0 && (
         <instancedMesh
@@ -403,7 +446,11 @@ export function Stations({ stations }: StationsProps) {
       {selectedStation && selectedGeometry && (
         <mesh
           geometry={selectedGeometry}
-          position={selectedStation.position3D}
+          position={[
+            selectedStation.position3D[0],
+            0.21,
+            selectedStation.position3D[2],
+          ]}
           material={atlasMaterial}
         >
           <Outlines thickness={0.03} color={PALETTE.brand} />
