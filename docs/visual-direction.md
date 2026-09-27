@@ -752,3 +752,48 @@ Levers:
   - **Stepper.** Step through every stage and back.
   - **Flicker.** Under reduced motion, orbit the camera 0.5° per frame for 20 frames. Save road close-up crops at three zoom levels for review.
   - **Screenshots:** first view, each stage, whole route, road close-ups, mark done before and after, and the stepper.
+
+### 11.8 Framing and placement fixes (review of PR #27 at ba31e1a, 2026-09-28)
+**Found in the code and in Antigravity's own screenshots** (`first-view.png`, `stage-3.png`):
+- **The camera sits about ten times too far away.** `CameraRig.tsx` passes pixel-sized padding (56, 52, 16, and 396 with the drawer open) to `camera-controls` `fitToBox`, which reads padding as world units. The stage becomes a speck on a fogged, washed-out board.
+- **The camera angle is wrong.** `fitToBox` snaps the camera to the nearest 90° angle, and `rotateTo(-15°, 52°)` then runs after the fit without re-fitting, so the result is off-frame or low horizon views (stage 3).
+  - Proof: with the angle set first and padding of about 1.5 world units, stage 1 of example-startup renders as a readable city view.
+- **The stepper covers the stations it frames.**
+- **Cards overlap** each other and the stage chips. At stage 4 of example-startup, "Apply for registration" covers "File an intimation", and cards sit far from their stations.
+- **Stage chips collide** once more than about 6 stages are in view ("7 · Th…", "8 · In parallel", "11 · Then" stacked).
+- **The road close-up evidence is invalid.** `road-closeup-zoom1/2/3.png` are the same image (323,326 bytes each).
+
+**Framing rules** (these replace the `fitToBox` use in §11.3)
+- **A pure `frameView()` function** in `components/canvas/camera/frameView.ts`.
+  - Inputs: the target box (stage stations, plus 3.2 of height for cards, plus the next chip); azimuth −15° and polar 52°, both fixed; fov; canvas size in px; insets in px.
+  - Insets: top 56; bottom = stepper height + 24; left 24; right 24, or 404 when the drawer is open.
+  - It binary-searches the camera distance until every projected corner of the box lies inside the safe rect, then returns `{ position, target }`.
+  - Distance is clamped to [14, 45] in stage view and [30, 110] in whole-route view.
+- **The rig makes one call:** `controls.setLookAt(...position, ...target, transition)`. No `fitToBox`, and no `rotateTo` after it.
+- **Fog** stays distance-scaled, but land within the framed box never fogs: fog near ≥ distance + box radius.
+- **Tests** (`frameView.test.ts`):
+  - All corners are inside the safe rect with at most 15 % slack on the tight axis.
+  - A single-station stage frames at distance ≤ 30.
+  - The drawer inset moves the target, not the angle.
+
+**Placement rules**
+- **Obstacles.** `layoutStageCards` treats the visible stage chips, the stepper rect and the drawer rect as obstacles.
+- **No overlap.** Cards never overlap each other or an obstacle, measured on rendered rects.
+- **Tethers stay short:** at most 140 px from a card's edge to its station anchor.
+  - When a card can't fit, the stage uses compact cards.
+  - If they still don't fit, "+N more" (§11.2).
+- **Layout timing.** Layout runs only after the camera's `rest` event for that framing. It never runs on a pre-glide camera.
+- **Stage chips:**
+  - In stage view, show only the focused chip and the next stage's chip.
+  - In whole-route view, show all chips with screen-space collision culling (priority: focused, then current, then others). The stepper dots remain the full list.
+- **Empty blocks** (the large pale lots) become small parks: a grass tint plus 2–3 trees from the existing tree batch. Stay inside the §11.6 budgets.
+
+**Evidence rules**
+- **Look at every screenshot before reporting.** A screenshot that shows a defect listed here is a deviation, even if a metric passes.
+- **Close-up images must differ.** The road close-ups are taken at three genuinely different camera distances (report the distance for each). Three identical files are a failed capture.
+- **Capture numbers on example-startup stage 4 (5 stations):**
+  - card–card overlap area (0 px² required);
+  - card–obstacle overlap (0);
+  - maximum tether length (≤ 140 px);
+  - the focused station's anchor inside the safe rect (true).
+
