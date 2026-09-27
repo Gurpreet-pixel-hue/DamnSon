@@ -14,6 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "grant-admin": "tsx scripts/grant-admin.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "art:compose": "node art/compose.mjs",
