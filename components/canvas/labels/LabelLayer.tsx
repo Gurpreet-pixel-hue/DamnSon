@@ -5,7 +5,6 @@ import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { selectLabels, MAX_LABEL_SLOTS } from "./selectLabels";
-import { Badge } from "@/components/ui/badge";
 
 export interface LabelLayerProps {
   metro: MetroVM;
@@ -15,15 +14,136 @@ export interface LabelLayerProps {
 
 const SLOTS = Array.from({ length: MAX_LABEL_SLOTS }, (_, i) => i);
 
+function formatMode(mode: string | null): string {
+  if (!mode) return "";
+  if (mode === "in_person") return "In person";
+  if (mode === "online") return "Online";
+  return mode.replace(/_/g, " ");
+}
+
+function renderStateIcon(station: StationVM) {
+  if (station.kind === "milestone") {
+    return (
+      <div
+        className="w-7 h-7 rounded-full bg-[#FAF5EB] border-2 border-[#8A4A0A] text-[#8A4A0A] flex items-center justify-center shrink-0"
+        aria-hidden="true"
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (station.applicability === "may_apply") {
+    return (
+      <div
+        className="w-7 h-7 rounded-full bg-[#FEF6EE] border border-dashed border-[#B45309] text-[#B45309] flex items-center justify-center shrink-0"
+        aria-hidden="true"
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (station.state === "done") {
+    return (
+      <div
+        className="w-7 h-7 rounded-full bg-[#EAF5EC] border border-[#C2E0C9] text-[#1E7F3B] flex items-center justify-center shrink-0"
+        aria-hidden="true"
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.5 12.75l6 6 9-13.5"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (station.state === "available") {
+    return (
+      <div
+        className="w-7 h-7 rounded-full bg-[#EBF2FC] border border-[#BCD4F7] text-[#1F63D6] flex items-center justify-center shrink-0"
+        aria-hidden="true"
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3.75 21h16.5M4.5 3h15M6 3v18m12-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5M9 21v-3.75a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 011.5 1.5V21"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  // Locked default
+  return (
+    <div
+      className="w-7 h-7 rounded-full bg-[#F0EDE6] border border-[#D9D3C7] text-[#8A94A0] flex items-center justify-center shrink-0"
+      aria-hidden="true"
+    >
+      <svg
+        className="w-3.5 h-3.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+        />
+      </svg>
+    </div>
+  );
+}
+
 export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
   const focusedStepId = useViewStore((s) => s.focusedStepId);
+  const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const setHoveredStepId = useViewStore((s) => s.setHoveredStepId);
   const setFocusedStepId = useViewStore((s) => s.setFocusedStepId);
 
   const activeStations = useMemo(
-    () => selectLabels(metro, hoveredStepId, focusedStepId),
-    [metro, hoveredStepId, focusedStepId]
+    () => selectLabels(metro, hoveredStepId, focusedStepId, selectedStepId),
+    [metro, hoveredStepId, focusedStepId, selectedStepId]
   );
 
   useLayoutEffect(() => {
@@ -56,17 +176,11 @@ export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
         }
 
         const isHovered = station.id === hoveredStepId;
-        const isFocused = station.id === focusedStepId;
+        const isFocused = station.id === focusedStepId || station.id === selectedStepId;
 
-        let stateColor = "text-zinc-400 border-zinc-700 bg-zinc-800/60";
         let stateLabel: string = station.state;
         if (station.applicability === "may_apply") {
-          stateColor = "text-amber-400 border-amber-500/40 bg-amber-950/40";
           stateLabel = "may apply";
-        } else if (station.state === "available") {
-          stateColor = "text-cyan-400 border-cyan-500/40 bg-cyan-950/40";
-        } else if (station.state === "done") {
-          stateColor = "text-emerald-400 border-emerald-500/40 bg-emerald-950/40";
         }
 
         return (
@@ -90,39 +204,31 @@ export function LabelLayer({ metro, slotsRef, selectionRef }: LabelLayerProps) {
               }
             }}
             style={{
-              visibility: "hidden", // LabelProjector will toggle visibility and transform
+              visibility: "hidden", // LabelProjector toggles visibility and transform
               willChange: "transform",
             }}
-            className={`pointer-events-auto absolute left-0 top-0 flex flex-col items-center gap-1 rounded-lg border bg-zinc-950/90 p-2 shadow-2xl backdrop-blur-md transition-shadow cursor-pointer select-none ${
+            className={`pointer-events-auto absolute left-0 top-0 flex items-center gap-2.5 px-3 py-2 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left focus-visible:outline-none ${
               isFocused
-                ? "border-cyan-400 ring-2 ring-cyan-400/30 scale-105 z-20"
+                ? "border-[#8A4A0A] ring-2 ring-[#8A4A0A]/30 z-30 scale-105"
                 : isHovered
-                ? "border-white/30 scale-100 z-10"
-                : "border-white/10 opacity-90 scale-95 z-0"
+                ? "border-[#8A4A0A]/50 z-20 scale-[1.02]"
+                : "border-[#E6DDC8] z-10"
             }`}
           >
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="text-xs font-semibold text-zinc-100">
+            {renderStateIcon(station)}
+            <div className="flex flex-col min-w-0 pr-1">
+              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight truncate max-w-[140px]">
                 {station.title}
               </span>
-              {station.badge && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">
-                  {station.badge}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <span
-                className={`inline-flex items-center rounded-full border px-1.5 py-0.2 text-[10px] font-medium capitalize ${stateColor}`}
-              >
-                {stateLabel}
+              <span className="text-[11px] text-[#697586] leading-tight truncate">
+                {formatMode(station.mode)}
               </span>
-              {station.officeType && (
-                <span className="text-[10px] text-zinc-400">
-                  {station.officeType.replace(/_/g, " ")}
-                </span>
-              )}
             </div>
+            {/* 1 px tether line to building top */}
+            <div
+              className="absolute top-full left-1/2 -translate-x-1/2 w-[1px] h-3 bg-[#B0A48E] pointer-events-none"
+              aria-hidden="true"
+            />
           </button>
         );
       })}

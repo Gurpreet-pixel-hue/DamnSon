@@ -14,6 +14,7 @@ import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
 import { Pulses } from "./Pulses";
 import { LabelProjector } from "./labels/LabelProjector";
+import { StageHeaderProjector } from "./StageHeaderProjector";
 import { CameraRig } from "./CameraRig";
 import { useSceneKeyboard } from "./useSceneKeyboard";
 import { PALETTE } from "./palette";
@@ -97,11 +98,18 @@ function DebugCollector() {
 interface MetroSceneProps {
   metro: MetroVM;
   slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
   selectionRef?: React.RefObject<StationVM[]>;
   onDprChange?: (dpr: number) => void;
 }
 
-export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: MetroSceneProps) {
+export function MetroScene({
+  metro,
+  slotsRef,
+  headerSlotsRef,
+  selectionRef,
+  onDprChange,
+}: MetroSceneProps) {
   const { scene, gl } = useThree();
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
 
@@ -192,6 +200,14 @@ export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: Metro
           metro={metro}
           slotsRef={slotsRef}
           selectionRef={selectionRef}
+        />
+      )}
+
+      {/* 6b. Screen-projected DOM Stage Header system */}
+      {headerSlotsRef && (
+        <StageHeaderProjector
+          metro={metro}
+          slotsRef={headerSlotsRef}
         />
       )}
 

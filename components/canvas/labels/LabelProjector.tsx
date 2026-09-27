@@ -19,7 +19,11 @@ const scratchCamForward = new THREE.Vector3();
 const scratchCamToStation = new THREE.Vector3();
 const EMPTY_STATIONS: StationVM[] = [];
 
-export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) {
+export function LabelProjector({
+  metro,
+  slotsRef,
+  selectionRef,
+}: LabelProjectorProps) {
   const { camera, size } = useThree();
 
   // Cached matrix elements (16 floats each in Float64Array to preserve exact IEEE-754 precision)
@@ -97,6 +101,8 @@ export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) 
     const halfW = size.width / 2;
     const halfH = size.height / 2;
     const count = stations.length;
+    const shouldCull = metro.stations.length > 16;
+    const placedBoxes: { minX: number; maxX: number; minY: number; maxY: number }[] = [];
 
     for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
       const el = slots[i];
@@ -115,7 +121,7 @@ export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) 
 
       scratchVec.set(
         station.position3D[0],
-        station.position3D[1] + 1.8,
+        station.position3D[1] + 2.6,
         station.position3D[2]
       );
 
@@ -142,6 +148,33 @@ export function LabelProjector({ slotsRef, selectionRef }: LabelProjectorProps) 
       ) {
         el.style.visibility = "hidden";
         continue;
+      }
+
+      // Greedy collision culling when station count > 16
+      if (shouldCull) {
+        const box = {
+          minX: screenX - 85,
+          maxX: screenX + 85,
+          minY: screenY - 25,
+          maxY: screenY + 25,
+        };
+        let collides = false;
+        for (const placed of placedBoxes) {
+          if (
+            box.minX < placed.maxX + 6 &&
+            box.maxX > placed.minX - 6 &&
+            box.minY < placed.maxY + 6 &&
+            box.maxY > placed.minY - 6
+          ) {
+            collides = true;
+            break;
+          }
+        }
+        if (collides) {
+          el.style.visibility = "hidden";
+          continue;
+        }
+        placedBoxes.push(box);
       }
 
       // Write transform BEFORE setting visibility to visible

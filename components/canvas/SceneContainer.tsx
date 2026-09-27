@@ -6,6 +6,8 @@ import { Canvas } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
 import { MetroScene } from "./MetroScene";
 import { LabelLayer } from "./labels/LabelLayer";
+import { StageHeaders } from "./StageHeaders";
+import { Legend } from "./Legend";
 import { selectLabels } from "./labels/selectLabels";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
@@ -42,6 +44,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
   const labelSlotsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const headerSlotsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   const initialStations = useMemo(
     () => selectLabels(metro, null, null),
@@ -98,15 +101,18 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
         <MetroScene
           metro={metro}
           slotsRef={labelSlotsRef}
+          headerSlotsRef={headerSlotsRef}
           selectionRef={selectionRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
         />
       </Canvas>
+      <StageHeaders metro={metro} slotsRef={headerSlotsRef} />
       <LabelLayer
         metro={metro}
         slotsRef={labelSlotsRef}
         selectionRef={selectionRef}
       />
+      <Legend />
     </div>
   );
 }

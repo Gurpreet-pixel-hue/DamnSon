@@ -45,29 +45,32 @@ describe("selectLabels", () => {
     expect(labels.map((s) => s.id)).toEqual(["s5", "s1", "s2", "s3", "s4"]);
   });
 
-  it("strictly caps the selection at MAX_LABEL_SLOTS (6)", () => {
-    const stations = [
-      makeDummyStation("s1", "available"),
-      makeDummyStation("s2", "available"),
-      makeDummyStation("s3", "available"),
-      makeDummyStation("s4", "available"),
-      makeDummyStation("s5", "available"),
-      makeDummyStation("s6", "available"),
-      makeDummyStation("s7", "available"),
-      makeDummyStation("s8", "available"),
-    ];
+  it("shows all stations when count <= 16", () => {
+    const stations = Array.from({ length: 12 }, (_, i) =>
+      makeDummyStation(`s${i + 1}`, i < 2 ? "done" : i < 6 ? "available" : "locked")
+    );
     const metro = makeDummyMetro(stations);
 
     const labels = selectLabels(metro, null, null);
-    expect(labels).toHaveLength(MAX_LABEL_SLOTS);
-    expect(labels.map((s) => s.id)).toEqual([
-      "s1",
-      "s2",
-      "s3",
-      "s4",
-      "s5",
-      "s6",
-    ]);
+    expect(labels).toHaveLength(12);
+  });
+
+  it("prioritizes next-up, hovered, focused, selected and last done when count > 16", () => {
+    const stations = Array.from({ length: 20 }, (_, i) =>
+      makeDummyStation(`s${i + 1}`, i === 0 ? "done" : i < 4 ? "available" : "locked")
+    );
+    const metro = makeDummyMetro(stations);
+
+    // Hover s10, focus s12, select s15
+    const labels = selectLabels(metro, "s10", "s12", "s15");
+    const ids = labels.map((s) => s.id);
+    expect(ids[0]).toBe("s10"); // hovered
+    expect(ids[1]).toBe("s12"); // focused
+    expect(ids[2]).toBe("s15"); // selected
+    expect(ids).toContain("s2"); // next-up available
+    expect(ids).toContain("s3"); // next-up available
+    expect(ids).toContain("s4"); // next-up available
+    expect(ids).toContain("s1"); // last done
   });
 
   it("removes duplicates when hovered equals focused or matches an available next-up station", () => {
@@ -84,17 +87,22 @@ describe("selectLabels", () => {
     expect(new Set(labels.map((s) => s.id)).size).toBe(labels.length);
   });
 
-  it("skips optional stations from next-up priority", () => {
-    const stations = [
-      makeDummyStation("s1", "available", "optional"),
-      makeDummyStation("s2", "available", "applies"),
-      makeDummyStation("s3", "available", "may_apply"),
-    ];
+  it("skips optional stations from next-up priority when count > 16", () => {
+    const stations = Array.from({ length: 18 }, (_, i) =>
+      makeDummyStation(
+        `s${i + 1}`,
+        i < 3 ? "available" : "locked",
+        i === 0 ? "optional" : "applies"
+      )
+    );
     const metro = makeDummyMetro(stations);
 
     const labels = selectLabels(metro, null, null);
-    // s1 is optional, so only s2 and s3 qualify as next-up
-    expect(labels.map((s) => s.id)).toEqual(["s2", "s3"]);
+    const ids = labels.map((s) => s.id);
+    // s1 is optional available, s2 and s3 are non-optional available
+    expect(ids).toContain("s2");
+    expect(ids).toContain("s3");
+    expect(ids.indexOf("s2")).toBeLessThan(ids.indexOf("s1") === -1 ? 999 : ids.indexOf("s1"));
   });
 
   it("ignores non-existent station IDs gracefully", () => {
