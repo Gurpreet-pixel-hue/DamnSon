@@ -1,13 +1,13 @@
 # Prompt 2 — Slide deck
 
 Build a presentation deck for **CivicWeave**, a project for the **internal hackathon of the Computer
-Engineering Department**. Audience: faculty judges and peers. Target 10 minutes of speaking, about
-24 slides. Use the briefing document from the NotebookLM prompt as the content source, and the images
-in `docs/ppt-assets/screenshots/` as the visuals.
+Engineering Department**. Audience: faculty judges and peers. **Exactly 18 slides**, about 10 minutes of
+speaking. Use the briefing from the NotebookLM prompt as the content source and the images in
+`docs/ppt-assets/screenshots/` as the visuals.
 
 ## Hard requirements
 
-**Slide 1 must contain, exactly:**
+**Slide 1 — title — must contain, exactly:**
 
 - Team name: **damnson control**
 - Project: **CivicWeave — Municipal Bureaucracy Path Visualizer (PSWB 02)**
@@ -18,56 +18,50 @@ in `docs/ppt-assets/screenshots/` as the visuals.
   - Jai Kukreja — C2 — 2403090
   - Gurpreet Sandhu — C2 — 2403143
 
-**Every slide after the first carries a small speaker tag in the corner** — the person who built that
-part presents it. The tags are in the outline below. Nobody presents someone else's work.
+**Slide 18 — references — is the last slide and the only place references appear.**
 
-**Never put an invented civic fact on a slide.** Every fee, timeline, form number and URL must come
-from the sources. Where the real data says "not verified", show that — it is a deliberate design
-decision and a selling point, not a gap to paper over.
+**Every slide from 2 to 17 carries a small speaker tag in the corner.** The person who built that part
+presents it. Tags are fixed in the outline below; nobody presents someone else's work.
 
-**Do not claim anything as working that is not.** Mark in-progress work plainly.
+**Never put an invented civic fact on a slide.** Every fee, timeline, form number and URL comes from the
+sources. Where the real data says "not verified", show that — it is a deliberate design decision and a
+selling point, not a gap to paper over.
 
-## Deck outline
+**Do not present anything as working that is not.** In-progress work is marked plainly.
+
+## The 18 slides
 
 | # | Slide | Speaker | Content and visuals |
 |---|---|---|---|
-| 1 | Title | all | As specified above |
-| 2 | One citizen, one goal, twelve doors | Pruthviraj | The SaaS-company-in-Mumbai scenario. List the authorities actually involved (MCA, GSTN, MH Labour, MAHAGST, EPFO, ESIC, MSME, DPIIT, IP India, FSSAI). One line each on what the citizen does not know: what comes first, what blocks what, which documents repeat |
-| 3 | The real pain points | Pruthviraj | Hidden prerequisites · unknown ordering · the same document demanded repeatedly · repeat office visits · three tiers of government with different vocabulary and update cycles · no single authoritative view. Keep it concrete |
-| 4 | Why today's answers fail | Pruthviraj | Search engines rank blogs above portals; agents charge for what is public; generic chatbots invent fees, form numbers and URLs. State the consequence: a citizen cannot tell a correct answer from a confident one |
-| 5 | What CivicWeave is | Gurpreet | One sentence, then the product line: "Every citizen can see the complete, official path to a government service before taking the first step." Screenshot `01-landing.png` |
-| 6 | What makes it different (1) — traceable, not chatty | Divvye | Every fact carries its source URL, authority, retrieval date and verification state. "Official" is a code-level predicate: https on `.gov.in`/`.nic.in` only, never a `.gov` string check. Unknown values render "not verified" rather than a guess. Screenshot `07-not-verified.png` |
-| 7 | What makes it different (2) — the graph is computed | Divvye | Journeys are composed at runtime from reusable approval modules plus the citizen's facts. Three-valued logic: an unknown fact yields "may apply", never a silent exclusion. Status, order, layers, positions and totals are derived, never stored. Diagram: **Mermaid A** |
-| 8 | What makes it different (3) — a human gate | Divvye | AI understands, algorithms decide, humans verify. Nothing reaches a citizen without an admin publishing it; publishing validates the whole graph first. Screenshot `08-admin-review.png` |
-| 9 | Solution walkthrough — say it in one sentence | Gurpreet | Plain-language query to structured facts, with only the questions that change the graph |
-| 10 | Solution walkthrough — the Civic Metro | Gurpreet | Left-to-right is dependency order; each column is one layer, so parallel steps sit side by side. Station shape comes from the office type; online steps are kiosks. Screenshot `02-journey-3d.png` (full bleed) |
-| 11 | Solution walkthrough — one step, fully sourced | Gurpreet | Authority, documents, fee, three-part timeline, "Apply here", verification badge, official link. Screenshot `04-step-drawer.png` |
-| 12 | Solution walkthrough — change a fact, the map rebuilds | Gurpreet + Pruthviraj | Switching business type to food service adds the FSSAI branch live. Note the three FSSAI paths render as "may apply" with their turnover bands, because no turnover fact exists to decide between them. Screenshot `06-fssai-flip.png` |
-| 13 | Beyond business — the municipal tier | Pruthviraj | MCGM new water connection, 11 steps, in-person and online mixed, timings quoted from ward RTI manuals. Screenshot `13-municipal-journey.png` |
-| 14 | Architecture | Divvye | Three deployables and what each owns. Diagram: **Mermaid B** |
-| 15 | The graph contract | Divvye | Approval modules and journey templates; composition with bridging when a step is excluded; the analyzer's error codes; publish-time validation of the maximal composition. Diagram: **Mermaid C** |
-| 16 | Data: how a fact becomes a step | Pruthviraj | Official page → quote → field → source id → analyzer → human verification. Every fee and threshold carries a `sourceRef` and a verbatim quote or it is stored as unknown. Screenshot `12-link-check.png` |
-| 17 | AI: answers that can be checked | Jai | Hybrid retrieval over official pages, then generation, then a validator that rejects any claim whose quote is not verbatim in a retrieved chunk. Two repair attempts, then "not found in official sources". Diagram: **Mermaid D** |
-| 18 | AI: what happens when things break | Jai | Gemini → Groq → rule matcher; service down → lexical fallback for search and an honest refusal for the copilot; database down → read-only from files. The product degrades, it does not lie |
-| 19 | Frontend: drawing a city that stays honest | Gurpreet | Layout from the graph's layers; instanced geometry per office archetype; batched tracks; a performance budget; the 2D view uses the same layout so switching never feels like a different app. Screenshot `03-journey-2d.png` |
-| 20 | Tech stack | Divvye | Table, grouped by layer, exact pinned versions. Diagram optional: **Mermaid E** |
-| 21 | Feasibility — what actually runs | Divvye | Only verified numbers: 14 approval modules and 2 journey templates of real verified data; 23 action steps on the business journey, 21 verified; 11 versioned API endpoints; 45 test files; row-level security proven to deny the browser key; 49 of 52 official links reachable, the other 3 bot-blocked and confirmed live by hand. Mark the AI service and production deploy as in progress |
-| 22 | Challenges and what we did (1) | Gurpreet + Divvye | Gurpreet: keeping a 3D scene inside a draw-call budget while every interaction still works in 2D and by keyboard. Divvye: publishing safely — immutable published content, one draft per module, compare-and-swap on save so two admins cannot overwrite each other, and a seed loader that must never undo a publish |
-| 23 | Challenges and what we did (2) | Jai + Pruthviraj | Jai: stopping a model inventing a fee — structured output plus a citation validator, and answering in the question's language while citing English sources. Pruthviraj: official portals that block scripts, and pages that publish no fee at all — captured text for the first, "unknown" for the second, never a guess |
-| 24 | Impact and benefits | Pruthviraj + Gurpreet | Citizens: fewer wasted visits, no missed prerequisite, a path they can verify themselves. Staff: a correction reaches every citizen at once. Cities: a new city is new data, not new code. Name the honest limits too |
-| 25 | What's next | Divvye | Deployment, the remaining AI integration, more procedures, a second city by data alone, officer proposals |
-| 26 | References | — | **Last slide only.** Every official source used, grouped by authority, plus standards and tools. Say that every civic claim in the deck traces to one of these |
+| 1 | Title | — | Exactly as specified above |
+| 2 | One citizen, one goal, twelve doors | Pruthviraj | "I want to start a SaaS company in Mumbai." Name the authorities actually involved — MCA, GSTN, MH Labour, MAHAGST, EPFO, ESIC, MSME, DPIIT, IP India, FSSAI — then the four things the citizen cannot find out: what comes first, what blocks what, which documents repeat, and how long it really takes. Keep it concrete, no adjectives |
+| 3 | Why today's answers fail | Pruthviraj | Search ranks blogs above portals; agents charge for what is public; generic chatbots invent fees, form numbers and URLs. Land the consequence: **a citizen cannot tell a correct answer from a confident one** |
+| 4 | What CivicWeave is | Gurpreet | One line — "Every citizen can see the complete, official path to a government service before taking the first step" — then what it is not: not a chatbot, not a list of links. Screenshot `01-landing.png` |
+| 5 | Three ideas that make it different | Divvye | (a) **Traceable** — every fact carries its source, authority, date and verification state; "official" is a code-level predicate over https `.gov.in`/`.nic.in`, never a `.gov` string check; unknown renders "not verified". (b) **Computed** — the journey is composed at runtime from reusable modules plus the citizen's facts, with three-valued logic so an unknown fact shows "may apply" rather than vanishing. (c) **Human-gated** — AI understands, algorithms decide, humans verify. Diagram: **Mermaid A** |
+| 6 | Say it in one sentence | Gurpreet | Plain language in, structured facts out, and only the questions that actually change the graph get asked. Show the fact card |
+| 7 | See the whole route | Gurpreet | The Civic Metro: left to right is dependency order, each column is one layer so parallel steps sit side by side, station shape comes from the office type, online steps are kiosks. Screenshot `02-journey-3d.png`, **full bleed** |
+| 8 | Open one step | Gurpreet | Authority, documents, fee, the three-part timeline, "Apply here", verification badge and the official link. Then the honesty: a field with no published figure shows "not verified". Screenshots `04-step-drawer.png` and `07-not-verified.png` |
+| 9 | Change a fact, the map rebuilds | Pruthviraj | Switch business type to food and the FSSAI branch appears live. Note that its three paths render as "may apply" with their turnover bands, because no turnover fact exists to choose between them — the product says what it does not know. Then: the same engine, a different tier — MCGM new water connection, 11 steps, timings quoted from ward RTI manuals. Screenshots `06-fssai-flip.png`, `13-municipal-journey.png` |
+| 10 | How it is built | Divvye | Three deployables and what each owns; the browser never calls an LLM or a government site. Diagram: **Mermaid B** |
+| 11 | The contract, and the gate before a citizen | Divvye | Approval modules and journey templates; composition bridges around an excluded step so order survives; the analyzer rejects cycles, unsourced fees and verified-without-official-source; publishing validates the maximal composition inside one transaction and writes an audit row. Diagram: **Mermaid C**. Screenshot `08-admin-review.png` |
+| 12 | How a fact becomes a step | Pruthviraj | Official page → verbatim quote → field → source id → analyzer → human verification on the live page. Every fee and threshold carries a `sourceRef` and a quote, or it is stored as unknown. Mention what this cost: portals that block scripts, and pages that publish no fee at all. Screenshot `12-link-check.png` |
+| 13 | Answers that can be checked | Jai | Hybrid retrieval over official pages, generation with numbered chunks treated as data, then a validator that rejects any claim whose quote is not verbatim in a retrieved chunk — two repairs, then "not found in official sources". Add the degradation ladder in one line: Gemini → Groq → rules; service down → lexical search and an honest refusal; database down → read-only from files. Diagram: **Mermaid D** |
+| 14 | The stack, and why each piece | Gurpreet | Table grouped by layer with exact pinned versions. One line each on the three choices worth defending: React Three Fiber with instanced geometry inside a draw-call budget; the 2D view reusing the same layout so switching never feels like a different app; one Postgres with pgvector instead of a separate vector database. Screenshot `03-journey-2d.png` |
+| 15 | What actually runs today | Divvye | Only verified numbers: **14 approval modules and 2 journey templates** of real verified data; **23 action steps** on the business journey, **21 verified**; **11 versioned API endpoints**; **45 test files**; row-level security proven to deny the browser key while the database holds rows; **49 of 52 official links reachable**, the other 3 bot-blocked and confirmed live by hand. Mark the AI service and the production deploy as in progress. Screenshots `09-api-health.png`, `10-rls-denied.png` |
+| 16 | What was hard, and what we did | all four | Four quadrants, each person speaks their own. **Gurpreet:** holding a 3D city inside a draw-call budget while every interaction still works in 2D and by keyboard. **Divvye:** publishing safely — published content immutable, one draft per module, compare-and-swap on save so two admins cannot overwrite each other, and a seed loader that must never undo a publish. **Jai:** stopping a model inventing a fee — structured output plus a citation validator, and answering in the question's language while citing English sources. **Pruthviraj:** official portals that block scripts, and pages that publish no fee at all — captured text for the first, "unknown" for the second, never a guess |
+| 17 | Who it helps | Pruthviraj + Gurpreet | Citizens: fewer wasted visits, no missed prerequisite, a path they can verify themselves. Staff: one correction reaches every citizen at once. Cities: a new city is new data, not new code. End with the honest limits — coverage is two procedures today, and CivicWeave never submits or pays on anyone's behalf. Screenshot `05-summary-bar.png` |
+| 18 | Research and references | — | **Last slide, and the only references slide.** Every official source grouped by authority (MCA, GSTN, MH Labour, MAHAGST, EPFO, ESIC, MSME/Udyam, DPIIT, IP India, FSSAI, MCGM), then standards and tools. Close with one line: every civic claim in this deck traces to one of these |
 
 ## Diagrams
 
-Render each as a clean image and place it on its slide. Export to `docs/ppt-assets/diagrams/`.
+Render each cleanly and place it on its slide. Export to `docs/ppt-assets/diagrams/`.
 
-**Mermaid A — composition**
+**Mermaid A — composition (slide 5)**
 ```mermaid
 flowchart LR
   T["Journey template<br/>pins module versions"] --> C{"Compose at runtime"}
   M["Approval modules<br/>reusable, versioned"] --> C
-  F["Citizen's facts<br/>city, entity, employees…"] --> C
+  F["Citizen's facts<br/>city · entity · employees"] --> C
   C -->|rule true| A["Step applies"]
   C -->|rule unknown| B["Step: may apply"]
   C -->|rule false| D["Not needed for you<br/>with the reason"]
@@ -76,11 +70,11 @@ flowchart LR
   G --> V["analyzeJourney()<br/>order · layers · issues"]
 ```
 
-**Mermaid B — architecture**
+**Mermaid B — architecture (slide 10)**
 ```mermaid
 flowchart TB
   U["Browser<br/>Next.js · React Three Fiber · React Flow"] -->|HTTPS| W["Web app + BFF<br/>Next.js 16 on Vercel<br/>/api/v1/*"]
-  W -->|Prisma| DB[("Supabase Postgres<br/>public schema + knowledge schema<br/>pgvector · RLS deny-by-default")]
+  W -->|Prisma| DB[("Supabase Postgres<br/>public + knowledge schemas<br/>pgvector · RLS deny-by-default")]
   W -->|"60-second service token"| AI["Intelligence service<br/>Python · FastAPI<br/>Cloud Run, Mumbai"]
   AI --> DB
   AI --> L["Gemini → Groq → rules"]
@@ -88,10 +82,10 @@ flowchart TB
   W --> AUTH["Supabase Auth<br/>admin only, invite-only"]
 ```
 
-**Mermaid C — publishing and the human gate**
+**Mermaid C — publishing and the human gate (slide 11)**
 ```mermaid
 flowchart LR
-  S["Official page"] --> Q["Quote + source id"]
+  S["Official page"] --> Q["Verbatim quote<br/>+ source id"]
   Q --> D["Draft module version"]
   D --> AZ{"analyzeModule()"}
   AZ -->|errors| D
@@ -103,36 +97,27 @@ flowchart LR
   TX --> CIT["Citizen sees it"]
 ```
 
-**Mermaid D — a cited answer**
+**Mermaid D — a cited answer (slide 13)**
 ```mermaid
 flowchart LR
-  Q["Question + journey scope"] --> RW["Rewrite:<br/>abbreviations, transliteration"]
+  Q["Question + journey scope"] --> RW["Rewrite:<br/>abbreviations · transliteration"]
   RW --> LEX["Lexical: Postgres full-text"]
   RW --> DEN["Dense: gemini-embedding-2 @768<br/>pgvector HNSW"]
   LEX --> FU["Reciprocal rank fusion"]
   DEN --> FU
   FU --> FI["Filter: official · current · in jurisdiction"]
-  FI --> GEN["Generate with numbered chunks<br/>treated as data, not instructions"]
-  GEN --> V{"Validate:<br/>chunk ids real? quotes verbatim?<br/>every number inside a quote?"}
+  FI --> GEN["Generate from numbered chunks<br/>treated as data, not instructions"]
+  GEN --> V{"Validate: chunk ids real?<br/>quotes verbatim? numbers inside a quote?"}
   V -->|fails twice| NF["'Not found in official sources'<br/>+ the passages"]
   V -->|passes| ANS["Answer with citations"]
-```
-
-**Mermaid E — who built what** (optional, good on the tech-stack slide)
-```mermaid
-flowchart LR
-  G["Gurpreet<br/>Frontend"] --> G1["Civic Metro 3D · 2D · HUD<br/>journey page · app shell"]
-  D["Divvye<br/>Platform & API"] --> D1["Graph contract · BFF · Postgres<br/>admin API · auth · E2E · security"]
-  J["Jai<br/>AI service"] --> J1["FastAPI · LLM router · ingestion<br/>retrieval · cited copilot"]
-  P["Pruthviraj<br/>Data & verification"] --> P1["Source registry · verified modules<br/>gazetteer · eval sets · link checking"]
 ```
 
 ## Style
 
 - Light, civic, serious. Not a startup pitch deck.
-- One idea per slide. Short lines, no paragraphs. The speaker carries the detail.
-- Screenshots large — the product is the argument. Full bleed on slides 10 and 13.
+- One idea per slide. Short lines, no paragraphs — the speaker carries the detail.
+- Screenshots large; the product is the argument. Slide 7 is full bleed.
 - Indian number formatting for currency (₹1,00,000).
-- Where a number appears, it must be traceable to a source in the briefing.
-- If a screenshot listed in `docs/ppt-assets/README.md` does not exist yet, leave the slot empty and
-  note what is missing. Do not substitute a mock-up.
+- Every number on a slide must be traceable to a source in the briefing.
+- If a screenshot listed in `docs/ppt-assets/README.md` does not exist yet, leave the slot empty and note
+  what is missing. **Do not substitute a mock-up** — the deck must not show something the demo cannot do.
