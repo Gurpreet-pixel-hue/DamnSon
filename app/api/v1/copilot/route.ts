@@ -43,17 +43,20 @@ async function buildScope(taskId: string | undefined, stepId: string | undefined
 
 /**
  * Officialness is decided here, never by the AI service (§13.1): a mislabelled citation must not be
- * able to show a citizen a trusted badge.
+ * able to show a citizen a trusted badge. Retrieval is supposed to retain only official chunks
+ * (§7.3), so anything else arriving here means something upstream is wrong, and it is dropped.
  */
-function toCitations(reply: IntelligenceCopilotReply): CopilotResponse["citations"] {
-  return reply.citations.map((citation) => ({
-    n: citation.n,
-    url: citation.url,
-    title: citation.title,
-    quote: citation.quote,
-    chunkId: citation.chunkId,
-    official: isOfficialUrl(citation.url),
-  }));
+function officialCitations(reply: IntelligenceCopilotReply): CopilotResponse["citations"] {
+  return reply.citations
+    .filter((citation) => isOfficialUrl(citation.url))
+    .map((citation) => ({
+      n: citation.n,
+      url: citation.url,
+      title: citation.title,
+      quote: citation.quote,
+      chunkId: citation.chunkId,
+      official: true,
+    }));
 }
 
 /** POST /api/v1/copilot — a cited answer from official sources, or an honest refusal (§7.3, §10.1). */
@@ -109,10 +112,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     return jsonError("upstream_unavailable", "The assistant is unavailable right now.", 503, { requestId: id });
   }
 
-  const citations = toCitations(reply);
-  // An answer without citations is not an answer (§13.1, §7.3). Rather than show unsourced prose, say
-  // it was not found and hand over the passages, which is what the panel renders anyway.
-  const unsourced = reply.answer !== null && citations.length === 0;
+  const citations = officialCitations(reply);
+  const dropped = citations.length !== reply.citations.length;
+
+  /**
+   * An answer without citations is not an answer (§13.1, §7.3). The same applies when any citation was
+   * dropped: the sentence that leaned on it would be left unsupported, and its [n] marker would point
+   * at nothing. Either way we say it was not found and hand over the passages, which is what the panel
+   * renders anyway, rather than showing prose we cannot stand behind.
+   */
+  const unsourced = reply.answer !== null && (citations.length === 0 || dropped);
 
   const body: CopilotResponse = copilotResponseSchema.parse({
     requestId: id,

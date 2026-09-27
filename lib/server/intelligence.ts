@@ -6,8 +6,11 @@ import { serviceAuthorizationHeader } from "./serviceToken";
 
 /** §6.6: search must answer within 6 s or fall back to lexical ranking. */
 const SEARCH_TIMEOUT_MS = 6_000;
-/** The copilot retrieves and generates, so it gets longer; the panel shows a spinner meanwhile (§10.1). */
-const COPILOT_TIMEOUT_MS = 15_000;
+/**
+ * §6.6: the intelligence service being "down or > 6 s" is what turns the copilot into a 503. The
+ * 15 s in §7.2 is the AI service's own per-call budget for an LLM provider, not this hop.
+ */
+const COPILOT_TIMEOUT_MS = 6_000;
 /** A health probe must never hold up the health endpoint. */
 const HEALTH_TIMEOUT_MS = 2_000;
 

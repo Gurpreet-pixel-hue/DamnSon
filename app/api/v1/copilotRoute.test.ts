@@ -161,7 +161,7 @@ describe("POST /api/v1/copilot — answers", () => {
     expect(body.citations[0]?.official).toBe(true);
   });
 
-  it("decides officialness itself, whatever the service claims (§13.1)", async () => {
+  it("drops a non-official citation however the service labels it (§13.1)", async () => {
     reply = {
       status: 200,
       body: {
@@ -172,7 +172,28 @@ describe("POST /api/v1/copilot — answers", () => {
       },
     };
     const body = copilotResponseSchema.parse(await (await copilot(post({ question: "What is the fee?" }))).json());
-    expect(body.citations[0]?.official).toBe(false);
+    expect(body.citations).toEqual([]);
+    expect(body.answer).toBeNull();
+    expect(body.notice).toBe("not_found");
+  });
+
+  it("keeps the official citations but withholds the prose when one was dropped", async () => {
+    reply = {
+      status: 200,
+      body: {
+        ...ANSWER,
+        answer: "Do A [1] and then B [2].",
+        citations: [
+          { n: 1, url: "https://www.india.gov.in/", title: "National Portal of India", quote: "Do A", chunkId: CHUNK },
+          { n: 2, url: "https://example.com/blog", title: "A blog", quote: "Do B", chunkId: CHUNK },
+        ],
+      },
+    };
+    const body = copilotResponseSchema.parse(await (await copilot(post({ question: "What is the fee?" }))).json());
+    // Keeping the prose would leave "[2]" pointing at nothing, and its claim unsupported.
+    expect(body.citations.map((c) => c.n)).toEqual([1]);
+    expect(body.answer).toBeNull();
+    expect(body.notice).toBe("not_found");
   });
 
   it("refuses to pass on an answer with no citations", async () => {
