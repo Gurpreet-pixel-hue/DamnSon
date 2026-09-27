@@ -408,6 +408,16 @@ export function planCity(options: PlanCityOptions): CityPlan {
         }
       }
 
+      // Compute min cell distance to any station or route corridor (A7)
+      let minNetworkCellDist = minStationCellDist;
+      for (const corr of corridorCells) {
+        const cd = Math.max(Math.abs(r - corr.r), Math.abs(c - corr.c));
+        if (cd < minNetworkCellDist) {
+          minNetworkCellDist = cd;
+          if (minNetworkCellDist === 0) break;
+        }
+      }
+
       candidateBuildingCells.push({
         r,
         c,
@@ -416,6 +426,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
         distSq: minDistSq,
         dist: Math.sqrt(minDistSq),
         minStationCellDist,
+        minNetworkCellDist,
         nearestStation,
         tieBreaker: rand(),
       });
@@ -427,14 +438,17 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
   for (const cell of candidateBuildingCells) {
     if (buildings.length >= MAX_BUILDINGS) break;
-    const { r, c, cx, cz, dist, minStationCellDist, nearestStation } = cell;
+    const { r, c, cx, cz, dist, minStationCellDist, minNetworkCellDist, nearestStation } = cell;
     if (occupied[r]![c]) continue;
 
     const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
 
     let candidatePool: readonly CityKindInfo[];
-    if (minStationCellDist > 5 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // P12: every city cell farther than 5 cells from any station uses low-detail buildings (brings tris <= 320k)
+    if (minNetworkCellDist > 8 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // A7: For cells more than 8 cells away, use low-detail buildings only
+      candidatePool = LOW_DETAIL_BUILDINGS;
+    } else if (minNetworkCellDist > 3 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // A7: Use LOW_DETAIL variants for cells more than 3 cells from any station or route
       candidatePool = LOW_DETAIL_BUILDINGS;
     } else if (minStationCellDist <= 3) {
       // G3: fill buildings within 3 cells of a station use low-rise pool
@@ -451,6 +465,19 @@ export function planCity(options: PlanCityOptions): CityPlan {
     }
 
     if (candidatePool.length === 0) continue;
+
+    // A7 & visual-direction §10.1: Stop non-uniform y-squash. Pick lower variants instead.
+    if (minStationCellDist <= 3 && nearestStation) {
+      const stationH = nearestStation.height ?? 3.0;
+      const maxH = 0.7 * stationH;
+      const fitting = candidatePool.filter((b) => b.height <= maxH);
+      if (fitting.length > 0) {
+        candidatePool = fitting;
+      } else {
+        const sorted = [...candidatePool].sort((a, b) => a.height - b.height);
+        candidatePool = [sorted[0]!];
+      }
+    }
 
     // E5: Never adjacent duplicates
     const adjacentVariants = new Set<string>();
@@ -469,22 +496,13 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
     const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
     const sJitter = 0.9 + rand() * 0.2;
-    let scaleY = sJitter;
 
-    // G3: fill buildings within 3 cells of a station are capped at 0.7 * that station's height
-    if (minStationCellDist <= 3 && nearestStation) {
-      const stationH = nearestStation.height ?? 3.0;
-      const maxH = 0.7 * stationH;
-      if (variant.height * scaleY > maxH) {
-        scaleY = maxH / variant.height;
-      }
-    }
-
+    // Uniform scale: scale.x === scale.y === scale.z (visual-direction §10.1)
     buildings.push({
       kind: variant.name,
       position: [cx, 0.17, cz],
       rotationY: rotY,
-      scale: [sJitter, scaleY, sJitter],
+      scale: [sJitter, sJitter, sJitter],
     });
   }
 

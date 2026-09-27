@@ -14,6 +14,7 @@ export interface CityKindInfo {
   width: number;
   height: number;
   depth: number;
+  triangles: number;
 }
 
 export const CITY_KINDS: readonly CityKindInfo[] = [
@@ -23,7 +24,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.3,
     "height": 0.83,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 1174
   },
   {
     "name": "suburban-b",
@@ -31,7 +33,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 1.83,
     "height": 1.14,
-    "depth": 1.14
+    "depth": 1.14,
+    "triangles": 1748
   },
   {
     "name": "suburban-c",
@@ -39,7 +42,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.29,
     "height": 1.03,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 1196
   },
   {
     "name": "suburban-d",
@@ -47,7 +51,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 1.76,
     "height": 1.24,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 1757
   },
   {
     "name": "suburban-e",
@@ -55,7 +60,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.3,
     "height": 1.14,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 1731
   },
   {
     "name": "suburban-f",
@@ -63,7 +69,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.43,
     "height": 1.14,
-    "depth": 1.41
+    "depth": 1.41,
+    "triangles": 1616
   },
   {
     "name": "suburban-g",
@@ -71,7 +78,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.45,
     "height": 0.77,
-    "depth": 1.18
+    "depth": 1.18,
+    "triangles": 1067
   },
   {
     "name": "suburban-h",
@@ -79,7 +87,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.3,
     "height": 0.74,
-    "depth": 0.92
+    "depth": 0.92,
+    "triangles": 770
   },
   {
     "name": "suburban-i",
@@ -87,7 +96,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.29,
     "height": 0.74,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 800
   },
   {
     "name": "suburban-j",
@@ -95,7 +105,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.37,
     "height": 1.04,
-    "depth": 0.92
+    "depth": 0.92,
+    "triangles": 1210
   },
   {
     "name": "low-commercial-a",
@@ -103,7 +114,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.88,
     "height": 0.89,
-    "depth": 1.09
+    "depth": 1.09,
+    "triangles": 1195
   },
   {
     "name": "low-commercial-b",
@@ -111,7 +123,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.64,
     "height": 0.89,
-    "depth": 1.01
+    "depth": 1.01,
+    "triangles": 1509
   },
   {
     "name": "low-commercial-c",
@@ -119,7 +132,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.88,
     "height": 1.29,
-    "depth": 0.94
+    "depth": 0.94,
+    "triangles": 1252
   },
   {
     "name": "low-commercial-d",
@@ -127,7 +141,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.97,
     "height": 1.29,
-    "depth": 0.94
+    "depth": 0.94,
+    "triangles": 1276
   },
   {
     "name": "low-industrial-a",
@@ -135,7 +150,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.68,
     "height": 1.28,
-    "depth": 1.28
+    "depth": 1.28,
+    "triangles": 1242
   },
   {
     "name": "low-industrial-b",
@@ -143,7 +159,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 2.48,
     "height": 1.39,
-    "depth": 1.27
+    "depth": 1.27,
+    "triangles": 1912
   },
   {
     "name": "mid-commercial-a",
@@ -151,7 +168,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.84,
     "height": 1.29,
-    "depth": 0.9
+    "depth": 0.9,
+    "triangles": 1100
   },
   {
     "name": "mid-commercial-b",
@@ -159,7 +177,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.84,
     "height": 1.69,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 1794
   },
   {
     "name": "mid-commercial-c",
@@ -167,7 +186,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.88,
     "height": 1.29,
-    "depth": 1.01
+    "depth": 1.01,
+    "triangles": 1512
   },
   {
     "name": "mid-commercial-d",
@@ -175,7 +195,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.24,
     "height": 1.68,
-    "depth": 1.3
+    "depth": 1.3,
+    "triangles": 2544
   },
   {
     "name": "mid-commercial-e",
@@ -183,7 +204,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 2.08,
     "height": 1.69,
-    "depth": 1.34
+    "depth": 1.34,
+    "triangles": 5246
   },
   {
     "name": "mid-commercial-f",
@@ -191,7 +213,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 2.08,
     "height": 1.47,
-    "depth": 0.94
+    "depth": 0.94,
+    "triangles": 2960
   },
   {
     "name": "mid-industrial-a",
@@ -199,7 +222,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 1.88,
     "height": 1.25,
-    "depth": 2.11
+    "depth": 2.11,
+    "triangles": 1928
   },
   {
     "name": "mid-industrial-b",
@@ -207,7 +231,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.68,
     "height": 1.65,
-    "depth": 1.29
+    "depth": 1.29,
+    "triangles": 1484
   },
   {
     "name": "mid-industrial-c",
@@ -215,7 +240,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.32,
     "height": 1.52,
-    "depth": 1.7
+    "depth": 1.7,
+    "triangles": 1694
   },
   {
     "name": "mid-industrial-d",
@@ -223,7 +249,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.98,
     "height": 1.9,
-    "depth": 1.42
+    "depth": 1.42,
+    "triangles": 1262
   },
   {
     "name": "low-detail-a",
@@ -231,7 +258,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 188
   },
   {
     "name": "low-detail-b",
@@ -239,7 +267,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2.23,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 200
   },
   {
     "name": "low-detail-c",
@@ -247,7 +276,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2.25,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 142
   },
   {
     "name": "low-detail-d",
@@ -255,7 +285,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.75,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 106
   },
   {
     "name": "low-detail-e",
@@ -263,7 +294,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.8,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 96
   },
   {
     "name": "low-detail-f",
@@ -271,7 +303,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 88
   },
   {
     "name": "low-detail-g",
@@ -279,7 +312,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 200
   },
   {
     "name": "low-detail-h",
@@ -287,7 +321,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 2.1,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 378
   },
   {
     "name": "low-detail-i",
@@ -295,7 +330,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.77,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 152
   },
   {
     "name": "low-detail-j",
@@ -303,7 +339,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.75,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 188
   },
   {
     "name": "low-detail-k",
@@ -311,7 +348,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.55,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 86
   },
   {
     "name": "low-detail-l",
@@ -319,7 +357,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.85,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 150
   },
   {
     "name": "low-detail-m",
@@ -327,7 +366,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 1.98,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 188
   },
   {
     "name": "low-detail-n",
@@ -335,7 +375,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.5,
     "height": 0.7,
-    "depth": 0.5
+    "depth": 0.5,
+    "triangles": 62
   },
   {
     "name": "tall-skyscraper-a",
@@ -343,7 +384,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.36,
     "height": 2.88,
-    "depth": 1.36
+    "depth": 1.36,
+    "triangles": 1292
   },
   {
     "name": "tall-skyscraper-b",
@@ -351,7 +393,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.36,
     "height": 4.48,
-    "depth": 1.36
+    "depth": 1.36,
+    "triangles": 1592
   },
   {
     "name": "tall-skyscraper-c",
@@ -359,7 +402,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.28,
     "height": 4.08,
-    "depth": 1.39
+    "depth": 1.39,
+    "triangles": 1704
   },
   {
     "name": "tree-palm-tall",
@@ -367,7 +411,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.03,
     "height": 1.36,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 190
   },
   {
     "name": "tree-palm-short",
@@ -375,7 +420,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1.03,
     "height": 1.06,
-    "depth": 1.03
+    "depth": 1.03,
+    "triangles": 190
   },
   {
     "name": "tree-palm-bend",
@@ -383,7 +429,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.94,
     "height": 1.38,
-    "depth": 1.01
+    "depth": 1.01,
+    "triangles": 200
   },
   {
     "name": "tree-oak",
@@ -391,7 +438,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.64,
     "height": 1.23,
-    "depth": 0.74
+    "depth": 0.74,
+    "triangles": 196
   },
   {
     "name": "tree-simple",
@@ -399,7 +447,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.35,
     "height": 1.52,
-    "depth": 0.41
+    "depth": 0.41,
+    "triangles": 62
   },
   {
     "name": "tree-pine",
@@ -407,7 +456,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.53,
     "height": 1.55,
-    "depth": 0.53
+    "depth": 0.53,
+    "triangles": 230
   },
   {
     "name": "tree-bush",
@@ -415,7 +465,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.4,
     "height": 0.24,
-    "depth": 0.4
+    "depth": 0.4,
+    "triangles": 32
   },
   {
     "name": "prop-light-single",
@@ -423,7 +474,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.05,
     "height": 0.67,
-    "depth": 0.23
+    "depth": 0.23,
+    "triangles": 92
   },
   {
     "name": "prop-light-double",
@@ -431,7 +483,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.05,
     "height": 0.67,
-    "depth": 0.4
+    "depth": 0.4,
+    "triangles": 152
   },
   {
     "name": "prop-barrier",
@@ -439,7 +492,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 1,
     "height": 0.08,
-    "depth": 1
+    "depth": 1,
+    "triangles": 24
   },
   {
     "name": "prop-traffic-light",
@@ -447,7 +501,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.12,
     "height": 0.51,
-    "depth": 0.09
+    "depth": 0.09,
+    "triangles": 212
   },
   {
     "name": "prop-boat-small",
@@ -455,7 +510,8 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "1x1",
     "width": 0.89,
     "height": 0.35,
-    "depth": 1.48
+    "depth": 1.48,
+    "triangles": 104
   },
   {
     "name": "prop-boat-large",
@@ -463,12 +519,17 @@ export const CITY_KINDS: readonly CityKindInfo[] = [
     "footprint": "2x2",
     "width": 0.89,
     "height": 0.35,
-    "depth": 1.77
+    "depth": 1.77,
+    "triangles": 126
   }
 ] as const;
 
 export const CITY_KINDS_BY_NAME: Record<string, CityKindInfo> = Object.fromEntries(
   CITY_KINDS.map((k) => [k.name, k])
+);
+
+export const TRIANGLES_BY_KIND: Record<string, number> = Object.fromEntries(
+  CITY_KINDS.map((k) => [k.name, k.triangles])
 );
 
 export function getCityKind(name: string): CityKindInfo | undefined {
