@@ -1,9 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { planCity, type StationLocation, type TrackLocation } from "./planCity";
 import { CITY_KINDS } from "./cityKinds";
-import { loadJourneyForPage } from "@/app/loadJourney";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import { journeyTemplateSchema, approvalModuleSchema } from "@/lib/contract/schema";
 import { safeCompose } from "@/lib/graph/safeCompose";
 import { fromJourney } from "@/lib/graph/viewModel";
+
+function loadFixtureBundle(templateName: string) {
+  const template = journeyTemplateSchema.parse(readTemplateFixture(templateName));
+  const modules = template.modules.map((modEntry) =>
+    approvalModuleSchema.parse(readModuleFixture(modEntry.moduleId))
+  );
+  return { template, modules };
+}
 
 describe("planCity (visual-direction §3 & Amendment D5)", () => {
   const dummyStations: StationLocation[] = [
@@ -180,10 +189,8 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
       ).toBe(false);
     }
   });
-
-  it("plans the stress graph in under 150 ms (Amendment D5)", async () => {
-    process.env.DATA_SOURCE = "fixtures";
-    const bundle = await loadJourneyForPage({ graph: "stress" });
+  it("plans the stress graph in under 150 ms (Amendment D5)", () => {
+    const bundle = loadFixtureBundle("stress-25-synthetic");
     expect(bundle, "Stress fixture bundle must load").not.toBeNull();
 
     const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
@@ -302,11 +309,10 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     }
   });
 
-  it("satisfies H1 occupancy and caps for demo and stress fixtures", async () => {
-    process.env.DATA_SOURCE = "fixtures";
+  it("satisfies H1 occupancy and caps for demo and stress fixtures", () => {
     for (const graphName of ["demo", "stress"]) {
-      const bundle = await loadJourneyForPage(
-        graphName === "stress" ? { graph: "stress" } : {}
+      const bundle = loadFixtureBundle(
+        graphName === "stress" ? "stress-25-synthetic" : "demo-metro-synthetic"
       );
       expect(bundle).not.toBeNull();
       const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
