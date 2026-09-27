@@ -42,13 +42,16 @@ export function deriveStepStates(
 
     if (step.kind === "milestone") {
       // Milestones are never in completed.
-      // A milestone is done when every requires prerequisite that isn't may_apply is done; otherwise locked.
+      // PRD 1.3 §8.8: A milestone is done when every requires prerequisite that isn't may_apply is done
+      // AND at least one requires prerequisite is done; otherwise locked.
       const nonMayApplyPrereqs = prereqIds.filter((pId) => {
         const prereqStep = stepMap.get(pId);
         return prereqStep?.applicability !== "may_apply";
       });
-      const allDone = nonMayApplyPrereqs.every((pId) => states.get(pId) === "done");
-      states.set(stepId, allDone ? "done" : "locked");
+      const atLeastOneDone = prereqIds.some((pId) => states.get(pId) === "done");
+      const allNonMayApplyDone = nonMayApplyPrereqs.every((pId) => states.get(pId) === "done");
+      const isDone = atLeastOneDone && allNonMayApplyDone;
+      states.set(stepId, isDone ? "done" : "locked");
     } else {
       // Action steps
       // Milestone IDs in completed are ignored.

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
 import {
@@ -178,5 +180,21 @@ describe("progress derivations on ComposedJourney", () => {
     const stressMetro = fromJourney(stressJourney, new Set());
     const stressCount = computeProgressCount(stressMetro);
     expect(stressCount.total).toBe(24);
+  });
+
+  it("gives Company incorporated as locked on real start-business-mumbai with {} facts (PRD 1.3 §8.8)", () => {
+    const templatePath = join(process.cwd(), "data/seed/templates/start-business-mumbai.json");
+    const template = journeyTemplateSchema.parse(JSON.parse(readFileSync(templatePath, "utf8")));
+    const modules = template.modules.map((m) => {
+      const modPath = join(process.cwd(), "data/seed/modules", `${m.moduleId}.json`);
+      return approvalModuleSchema.parse(JSON.parse(readFileSync(modPath, "utf8")));
+    });
+    const journey = composeJourney(template, modules, {});
+    const states = deriveStepStates(journey, new Set());
+
+    const incStep = journey.steps.find((s) => s.id === "mca-spice-plus.incorporated");
+    expect(incStep).toBeDefined();
+    expect(incStep?.title).toBe("Company incorporated");
+    expect(states.get("mca-spice-plus.incorporated")).toBe("locked");
   });
 });
