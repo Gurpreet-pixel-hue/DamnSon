@@ -27,6 +27,54 @@
       "kind": "guideline",
       "retrievedOn": "2026-09-27",
       "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-a-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(A-Ward)/RTI%20Manuals/RTI%20Manual%2017%20AEWW%20A%20Ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of 'A' Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-k-west-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(KWest-Ward)/RTI%20Manuals/WaterWorksDept.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of K/West Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-p-south-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(P-South)%20Ward/RTI%20Manuals/Manual_17_AEWWPS%5B1%5D.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of P/South Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-r-central-manual",
+      "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(R-Central)/RTI%20Manuals/RTI%2017%20manual%20for%20AEWW%20RC%20ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of R/Central Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-h-east-manual",
+      "url": "https://www.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(HEast)%20Ward/RTI%20Manuals/AEWWHE.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of H/East Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
+    },
+    {
+      "id": "mcgm-aeww-l-manual",
+      "url": "https://portal.mcgm.gov.in/irj/go/km/docs/documents/MCGM%20Department%20List/Wards/Assistant%20Commissioner%20(L-Ward)/RTI%20Manuals/AEWW%20for%20L%20ward.pdf",
+      "title": "Section 4 Manuals as per provision of RTI Act 2005 of L Ward: Assistant Engineer Water Works",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-28",
+      "authoritySlug": "mcgm"
     }
   ],
   "steps": [
@@ -126,12 +174,18 @@
       },
       "sourceIds": [
         "mcgm-dward-ww-manual",
-        "mcgm-dyhe-city-ch9"
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -162,12 +216,18 @@
       },
       "sourceIds": [
         "mcgm-dward-ww-manual",
-        "mcgm-dyhe-city-ch9"
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -203,12 +263,18 @@
         "conditional": []
       },
       "sourceIds": [
-        "mcgm-dward-ww-manual"
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -266,12 +332,18 @@
       },
       "sourceIds": [
         "mcgm-dward-ww-manual",
-        "mcgm-dyhe-city-ch9"
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -338,12 +410,18 @@
       },
       "sourceIds": [
         "mcgm-dward-ww-manual",
-        "mcgm-dyhe-city-ch9"
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -383,12 +461,18 @@
       },
       "sourceIds": [
         "mcgm-dward-ww-manual",
-        "mcgm-dyhe-city-ch9"
+        "mcgm-dyhe-city-ch9",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -424,12 +508,18 @@
         "conditional": []
       },
       "sourceIds": [
-        "mcgm-dward-ww-manual"
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -465,12 +555,18 @@
         "conditional": []
       },
       "sourceIds": [
-        "mcgm-dward-ww-manual"
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -506,12 +602,18 @@
         "conditional": []
       },
       "sourceIds": [
-        "mcgm-dward-ww-manual"
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {
@@ -552,12 +654,18 @@
         "conditional": []
       },
       "sourceIds": [
-        "mcgm-dward-ww-manual"
+        "mcgm-dward-ww-manual",
+        "mcgm-aeww-a-manual",
+        "mcgm-aeww-k-west-manual",
+        "mcgm-aeww-p-south-manual",
+        "mcgm-aeww-r-central-manual",
+        "mcgm-aeww-h-east-manual",
+        "mcgm-aeww-l-manual"
       ],
       "review": {
         "status": "verified",
         "verifiedOn": "2026-09-27",
-        "note": "Time limits are from the MCGM Assistant Engineer (Water Works) RTI manuals: wards A, D, K-West, P-South and R-Central share this table. Wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
+        "note": "Time limits: same table in the AEWW RTI manuals of wards A, D, K-West, P-South and R-Central; wards H-East and L instead state 'Seven days (per scrutiny level)'. Check your ward's manual."
       }
     },
     {

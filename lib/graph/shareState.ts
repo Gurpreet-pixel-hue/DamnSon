@@ -1,30 +1,44 @@
-import type { Answers } from "./resolvePath";
-import type { CivicTaskGraph } from "./schema";
-import { idSchema } from "./schema";
+import { z } from "zod";
+import { idSchema } from "@/lib/contract/schema";
+import { parseFacts, type FactKey, type Facts } from "@/lib/contract/facts";
+import type { ComposedJourney } from "@/lib/contract/compose";
 
 export interface ShareState {
   taskId: string;
-  answers: Answers;
+  facts: Facts;
   completed: string[];
+}
+
+function toBase64Url(str: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(str, "utf8").toString("base64url");
+  }
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(b64url: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(b64url, "base64url").toString("utf8");
+  }
+  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "==".slice(0, (4 - (b64url.length % 4)) % 4);
+  return atob(b64);
 }
 
 export function encodeShareState(s: ShareState): string {
   const params = new URLSearchParams();
   params.set("task", s.taskId);
 
-  // Sorted question answers
-  const sortedQids = Object.keys(s.answers).sort();
-  if (sortedQids.length > 0) {
-    const aEntries: string[] = [];
-    for (const qid of sortedQids) {
-      const val = s.answers[qid];
-      if (val !== undefined) {
-        aEntries.push(`${qid}.${val ? "y" : "n"}`);
+  // Sorted facts JSON encoded as base64url
+  const sortedFactKeys = Object.keys(s.facts).sort() as FactKey[];
+  if (sortedFactKeys.length > 0) {
+    const sortedFacts: Record<string, unknown> = {};
+    for (const key of sortedFactKeys) {
+      if (s.facts[key] !== undefined) {
+        sortedFacts[key] = s.facts[key];
       }
     }
-    if (aEntries.length > 0) {
-      params.set("a", aEntries.join(","));
-    }
+    const jsonStr = JSON.stringify(sortedFacts);
+    params.set("f", toBase64Url(jsonStr));
   }
 
   // Sorted completed IDs
@@ -35,6 +49,8 @@ export function encodeShareState(s: ShareState): string {
 
   return params.toString();
 }
+
+const stepIdSchema = z.string().min(2).max(128).regex(/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/);
 
 export function decodeShareState(params: URLSearchParams): ShareState | null {
   const rawTask = params.get("task");
@@ -48,18 +64,15 @@ export function decodeShareState(params: URLSearchParams): ShareState | null {
   }
   const taskId = taskParsed.data;
 
-  const answers: Record<string, boolean> = {};
-  const rawA = params.get("a");
-  if (rawA) {
-    const parts = rawA.split(",");
-    for (const part of parts) {
-      const lastDot = part.lastIndexOf(".");
-      if (lastDot === -1) continue;
-      const qid = part.slice(0, lastDot);
-      const valCode = part.slice(lastDot + 1);
-      if (valCode !== "y" && valCode !== "n") continue;
-      if (!idSchema.safeParse(qid).success) continue;
-      answers[qid] = valCode === "y";
+  let facts: Facts = {};
+  const rawF = params.get("f");
+  if (rawF) {
+    try {
+      const decodedJson = fromBase64Url(rawF);
+      const parsed = JSON.parse(decodedJson);
+      facts = parseFacts(parsed);
+    } catch {
+      facts = {};
     }
   }
 
@@ -68,7 +81,7 @@ export function decodeShareState(params: URLSearchParams): ShareState | null {
   if (rawDone) {
     const ids = rawDone.split(",");
     for (const id of ids) {
-      if (idSchema.safeParse(id).success) {
+      if (stepIdSchema.safeParse(id).success) {
         completed.push(id);
       }
     }
@@ -76,30 +89,30 @@ export function decodeShareState(params: URLSearchParams): ShareState | null {
 
   return {
     taskId,
-    answers,
+    facts,
     completed,
   };
 }
 
 export function sanitizeShareState(
   s: ShareState,
-  graph: CivicTaskGraph
+  journey: ComposedJourney
 ): ShareState {
-  const validQuestionIds = new Set(graph.questions.map((q) => q.id));
-  const validNodeIds = new Set(graph.nodes.map((n) => n.id));
+  // Drops ids that aren't in the journey and drops milestone ids
+  const validActionNodeIds = new Set(
+    journey.steps
+      .filter((step) => step.kind !== "milestone")
+      .map((step) => step.id)
+  );
 
-  const sanitizedAnswers: Record<string, boolean> = {};
-  for (const [qid, val] of Object.entries(s.answers)) {
-    if (validQuestionIds.has(qid)) {
-      sanitizedAnswers[qid] = val;
-    }
-  }
-
-  const sanitizedCompleted = s.completed.filter((id) => validNodeIds.has(id));
+  const sanitizedCompleted = s.completed.filter((id) =>
+    validActionNodeIds.has(id)
+  );
+  const sanitizedFacts = parseFacts(s.facts);
 
   return {
     taskId: s.taskId,
-    answers: sanitizedAnswers,
+    facts: sanitizedFacts,
     completed: sanitizedCompleted,
   };
 }
