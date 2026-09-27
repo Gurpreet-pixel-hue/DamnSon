@@ -111,10 +111,10 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
         return CopilotResponse(language=req.locale, notice="not_found")
 
     # Deduplicate chunks just in case
-    chunk_map = {str(c["id"]): c for c in chunks}
+    chunk_map = {str(c["chunk_id"]): c for c in chunks}
 
     # Context string
-    context_text = "\n\n".join(f"--- Chunk ID: {c['id']} ---\nTitle: {c['title']}\nURL: {c['url']}\nText: {c['text']}" for c in chunk_map.values())
+    context_text = "\n\n".join(f"--- Chunk ID: {c['chunk_id']} ---\nTitle: {c['source_title']}\nURL: {c['source_url']}\nText: {c['chunk_text']}" for c in chunk_map.values())
 
     # 4. LLM Generation & 2-Attempt Citation Repair
     system_prompt = (
@@ -149,7 +149,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
                     continue
 
                 chunk_data = chunk_map[c.chunkId]
-                if c.quote not in chunk_data["text"]:
+                if c.quote not in chunk_data["chunk_text"]:
                     errors.append(f"Error: exact quote '{c.quote}' not found in chunk '{c.chunkId}'.")
                     continue
 
@@ -163,11 +163,11 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
                     final_citations.append(
                         Citation(
                             n=idx + 1,
-                            url=chunk_data["url"],
-                            title=chunk_data["title"],
+                            url=chunk_data["source_url"],
+                            title=chunk_data["source_title"],
                             quote=c.quote,
                             chunkId=c.chunkId,
-                            official=is_official_url(chunk_data["url"]),
+                            official=is_official_url(chunk_data["source_url"]),
                         )
                     )
                 return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
@@ -187,7 +187,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
             # Degraded fallback
             passages = []
             for ch in list(chunk_map.values())[:3]:
-                passages.append(Passage(url=ch["url"], title=ch["title"], text=ch["text"][:1200]))
+                passages.append(Passage(url=ch["source_url"], title=ch["source_title"], text=ch["chunk_text"][:1200]))
             return CopilotResponse(language=req.locale, notice="degraded", passages=passages)
 
     # If we exhausted 3 attempts and still failed validation

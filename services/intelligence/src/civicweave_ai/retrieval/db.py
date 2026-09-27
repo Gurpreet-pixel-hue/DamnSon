@@ -33,11 +33,10 @@ def search_chunks(
         with psycopg.connect(settings.knowledge_database_url, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
                 # The search_chunks function takes:
-                # query_embedding vector(768), match_count int, filter_state text, filter_city text,
-                # filter_urls text[]
+                # q_text text, q_embedding vector(768), p_state text, p_city text, p_scope_urls text[], p_limit int
                 cur.execute(
-                    "SELECT * FROM search_chunks(%s, %s, %s, %s, %s)",
-                    (vector_str, limit, state, city, scope_urls),
+                    "SELECT * FROM knowledge.search_chunks(%s, %s, %s, %s, %s, %s)",
+                    (query_text, vector_str, state, city, scope_urls, limit),
                 )
                 rows = cur.fetchall()
                 for row in rows:
