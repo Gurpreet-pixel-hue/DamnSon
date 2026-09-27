@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
 import { LandingSearch } from "@/components/landing/LandingSearch";
+import type { Question } from "@/lib/contract/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,23 @@ export default async function HomePage() {
   const repo = getJourneyRepository();
   const templates = await repo.listTemplates();
 
+  const questionsByTaskId: Record<string, Question[]> = {};
+  for (const t of templates) {
+    try {
+      const published = await repo.getPublishedJourney(t.taskId);
+      if (published) {
+        questionsByTaskId[t.taskId] = published.template.questions;
+      }
+    } catch {
+      // Ignore if not loaded
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] p-6 md:p-12 flex flex-col items-center">
       <div className="w-full max-w-4xl flex flex-col gap-12">
         {/* Landing Natural-Language Search (§9.3) */}
-        <LandingSearch templates={templates} />
+        <LandingSearch templates={templates} questionsByTaskId={questionsByTaskId} />
 
         {/* Below the fold: Published journeys */}
         <section className="flex flex-col gap-4 pt-6 border-t border-[var(--cw-border)]">

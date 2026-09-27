@@ -3,18 +3,26 @@
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { TemplateSummary, SearchResponse } from "@/lib/contract/api";
-import { FACTS, type FactKey, type FactValue } from "@/lib/contract/facts";
+import { FACTS, type FactDef, type FactKey, type FactValue } from "@/lib/contract/facts";
 import { formatFactValue } from "@/lib/graph/factDisplay";
 import { highlightEvidence } from "@/lib/landing/evidenceHighlight";
 import { selectLandingMatches } from "@/lib/landing/matchSelection";
 import { suggestFacts, type SuggestedFact } from "@/lib/landing/suggestFacts";
+import { GuidedQuestions } from "@/components/hud/GuidedQuestions";
+import type { Question } from "@/lib/contract/schema";
+import type { ComposedJourney } from "@/lib/contract/compose";
 
 export interface LandingSearchProps {
   templates: TemplateSummary[];
+  questionsByTaskId?: Record<string, Question[]>;
   onNavigateStart?: () => void;
 }
 
-export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps) {
+export function LandingSearch({
+  templates,
+  questionsByTaskId,
+  onNavigateStart,
+}: LandingSearchProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
@@ -49,6 +57,43 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
   const handleDismissSuggestion = (s: SuggestedFact) => {
     setDismissedSuggestions((prev) => new Set(prev).add(s.fact));
   };
+
+  // Match selection
+  const matchSelection = selectLandingMatches(
+    searchResult ? searchResult.matches : [],
+    selectedTaskId ?? undefined
+  );
+
+  const currentMatchTaskId = matchSelection.selectedMatch?.taskId ?? templates[0]?.taskId;
+  const questionsForMatch = React.useMemo(() => {
+    if (!currentMatchTaskId || !questionsByTaskId) return [];
+    return questionsByTaskId[currentMatchTaskId] ?? [];
+  }, [currentMatchTaskId, questionsByTaskId]);
+
+  const landingJourney: ComposedJourney | null = React.useMemo(() => {
+    const selected = matchSelection.selectedMatch ?? templates[0];
+    if (!selected || questionsForMatch.length === 0) return null;
+    return {
+      taskId: selected.taskId,
+      revision: selected.revision,
+      title: selected.title,
+      summary: selected.summary,
+      category: selected.category,
+      jurisdiction: { country: "IN" as const, ...selected.jurisdiction },
+      facts: confirmedFacts,
+      questions: questionsForMatch.map((q) => {
+        const def = FACTS[q.fact];
+        return {
+          ...q,
+          answerType: (def?.type ?? "boolean") as FactDef["type"],
+          affectedStepCount: 1,
+        };
+      }),
+      steps: [],
+      edges: [],
+      excluded: [],
+    };
+  }, [matchSelection.selectedMatch, templates, questionsForMatch, confirmedFacts]);
 
   // Perform search
   const doSearch = useCallback(
@@ -139,12 +184,6 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
       doSearch(query, locChoice);
     }
   };
-
-  // Match selection
-  const matchSelection = selectLandingMatches(
-    searchResult ? searchResult.matches : [],
-    selectedTaskId ?? undefined
-  );
 
   // Navigate to journey (PRD §8.8 share format)
   const handleMapRoute = () => {
@@ -534,6 +573,20 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
                 );
               })}
             </div>
+
+            {/* Guided questions on the landing (C3) */}
+            {landingJourney && (
+              <div className="flex flex-col gap-2 pt-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--cw-text-muted)]">
+                  Personalise your route
+                </h4>
+                <GuidedQuestions
+                  journey={landingJourney}
+                  answeredFacts={confirmedFacts}
+                  onAnswer={(fact, val) => setConfirmedFacts((prev) => ({ ...prev, [fact]: val }))}
+                />
+              </div>
+            )}
 
             {/* Primary Action Button: Map my route */}
             <div className="pt-2 flex justify-end">
