@@ -21,34 +21,41 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const incoming = request.headers.get("x-request-id");
   const id = incoming !== null && REQUEST_ID.test(incoming) ? incoming : crypto.randomUUID();
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-request-id", id);
+  /**
+   * NextResponse.next() snapshots the request, so a response built before the session refresh would
+   * hand the route handler the cookie we just replaced. Rebuilding from `request` after updating its
+   * cookies is what makes the refreshed token visible downstream.
+   */
+  const build = (): NextResponse => {
+    const headers = new Headers(request.headers);
+    headers.set("x-request-id", id);
+    return NextResponse.next({ request: { headers } });
+  };
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  let response = build();
+
+  if (needsSession(request.nextUrl.pathname)) {
+    const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+    const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+    if (url !== undefined && url.length > 0 && key !== undefined && key.length > 0) {
+      const supabase = createServerClient(url, key, {
+        cookies: {
+          getAll: () => request.cookies.getAll(),
+          setAll: (cookiesToSet) => {
+            for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
+            response = build();
+            for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
+          },
+        },
+      });
+
+      // Verifies the JWT and writes a refreshed session back through setAll. An unauthenticated
+      // visitor is not an error here: requireAdmin() decides on 401 and 403.
+      await supabase.auth.getClaims();
+    }
+  }
+
   response.headers.set("x-request-id", id);
-
-  if (!needsSession(request.nextUrl.pathname)) return response;
-
-  const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-  const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  if (url === undefined || url.length === 0 || key === undefined || key.length === 0) return response;
-
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll: () => request.cookies.getAll(),
-      setAll: (cookiesToSet) => {
-        for (const { name, value, options } of cookiesToSet) {
-          request.cookies.set(name, value);
-          response.cookies.set(name, value, options);
-        }
-      },
-    },
-  });
-
-  // Verifies the JWT and writes a refreshed session back through setAll. An unauthenticated visitor is
-  // not an error here: requireAdmin() decides on 401 and 403.
-  await supabase.auth.getClaims();
-
   return response;
 }
 

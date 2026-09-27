@@ -175,14 +175,26 @@ export async function saveDraft(
     const hash = contentHash(versioned);
 
     if (draft !== null) {
-      await tx.approvalModuleVersion.update({
-        where: { id: draft.id },
+      // Compare-and-swap rather than a plain update: the read above is not enough, because two admins
+      // saving at once can both pass it under READ COMMITTED and the second would silently overwrite
+      // the first. Matching on the hash we based this edit on makes the check part of the write.
+      const swapped = await tx.approvalModuleVersion.updateMany({
+        where: { id: draft.id, contentHash: draft.contentHash, status: "draft" },
         data: { content: canonical(versioned), contentHash: hash },
       });
+      if (swapped.count !== 1) {
+        return { ok: false, code: "conflict", message: "Someone changed this module. Reload to see their version." };
+      }
     } else {
-      await tx.approvalModuleVersion.create({
-        data: { moduleId, version, content: canonical(versioned), contentHash: hash, status: "draft" },
-      });
+      try {
+        await tx.approvalModuleVersion.create({
+          data: { moduleId, version, content: canonical(versioned), contentHash: hash, status: "draft" },
+        });
+      } catch {
+        // one_draft_per_module (A.3) or the (module_id, version) unique index: another admin created
+        // the draft first. That is a conflict, not a server error.
+        return { ok: false, code: "conflict", message: "Someone created a draft first. Reload to see it." };
+      }
     }
 
     await writeAudit(tx, {
