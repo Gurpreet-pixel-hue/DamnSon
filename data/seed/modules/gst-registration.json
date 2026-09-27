@@ -4,11 +4,30 @@
   "version": 1,
   "title": "GST registration",
   "summary": "Apply for GST registration as a normal taxpayer on the GST portal (REG-01). A new company can also apply for GSTIN through AGILE-PRO-S when filing SPICe+.",
-  "authority": { "slug": "gstn", "name": "Goods and Services Tax Network (GST Portal)", "tier": "central", "officialUrl": "https://www.gst.gov.in/" },
+  "authority": {
+    "slug": "gstn",
+    "name": "Goods and Services Tax Network (GST Portal)",
+    "tier": "central",
+    "officialUrl": "https://www.gst.gov.in/"
+  },
   "eligibility": [],
   "sources": [
-    { "id": "gst-tutorial", "url": "https://tutorial.gst.gov.in/userguide/registration/Apply_for_Registration_Normal_Taxpayer.htm", "title": "Manual > Registration Application > Normal Taxpayer", "kind": "guideline", "retrievedOn": "2026-09-27", "authoritySlug": "gstn" },
-    { "id": "mca-faqs", "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf", "title": "FAQs on Incorporation and Allied Matters", "kind": "faq", "retrievedOn": "2026-09-27", "authoritySlug": "mca" }
+    {
+      "id": "gst-tutorial",
+      "url": "https://tutorial.gst.gov.in/userguide/registration/Apply_for_Registration_Normal_Taxpayer.htm",
+      "title": "Manual > Registration Application > Normal Taxpayer",
+      "kind": "guideline",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "gstn"
+    },
+    {
+      "id": "mca-faqs",
+      "url": "https://www.mca.gov.in/content/dam/mca/pdf/SPICEplus-and-linked-filings-FAQs-V3-20230122.pdf",
+      "title": "FAQs on Incorporation and Allied Matters",
+      "kind": "faq",
+      "retrievedOn": "2026-09-27",
+      "authoritySlug": "mca"
+    }
   ],
   "steps": [
     {
@@ -16,32 +35,106 @@
       "id": "apply",
       "title": "Apply for GST registration",
       "description": "Submit the new registration application (REG-01) on the GST portal; PAN is validated with CBDT, then Aadhaar authentication. If biometric authentication applies, book a slot and visit the designated GST Suvidha Kendra (GSK).",
-      "requirement": { "kind": "mandatory" },
+      "requirement": {
+        "kind": "mandatory"
+      },
       "authoritySlug": "gstn",
       "department": "GST Portal (GSTN)",
       "mode": "hybrid",
       "officeType": "online_portal",
-      "applicationPortal": { "name": "GST Portal", "url": "https://www.gst.gov.in/" },
-      "forms": [ { "name": "Application for New Registration (Normal Taxpayer)", "code": "REG-01" } ],
-      "documents": [
-        { "documentTypeId": "company-pan", "name": "PAN of the business", "note": "Validated with the CBDT database against the constitution of business." },
-        { "documentTypeId": "principal-place-of-business-proof", "name": "Proof of Principal Place of Business", "acceptedFormats": ["pdf", "jpeg"], "maxSizeKB": 1024 },
-        { "documentTypeId": "promoter-photograph", "name": "Photograph of the promoter / director", "perPerson": { "fact": "company.founders_count", "label": "Director" }, "acceptedFormats": ["pdf", "jpeg"], "maxSizeKB": 1024 },
-        { "documentTypeId": "authorised-signatory-appointment-proof", "name": "Proof of appointment of the authorised signatory", "acceptedFormats": ["pdf", "jpeg"], "maxSizeKB": 1024 },
-        { "documentTypeId": "authorised-signatory-photograph", "name": "Photograph of the authorised signatory", "acceptedFormats": ["pdf", "jpeg"], "maxSizeKB": 100 }
+      "applicationPortal": {
+        "name": "GST Portal",
+        "url": "https://www.gst.gov.in/"
+      },
+      "forms": [
+        {
+          "name": "Application for New Registration (Normal Taxpayer)",
+          "code": "REG-01"
+        }
       ],
-      "outputs": [ { "documentTypeId": "gst-registration-certificate", "name": "GST registration (GSTIN)" } ],
-      "fee": { "kind": "unknown", "note": "Not stated in the reviewed GST tutorial." },
+      "documents": [
+        {
+          "documentTypeId": "company-pan",
+          "name": "PAN of the business",
+          "note": "Validated with the CBDT database against the constitution of business."
+        },
+        {
+          "documentTypeId": "principal-place-of-business-proof",
+          "name": "Proof of Principal Place of Business",
+          "acceptedFormats": [
+            "pdf",
+            "jpeg"
+          ],
+          "maxSizeKB": 1024
+        },
+        {
+          "documentTypeId": "promoter-photograph",
+          "name": "Photograph of the promoter / director",
+          "perPerson": {
+            "fact": "company.founders_count",
+            "label": "Director"
+          },
+          "acceptedFormats": [
+            "pdf",
+            "jpeg"
+          ],
+          "maxSizeKB": 1024
+        },
+        {
+          "documentTypeId": "authorised-signatory-appointment-proof",
+          "name": "Proof of appointment of the authorised signatory",
+          "acceptedFormats": [
+            "pdf",
+            "jpeg"
+          ],
+          "maxSizeKB": 1024
+        },
+        {
+          "documentTypeId": "authorised-signatory-photograph",
+          "name": "Photograph of the authorised signatory",
+          "acceptedFormats": [
+            "pdf",
+            "jpeg"
+          ],
+          "maxSizeKB": 100
+        }
+      ],
+      "outputs": [
+        {
+          "documentTypeId": "gst-registration-certificate",
+          "name": "GST registration (GSTIN)"
+        }
+      ],
+      "fee": {
+        "kind": "unknown",
+        "note": "Not stated in the reviewed GST tutorial."
+      },
       "timeline": {
-        "officialSla": { "kind": "unknown", "note": "The reviewed GST tutorial states no processing time." },
+        "officialSla": {
+          "kind": "unknown",
+          "note": "The reviewed GST tutorial states no processing time."
+        },
         "conditional": []
       },
-      "sourceIds": ["gst-tutorial", "mca-faqs"],
-      "review": { "status": "unverified" }
+      "sourceIds": [
+        "gst-tutorial",
+        "mca-faqs"
+      ],
+      "review": {
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
+      }
     }
   ],
   "edges": [],
-  "entrySteps": ["apply"],
-  "exitSteps": ["apply"],
-  "meta": { "origin": "curated", "updatedAt": "2026-09-27T12:00:00+05:30" }
+  "entrySteps": [
+    "apply"
+  ],
+  "exitSteps": [
+    "apply"
+  ],
+  "meta": {
+    "origin": "curated",
+    "updatedAt": "2026-09-27T12:00:00+05:30"
+  }
 }

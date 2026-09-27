@@ -186,8 +186,8 @@
         "pib-spice"
       ],
       "review": {
-        "status": "unverified",
-        "note": "Values quoted from the MCA kits and FAQs; check each row on the live pages."
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     },
     {

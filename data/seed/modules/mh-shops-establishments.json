@@ -94,7 +94,8 @@
         "mh-se-rules"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     },
     {
@@ -179,7 +180,8 @@
         "mh-labour-services"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     },
     {
@@ -217,7 +219,8 @@
         "mh-se-rules"
       ],
       "review": {
-        "status": "unverified"
+        "status": "verified",
+        "verifiedOn": "2026-09-27"
       }
     }
   ],
