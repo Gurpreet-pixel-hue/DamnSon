@@ -3,10 +3,11 @@
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { TemplateSummary, SearchResponse } from "@/lib/contract/api";
-import { FACTS, type FactValue } from "@/lib/contract/facts";
+import { FACTS, type FactKey, type FactValue } from "@/lib/contract/facts";
 import { formatFactValue } from "@/lib/graph/factDisplay";
 import { highlightEvidence } from "@/lib/landing/evidenceHighlight";
 import { selectLandingMatches } from "@/lib/landing/matchSelection";
+import { suggestFacts, type SuggestedFact } from "@/lib/landing/suggestFacts";
 
 export interface LandingSearchProps {
   templates: TemplateSummary[];
@@ -24,6 +25,30 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [confirmedFacts, setConfirmedFacts] = useState<Record<string, FactValue>>({});
   const [hasDocked, setHasDocked] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+
+  const templateMap = React.useMemo(() => new Map(templates.map((t) => [t.taskId, t])), [templates]);
+  const activeTemplate = selectedTaskId ? templateMap.get(selectedTaskId) : templates[0];
+
+  const suggestedFacts = React.useMemo(() => {
+    if (!searchResult) return [];
+    const shouldSuggest =
+      searchResult.mode === "lexical_fallback" ||
+      (!searchResult.facts || searchResult.facts.length === 0);
+    if (!shouldSuggest) return [];
+
+    const allowed = activeTemplate?.questionFacts;
+    const all = suggestFacts(query, allowed);
+    return all.filter((s) => confirmedFacts[s.fact] === undefined && !dismissedSuggestions.has(s.fact));
+  }, [searchResult, query, activeTemplate, confirmedFacts, dismissedSuggestions]);
+
+  const handleConfirmSuggestion = (s: SuggestedFact) => {
+    setConfirmedFacts((prev) => ({ ...prev, [s.fact]: s.value }));
+  };
+
+  const handleDismissSuggestion = (s: SuggestedFact) => {
+    setDismissedSuggestions((prev) => new Set(prev).add(s.fact));
+  };
 
   // Perform search
   const doSearch = useCallback(
@@ -337,30 +362,35 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
         )}
 
         {/* Fact Card with Highlighted Evidence (§9.3) */}
-        {searchResult && searchResult.facts && searchResult.facts.length > 0 && (
+        {Object.keys(confirmedFacts).length > 0 && (
           <div className="p-5 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] flex flex-col gap-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--cw-text-muted)]">
-                Facts identified from your query
+                Facts applied to your journey
               </h3>
               <span className="text-[11px] text-[var(--cw-done)] font-medium">✓ Verified</span>
             </div>
 
             <ul className="flex flex-col gap-2.5">
-              {searchResult.facts.map((factItem) => {
-                const label = FACTS[factItem.fact]?.label || factItem.fact;
-                const displayVal = formatFactValue(factItem.fact, factItem.value);
-                const segments = highlightEvidence(query, [factItem.evidence]);
+              {Object.entries(confirmedFacts).map(([factKey, factValue]) => {
+                const fk = factKey as FactKey;
+                const label = FACTS[fk]?.label || fk;
+                const displayVal = formatFactValue(fk, factValue);
+                // Look up evidence in searchResult.facts or suggestedFacts
+                const aiFact = searchResult?.facts?.find((f) => f.fact === fk);
+                const suggestedMatch = suggestFacts(query).find((s) => s.fact === fk);
+                const evidenceStr = aiFact?.evidence || suggestedMatch?.evidence;
+                const segments = highlightEvidence(query, [evidenceStr]);
 
                 return (
-                  <li key={factItem.fact} className="flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--cw-surface-muted)] border border-[var(--cw-border)]/60 text-xs">
+                  <li key={fk} className="flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--cw-surface-muted)] border border-[var(--cw-border)]/60 text-xs">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="font-semibold text-[var(--cw-text)]">{label}</span>
                       <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[var(--cw-border)]/40 text-[var(--cw-text)] font-medium">
                         {displayVal}
                       </span>
                     </div>
-                    {factItem.evidence && (
+                    {evidenceStr && (
                       <div className="text-[11px] text-[var(--cw-text-muted)] leading-relaxed">
                         <span className="font-medium text-[var(--cw-text)]">Evidence: </span>
                         <span>
@@ -380,6 +410,74 @@ export function LandingSearch({ templates, onNavigateStart }: LandingSearchProps
                 );
               })}
             </ul>
+          </div>
+        )}
+
+        {/* Suggested answers from your words chip row (§9.3, C2) */}
+        {suggestedFacts.length > 0 && (
+          <div className="p-4 rounded-2xl border border-amber-300/70 bg-amber-50/50 flex flex-col gap-3 shadow-xs" data-testid="suggested-facts">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-900">
+                Suggested from your words
+              </h3>
+              <span className="text-[11px] text-amber-700 font-medium">Nothing applied until confirmed</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              {suggestedFacts.map((s) => {
+                const label = FACTS[s.fact]?.label || s.fact;
+                const displayVal = formatFactValue(s.fact, s.value);
+                const segments = highlightEvidence(query, [s.evidence]);
+
+                return (
+                  <div
+                    key={s.fact}
+                    className="flex items-center gap-2 p-2 rounded-xl bg-white border border-amber-200 text-xs shadow-xs"
+                  >
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 font-medium text-[var(--cw-text)]">
+                        <span>{label}:</span>
+                        <span className="font-semibold text-amber-950 font-mono text-[11px] bg-amber-100/70 px-1.5 py-0.5 rounded">
+                          {displayVal}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[var(--cw-text-muted)]">
+                        From: &ldquo;
+                        {segments.map((seg, idx) =>
+                          seg.highlighted ? (
+                            <mark key={idx} className="bg-amber-200 text-amber-900 px-0.5 font-medium rounded">
+                              {seg.text}
+                            </mark>
+                          ) : (
+                            <span key={idx}>{seg.text}</span>
+                          )
+                        )}
+                        &rdquo;
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 pl-2 border-l border-amber-100">
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmSuggestion(s)}
+                        className="px-2 py-1 rounded bg-[var(--cw-done)] text-white text-[11px] font-semibold hover:bg-[var(--cw-done)]/90 transition-colors cursor-pointer"
+                        title="Confirm this fact"
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDismissSuggestion(s)}
+                        className="px-2 py-1 rounded border border-[var(--cw-border)] text-[var(--cw-text-muted)] hover:text-[var(--cw-text)] text-[11px] font-semibold hover:bg-[var(--cw-surface-muted)] transition-colors cursor-pointer"
+                        title="Dismiss"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
