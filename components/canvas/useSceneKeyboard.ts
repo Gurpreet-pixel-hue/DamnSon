@@ -1,186 +1,173 @@
 "use client";
 
 import { useEffect } from "react";
-import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
+import type { MetroVM } from "@/lib/graph/viewModel";
+import type { ComposedJourney } from "@/lib/contract/compose";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { canMarkDone } from "@/lib/graph/progress";
+import { getStages, currentStage } from "@/lib/graph/stages";
+import {
+  reduceNavigationKey,
+  formatNavigationAnnouncement,
+  type NavigationState,
+  type AnnouncementParams,
+} from "@/lib/graph/navigation";
+import { buildStageTrayModel } from "@/lib/graph/stageTray";
 
-export function useSceneKeyboard(metro: MetroVM) {
+function announceNavigation(params: AnnouncementParams) {
+  const text = formatNavigationAnnouncement(params);
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("cw-navigation-live-region");
+    if (el) {
+      el.textContent = text;
+    }
+  }
+}
+
+export function useSceneKeyboard(metro: MetroVM, journey?: ComposedJourney | null) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Ignore keystrokes when typing into input fields
+      // Ignore keys while focus is in inputs, textareas, selects, contentEditable, or drawer scrollable areas (§12.1)
       const target = e.target as HTMLElement | null;
       if (
         target &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
+          target.tagName === "SELECT" ||
+          target.isContentEditable ||
+          target.closest('[data-drawer-scroll="true"]') ||
+          target.closest('[data-testid="drawer-content"]'))
       ) {
         return;
       }
 
       if (metro.stations.length === 0) return;
 
-      const { focusedStepId, setFocusedStepId } = useViewStore.getState();
-      const { activeTaskId, selectStep, toggleStepDone } =
+      const stages = getStages(metro);
+      const totalStages = Math.max(1, stages.length);
+      const currStageNum = currentStage(metro);
+
+      const { focusStage, setFocusStage, focusedStepId, setFocusedStepId } =
+        useViewStore.getState();
+      const { activeTaskId, selectedStepId, selectStep, toggleStepDone } =
         useTaskStore.getState();
 
-      const currentStation = focusedStepId
-        ? metro.stations.find((s) => s.id === focusedStepId)
-        : null;
+      // Get stations for the focused stage in tray order (§12.3)
+      const stageModel = buildStageTrayModel({
+        metro,
+        stageNumber: focusStage,
+        journey,
+      });
+      const stageStationIds = stageModel.allOrderedItems.map((i) => i.station.id);
 
-      // Group stations by layer
-      const layerMap = new Map<number, StationVM[]>();
-      for (const s of metro.stations) {
-        if (!layerMap.has(s.layer)) {
-          layerMap.set(s.layer, []);
-        }
-        layerMap.get(s.layer)!.push(s);
-      }
-      for (const list of layerMap.values()) {
-        list.sort((a, b) => a.lane - b.lane);
-      }
-      const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
-      const totalStages = Math.max(1, sortedLayers.length);
+      const navState: NavigationState = {
+        totalStages,
+        focusStage,
+        currentStage: currStageNum,
+        focusedStepId,
+        selectedStepId,
+        stageStationIds,
+      };
 
-      if (e.key === "[" || e.code === "BracketLeft") {
-        e.preventDefault();
-        const { focusStage, setFocusStage } = useViewStore.getState();
-        if (focusStage > 1) {
-          setFocusStage(focusStage - 1);
-        }
-        return;
-      }
+      const result = reduceNavigationKey(e.key, navState);
+      if (result.type === "IGNORED") return;
 
-      if (e.key === "]" || e.code === "BracketRight") {
-        e.preventDefault();
-        const { focusStage, setFocusStage } = useViewStore.getState();
-        if (focusStage < totalStages) {
-          setFocusStage(focusStage + 1);
-        }
-        return;
-      }
+      e.preventDefault();
 
-      if (e.key === "Tab") {
-        const { focusStage } = useViewStore.getState();
-        const focusedStageStations = layerMap.get(focusStage - 1) ?? [];
-        if (focusedStageStations.length > 0) {
-          e.preventDefault();
-          const currentIdx = focusedStageStations.findIndex(
-            (s) => s.id === focusedStepId
-          );
-          let nextIdx: number;
-          if (e.shiftKey) {
-            nextIdx =
-              currentIdx <= 0 ? focusedStageStations.length - 1 : currentIdx - 1;
+      switch (result.type) {
+        case "SET_STAGE": {
+          setFocusStage(result.stage);
+          const nextModel = buildStageTrayModel({
+            metro,
+            stageNumber: result.stage,
+            journey,
+          });
+          if (result.focusFirstStation && nextModel.allOrderedItems.length > 0) {
+            const first = nextModel.allOrderedItems[0]!;
+            setFocusedStepId(first.station.id);
+            if (selectedStepId) {
+              selectStep(first.station.id);
+            }
+            announceNavigation({
+              stageNumber: result.stage,
+              totalStages,
+              stageName: nextModel.stageName,
+              totalStepsInStage: nextModel.totalStations,
+              stationNumber: 1,
+              stationTitle: first.station.title,
+              stationState: first.station.state,
+            });
           } else {
-            nextIdx =
-              currentIdx >= focusedStageStations.length - 1 ? 0 : currentIdx + 1;
+            announceNavigation({
+              stageNumber: result.stage,
+              totalStages,
+              stageName: nextModel.stageName,
+              totalStepsInStage: nextModel.totalStations,
+            });
           }
-          setFocusedStepId(focusedStageStations[nextIdx]!.id);
-          return;
+          break;
         }
-      }
 
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        if (!currentStation) {
-          const firstLayer = sortedLayers[0];
-          const first =
-            firstLayer !== undefined ? layerMap.get(firstLayer)?.[0] : null;
-          if (first) setFocusedStepId(first.id);
-        } else {
-          const currentLayerIdx = sortedLayers.indexOf(currentStation.layer);
-          const nextLayer = sortedLayers[currentLayerIdx + 1];
-          if (nextLayer !== undefined) {
-            const nextList = layerMap.get(nextLayer);
-            if (nextList && nextList.length > 0) {
-              let closest = nextList[0]!;
-              let minDiff = Math.abs(closest.lane - currentStation.lane);
-              for (const candidate of nextList) {
-                const diff = Math.abs(candidate.lane - currentStation.lane);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closest = candidate;
-                }
+        case "FOCUS_STATION": {
+          setFocusedStepId(result.stepId);
+          if (result.syncDrawer) {
+            selectStep(result.stepId);
+          }
+          const item = stageModel.allOrderedItems.find(
+            (i) => i.station.id === result.stepId
+          );
+          if (item) {
+            announceNavigation({
+              stageNumber: focusStage,
+              totalStages,
+              stageName: stageModel.stageName,
+              totalStepsInStage: stageModel.totalStations,
+              stationNumber: item.indexInStage,
+              stationTitle: item.station.title,
+              stationState: item.station.state,
+            });
+          }
+          break;
+        }
+
+        case "OPEN_DRAWER": {
+          selectStep(result.stepId);
+          break;
+        }
+
+        case "TOGGLE_DONE": {
+          if (activeTaskId) {
+            const current = metro.stations.find((s) => s.id === result.stepId);
+            if (current && canMarkDone(current.kind) && current.state !== "locked") {
+              const currentFocus = useViewStore.getState().focusStage;
+              toggleStepDone(activeTaskId, result.stepId);
+              if (current.state === "available") {
+                useViewStore.getState().showUndoToast({
+                  taskId: activeTaskId,
+                  stepId: result.stepId,
+                  title: current.title,
+                  previousFocusStage: currentFocus,
+                });
               }
-              setFocusedStepId(closest.id);
             }
           }
+          break;
         }
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (currentStation) {
-          const currentLayerIdx = sortedLayers.indexOf(currentStation.layer);
-          const prevLayer = sortedLayers[currentLayerIdx - 1];
-          if (prevLayer !== undefined) {
-            const prevList = layerMap.get(prevLayer);
-            if (prevList && prevList.length > 0) {
-              let closest = prevList[0]!;
-              let minDiff = Math.abs(closest.lane - currentStation.lane);
-              for (const candidate of prevList) {
-                const diff = Math.abs(candidate.lane - currentStation.lane);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closest = candidate;
-                }
-              }
-              setFocusedStepId(closest.id);
-            }
-          }
-        }
-      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!currentStation) {
-          const firstLayer = sortedLayers[0];
-          const first =
-            firstLayer !== undefined ? layerMap.get(firstLayer)?.[0] : null;
-          if (first) setFocusedStepId(first.id);
-        } else {
-          const layerList = layerMap.get(currentStation.layer) ?? [];
-          const idx = layerList.findIndex((s) => s.id === currentStation.id);
-          if (idx !== -1) {
-            const nextIdx =
-              e.key === "ArrowDown"
-                ? Math.min(idx + 1, layerList.length - 1)
-                : Math.max(idx - 1, 0);
-            const targetStation = layerList[nextIdx];
-            if (targetStation) setFocusedStepId(targetStation.id);
-          }
-        }
-      } else if (e.key === "Enter") {
-        if (focusedStepId) {
-          e.preventDefault();
-          selectStep(focusedStepId);
-        }
-      } else if (e.key === " " || e.code === "Space") {
-        if (focusedStepId && activeTaskId) {
-          const current = metro.stations.find((s) => s.id === focusedStepId);
-          if (current && canMarkDone(current.kind) && current.state !== "locked") {
-            e.preventDefault();
-            const currentFocus = useViewStore.getState().focusStage;
-            toggleStepDone(activeTaskId, focusedStepId);
-            if (current.state === "available") {
-              useViewStore.getState().showUndoToast({
-                taskId: activeTaskId,
-                stepId: focusedStepId,
-                title: current.title,
-                previousFocusStage: currentFocus,
-              });
-            }
-          }
-        }
-      } else if (e.key === "Escape") {
-        const { selectedStepId, selectStep } = useTaskStore.getState();
-        if (selectedStepId) {
-          e.preventDefault();
+
+        case "CLOSE_DRAWER": {
           selectStep(null);
+          break;
+        }
+
+        case "RESET_TO_STAGE_OVERVIEW": {
+          setFocusedStepId(null);
+          break;
         }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [metro]);
+  }, [metro, journey]);
 }

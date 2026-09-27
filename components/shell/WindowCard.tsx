@@ -101,6 +101,7 @@ function CardDebugOverlay() {
 
 import { StageStepper } from "@/components/canvas/StageStepper";
 import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
+import { KeysHintModal } from "@/components/hud/KeysHintModal";
 import type { ComposedJourney } from "@/lib/contract/compose";
 
 export interface WindowCardProps {
@@ -179,6 +180,14 @@ export function WindowCard({
       <div
         data-testid="stage-header-band"
         className="pointer-events-none absolute top-0 inset-x-0 h-14 z-10"
+      />
+
+      {/* Screen-reader navigation announcer (§12.1) */}
+      <div
+        id="cw-navigation-live-region"
+        role="status"
+        aria-live="polite"
+        className="sr-only"
       />
 
       {/* Main viewport canvas / flowchart area */}
@@ -283,6 +292,9 @@ export function WindowCard({
               2D
             </button>
           </div>
+
+          {/* Keys Shortcut Hint (? / Keys) (§12.1) */}
+          <KeysHintModal />
 
           {/* Fullscreen Button */}
           <button
