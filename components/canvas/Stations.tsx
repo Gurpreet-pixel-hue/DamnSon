@@ -248,15 +248,16 @@ export function Stations({ stations }: StationsProps) {
 
         const [x, , z] = station.position3D;
         _tempObj.position.set(x, 0.21, z);
-        _tempObj.scale.set(1, scaleY, 1);
+        // G3: Stations render at 1.25x scale
+        _tempObj.scale.set(1.25, 1.25 * scaleY, 1.25);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
         mesh.setMatrixAt(i, _tempObj.matrix);
 
-        // E9: Locked buildings use a 0.9 multiply, not 0.82
+        // G3: Locked buildings dim to no less than 60% luminance (0.75 >= 0.6)
         if (station.state === "locked") {
-          _targetColor.setRGB(0.9, 0.9, 0.9);
+          _targetColor.setRGB(0.75, 0.75, 0.75);
         } else {
           _targetColor.setRGB(1.0, 1.0, 1.0);
         }
@@ -451,6 +452,7 @@ export function Stations({ stations }: StationsProps) {
             0.21,
             selectedStation.position3D[2],
           ]}
+          scale={[1.25, 1.25, 1.25]}
           material={atlasMaterial}
         >
           <Outlines thickness={0.03} color={PALETTE.brand} />

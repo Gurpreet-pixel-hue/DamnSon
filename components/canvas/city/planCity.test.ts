@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { planCity, type StationLocation, type TrackLocation } from "./planCity";
+import { CITY_KINDS } from "./cityKinds";
 import { loadJourneyForPage } from "@/app/loadJourney";
 import { safeCompose } from "@/lib/graph/safeCompose";
 import { fromJourney } from "@/lib/graph/viewModel";
@@ -219,5 +220,85 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     expect(plan.buildings.length).toBeLessThanOrEqual(260);
     expect(plan.trees.length).toBeLessThanOrEqual(240);
     expect(plan.props.length).toBeLessThanOrEqual(40);
+  });
+
+  it("ensures no fill building is in the plaza cell of any station or in the 8 cells around it (G3)", () => {
+    const plan = planCity({
+      taskId: "plaza-clearing-check",
+      stations: dummyStations,
+      tracks: dummyTracks,
+    });
+
+    const { cellSize } = plan.cellGrid;
+    for (const s of dummyStations) {
+      const sc = Math.floor((s.position3D[0] - plan.bounds.minX) / cellSize);
+      const sr = Math.floor((s.position3D[2] - plan.bounds.minZ) / cellSize);
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const r = sr + dr;
+          const c = sc + dc;
+          if (r >= 0 && r < plan.cellGrid.rows && c >= 0 && c < plan.cellGrid.cols) {
+            // Must be marked plaza
+            expect(plan.cellGrid.cells[r]![c]).toBe("plaza");
+
+            // No building can be in this cell
+            const cellCenterX = plan.bounds.minX + (c + 0.5) * cellSize;
+            const cellCenterZ = plan.bounds.minZ + (r + 0.5) * cellSize;
+            const hasBuilding = plan.buildings.some(
+              (b) =>
+                Math.abs(b.position[0] - cellCenterX) < 0.1 &&
+                Math.abs(b.position[2] - cellCenterZ) < 0.1
+            );
+            expect(hasBuilding).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("ensures fill buildings within 3 cells of a station are capped at 0.7 * that station's height (G3)", () => {
+    const stationsWithHeight: StationLocation[] = [
+      { id: "s1", position3D: [0, 0, 0], height: 3.5 },
+      { id: "s2", position3D: [14, 0, 0], height: 2.8 },
+    ];
+    const plan = planCity({
+      taskId: "height-cap-check",
+      stations: stationsWithHeight,
+      tracks: [],
+    });
+
+    const { cellSize } = plan.cellGrid;
+
+    for (const b of plan.buildings) {
+      const c = Math.floor((b.position[0] - plan.bounds.minX) / cellSize);
+      const r = Math.floor((b.position[2] - plan.bounds.minZ) / cellSize);
+
+      let minStationCellDist = Infinity;
+      let nearestStation: StationLocation | null = null;
+      for (const s of stationsWithHeight) {
+        const sc = Math.floor((s.position3D[0] - plan.bounds.minX) / cellSize);
+        const sr = Math.floor((s.position3D[2] - plan.bounds.minZ) / cellSize);
+        const cellDist = Math.max(Math.abs(r - sr), Math.abs(c - sc));
+        if (cellDist < minStationCellDist) {
+          minStationCellDist = cellDist;
+          nearestStation = s;
+        }
+      }
+
+      if (minStationCellDist <= 3 && nearestStation) {
+        const stationH = nearestStation.height ?? 3.0;
+        const maxAllowed = 0.7 * stationH;
+        // Verify building height with scale does not exceed cap
+        // The scale[1] was capped to ensure variant.height * scale[1] <= maxAllowed
+        expect(b.scale[1] * 2.0).toBeGreaterThan(0); // non-zero
+        // Look up kind height from CITY_KINDS
+        const kindInfo = CITY_KINDS.find((k) => k.name === b.kind);
+        if (kindInfo) {
+          const effectiveHeight = kindInfo.height * b.scale[1];
+          expect(effectiveHeight).toBeLessThanOrEqual(maxAllowed + 0.001);
+        }
+      }
+    }
   });
 });

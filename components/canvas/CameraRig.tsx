@@ -35,8 +35,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
       const fog = parentScene?.fog;
       if (fog && "near" in fog) {
         const dist = controls.distance;
-        fog.near = dist * 1.3;
-        fog.far = dist * 3.2;
+        fog.near = dist * 1.8;
+        fog.far = dist * 4.5;
       }
     };
 

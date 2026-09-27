@@ -250,6 +250,24 @@ export function planCity(options: PlanCityOptions): CityPlan {
     Array.from({ length: cols }, () => false)
   );
 
+  // G3: Pre-mark the plaza cell of each station and the 8 cells around it (9-cell block)
+  const isStationPlaza: boolean[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => false)
+  );
+  for (const s of stations) {
+    const sc = Math.floor((s.position3D[0] - bounds.minX) / cellSize);
+    const sr = Math.floor((s.position3D[2] - bounds.minZ) / cellSize);
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const r = sr + dr;
+        const c = sc + dc;
+        if (r >= 0 && r < rows && c >= 0 && c < cols) {
+          isStationPlaza[r]![c] = true;
+        }
+      }
+    }
+  }
+
   const freeCellIndices: Array<{ r: number; c: number; x: number; z: number }> = [];
 
   for (let r = 0; r < rows; r++) {
@@ -263,7 +281,12 @@ export function planCity(options: PlanCityOptions): CityPlan {
         continue;
       }
 
-      // Plaza: within 1.6 units of any station centre
+      // Plaza: station plaza cell and the 8 cells around it (G3), or within 1.6 units
+      if (isStationPlaza[r]![c]) {
+        cells[r]![c] = "plaza";
+        continue;
+      }
+
       let isPlaza = false;
       for (const s of stations) {
         const dSq = (cx - s.position3D[0]) ** 2 + (cz - s.position3D[2]) ** 2;
@@ -353,11 +376,22 @@ export function planCity(options: PlanCityOptions): CityPlan {
       const cx = bounds.minX + (c + 0.5) * cellSize;
       const cz = bounds.minZ + (r + 0.5) * cellSize;
 
-      // Distance to nearest station determines tier
+      // Distance to nearest station determines tier and G3 height capping
       let minDistSq = Infinity;
+      let minStationCellDist = Infinity;
+      let nearestStation: StationLocation | null = null;
+
       for (const s of stations) {
         const dSq = (cx - s.position3D[0]) ** 2 + (cz - s.position3D[2]) ** 2;
         if (dSq < minDistSq) minDistSq = dSq;
+
+        const sc = Math.floor((s.position3D[0] - bounds.minX) / cellSize);
+        const sr = Math.floor((s.position3D[2] - bounds.minZ) / cellSize);
+        const cellDist = Math.max(Math.abs(r - sr), Math.abs(c - sc));
+        if (cellDist < minStationCellDist) {
+          minStationCellDist = cellDist;
+          nearestStation = s;
+        }
       }
       const dist = Math.sqrt(minDistSq);
 
@@ -368,7 +402,10 @@ export function planCity(options: PlanCityOptions): CityPlan {
       );
 
       let candidatePool: readonly CityKindInfo[];
-      if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
+      if (minStationCellDist <= 3) {
+        // G3: fill buildings within 3 cells of a station use low-rise pool
+        candidatePool = LOW_BUILDINGS;
+      } else if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
         // E6: anything more than 20 units from camera target uses low-detail buildings
         candidatePool = LOW_DETAIL_BUILDINGS;
       } else if (dist <= 6.0) {
@@ -401,12 +438,22 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
       const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
       const sJitter = 0.9 + rand() * 0.2;
+      let scaleY = sJitter;
+
+      // G3: fill buildings within 3 cells of a station are capped at 0.7 * that station's height
+      if (minStationCellDist <= 3 && nearestStation) {
+        const stationH = nearestStation.height ?? 3.0;
+        const maxH = 0.7 * stationH;
+        if (variant.height * scaleY > maxH) {
+          scaleY = maxH / variant.height;
+        }
+      }
 
       buildings.push({
         kind: variant.name,
         position: [cx, 0.17, cz],
         rotationY: rotY,
-        scale: [sJitter, sJitter, sJitter],
+        scale: [sJitter, scaleY, sJitter],
       });
     }
   }
