@@ -249,11 +249,11 @@ export function MetroScene({
       {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
       <Stations stations={metro.stations} />
 
-      {/* 4. Routes batches */}
-      <Tracks metro={metro} />
+      {/* 4. Routes batches (flat 0.35 ribbons following streets, §11.5) */}
+      <Tracks metro={metro} plan={plan} />
 
-      {/* 5. Pulses */}
-      <Pulses metro={metro} />
+      {/* 5. Pulses (following road polyline, §11.5) */}
+      <Pulses metro={metro} plan={plan} />
 
       {/* 6. Screen-projected DOM Label system & Pins */}
       {slotsRef && pinSlotsRef && (

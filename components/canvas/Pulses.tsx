@@ -6,9 +6,11 @@ import { useFrame } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeTrackCurves, type TrackCurveData } from "./Tracks";
 import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
+import type { CityPlan } from "./city/planCity";
 
 interface PulsesProps {
   metro: MetroVM;
+  plan?: CityPlan;
 }
 
 const _tempObj = new THREE.Object3D();
@@ -21,7 +23,7 @@ interface PulseLUT {
   phaseOffset: number;
 }
 
-export function Pulses({ metro }: PulsesProps) {
+export function Pulses({ metro, plan }: PulsesProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
   const prefersReducedMotion = useMemo(() => {
@@ -31,20 +33,34 @@ export function Pulses({ metro }: PulsesProps) {
 
   // Filter curves that end at an available station
   const pulseTracks = useMemo(() => {
-    const { curves } = computeTrackCurves(metro);
+    const { curves } = computeTrackCurves(metro, plan);
     const available = curves.filter((c) => c.track.toAvailable);
     return available.slice(0, MAX_PULSES);
-  }, [metro]);
+  }, [metro, plan]);
 
-  // Precomputed Arc-length Lookup Tables (LUT)
+  // Precomputed Arc-length Lookup Tables (LUT) along the road polyline
   const luts = useMemo<PulseLUT[]>(() => {
     return pulseTracks.map((item: TrackCurveData, idx: number) => {
       const pts: [number, number, number][] = [];
-      for (let s = 0; s < LUT_SAMPLES; s++) {
-        const u = s / (LUT_SAMPLES - 1);
-        const p = item.curve.getPointAt(u);
-        pts.push([p.x, p.y, p.z]);
+      const numPts = item.points.length;
+
+      if (numPts >= 2) {
+        for (let s = 0; s < LUT_SAMPLES; s++) {
+          const u = s / (LUT_SAMPLES - 1);
+          const idxFloat = u * (numPts - 1);
+          const i0 = Math.floor(idxFloat);
+          const i1 = Math.min(i0 + 1, numPts - 1);
+          const frac = idxFloat - i0;
+          const pA = item.points[i0]!;
+          const pB = item.points[i1]!;
+          pts.push([
+            pA[0] + frac * (pB[0] - pA[0]),
+            HEIGHTS.pulses,
+            pA[2] + frac * (pB[2] - pA[2]),
+          ]);
+        }
       }
+
       return {
         trackId: item.track.id,
         points: pts,
@@ -76,7 +92,7 @@ export function Pulses({ metro }: PulsesProps) {
 
     for (let i = 0; i < luts.length; i++) {
       const lut = luts[i];
-      if (!lut) continue;
+      if (!lut || lut.points.length === 0) continue;
 
       const progress = (time * speed + lut.phaseOffset) % 1;
       const indexFloat = progress * (LUT_SAMPLES - 1);

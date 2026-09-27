@@ -5,167 +5,227 @@ import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import type { MetroVM, StationVM, TrackVM } from "@/lib/graph/viewModel";
 import { PALETTE } from "./palette";
-import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
+import { POLYGON_OFFSETS } from "./heights";
 import { useViewStore } from "@/lib/store/useViewStore";
+import { planCity, type CityPlan } from "./city/planCity";
+import { computeRoutesOnRoads, type RouteOnRoad } from "./city/routeOnRoads";
 
 export interface TrackCurveData {
   track: TrackVM;
-  curve: THREE.CubicBezierCurve3;
-  points: THREE.Vector3[];
+  polyline: [number, number, number][];
+  points: [number, number, number][];
   length: number;
 }
 
-interface TracksProps {
+export interface TracksProps {
   metro: MetroVM;
+  plan?: CityPlan;
 }
 
-export function computeTrackCurves(metro: MetroVM): {
+/**
+ * Builds merged BufferGeometry from multiple RouteOnRoad ribbon buffers.
+ */
+function buildMergedRibbonGeometry(routes: RouteOnRoad[]): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  if (routes.length === 0) return geom;
+
+  let totalVerts = 0;
+  let totalIndices = 0;
+  for (const r of routes) {
+    totalVerts += r.ribbonPositions.length;
+    totalIndices += r.ribbonIndices.length;
+  }
+
+  const positions = new Float32Array(totalVerts);
+  const normals = new Float32Array(totalVerts);
+  const indices = new Uint32Array(totalIndices);
+
+  let vOffset = 0;
+  let iOffset = 0;
+  let vertIndexBase = 0;
+
+  for (const r of routes) {
+    positions.set(r.ribbonPositions, vOffset);
+    normals.set(r.ribbonNormals, vOffset);
+    for (let i = 0; i < r.ribbonIndices.length; i++) {
+      indices[iOffset + i] = r.ribbonIndices[i]! + vertIndexBase;
+    }
+    vOffset += r.ribbonPositions.length;
+    iOffset += r.ribbonIndices.length;
+    vertIndexBase += r.ribbonPositions.length / 3;
+  }
+
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+  geom.setIndex(new THREE.BufferAttribute(indices, 1));
+  return geom;
+}
+
+export function computeTrackCurves(metro: MetroVM, externalPlan?: CityPlan): {
   curves: TrackCurveData[];
-  normalSegments: [number, number, number][];
-  doneSegments: [number, number, number][];
-  nextUpSegments: [number, number, number][];
-  criticalSegments: [number, number, number][];
+  routesMap: Map<string, RouteOnRoad>;
+  normalRoutes: RouteOnRoad[];
+  doneRoutes: RouteOnRoad[];
+  nextUpRoutes: RouteOnRoad[];
+  criticalRoutes: RouteOnRoad[];
+  dashedRoutes: RouteOnRoad[];
   dashedSegments: [number, number, number][];
 } {
   const stationMap = new Map<string, StationVM>(
     metro.stations.map((s) => [s.id, s])
   );
 
+  // Use provided plan or compute fallback plan
+  const plan = externalPlan ?? planCity({
+    taskId: "routes-plan",
+    stations: metro.stations.map((s) => ({ id: s.id, position3D: s.position3D })),
+    tracks: metro.tracks.map((t) => ({ id: t.id, from: t.from, to: t.to })),
+  });
+
+  const routesMap = computeRoutesOnRoads({
+    tracks: metro.tracks,
+    stations: metro.stations,
+    roadGraph: plan.roadGraph,
+    cellSize: plan.cellGrid.cellSize,
+  });
+
   const curves: TrackCurveData[] = [];
-  const normalSegments: [number, number, number][] = [];
-  const doneSegments: [number, number, number][] = [];
-  const nextUpSegments: [number, number, number][] = [];
-  const criticalSegments: [number, number, number][] = [];
+  const normalRoutes: RouteOnRoad[] = [];
+  const doneRoutes: RouteOnRoad[] = [];
+  const nextUpRoutes: RouteOnRoad[] = [];
+  const criticalRoutes: RouteOnRoad[] = [];
+  const dashedRoutes: RouteOnRoad[] = [];
   const dashedSegments: [number, number, number][] = [];
 
   for (const track of metro.tracks) {
-    const fromStation = stationMap.get(track.from);
-    const toStation = stationMap.get(track.to);
-    if (!fromStation || !toStation) continue;
-
-    // Route painted as surface lanes on the road at y = 0.195 (§11.5)
-    const p0 = new THREE.Vector3(
-      fromStation.position3D[0] + 0.7,
-      HEIGHTS.routeLane,
-      fromStation.position3D[2]
-    );
-    const p3 = new THREE.Vector3(
-      toStation.position3D[0] - 0.7,
-      HEIGHTS.routeLane,
-      toStation.position3D[2]
-    );
-
-    const deltaX = p3.x - p0.x;
-    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, HEIGHTS.routeLane, p0.z);
-    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, HEIGHTS.routeLane, p3.z);
-
-    const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
-    const points = curve.getPoints(23); // 24 points
-    const length = curve.getLength();
+    const route = routesMap.get(track.id);
+    if (!route) continue;
 
     curves.push({
       track,
-      curve,
-      points,
-      length,
+      polyline: route.polyline,
+      points: route.polyline,
+      length: route.length,
     });
 
-    // Populate segment pairs
-    const segPairs: [number, number, number][] = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const ptA = points[i];
-      const ptB = points[i + 1];
-      if (ptA && ptB) {
-        segPairs.push([ptA.x, ptA.y, ptA.z], [ptB.x, ptB.y, ptB.z]);
-      }
-    }
+    const fromStation = stationMap.get(track.from);
 
     if (track.dashed) {
-      dashedSegments.push(...segPairs);
-    } else if (fromStation.state === "done") {
-      doneSegments.push(...segPairs);
+      dashedRoutes.push(route);
+      for (let i = 0; i < route.polyline.length - 1; i++) {
+        const ptA = route.polyline[i]!;
+        const ptB = route.polyline[i + 1]!;
+        dashedSegments.push([ptA[0], ptA[1], ptA[2]], [ptB[0], ptB[1], ptB[2]]);
+      }
+    } else if (fromStation?.state === "done") {
+      doneRoutes.push(route);
     } else if (track.critical) {
-      criticalSegments.push(...segPairs);
+      criticalRoutes.push(route);
     } else if (track.toAvailable) {
-      nextUpSegments.push(...segPairs);
+      nextUpRoutes.push(route);
     } else {
-      normalSegments.push(...segPairs);
+      normalRoutes.push(route);
     }
   }
 
   return {
     curves,
-    normalSegments,
-    doneSegments,
-    nextUpSegments,
-    criticalSegments,
+    routesMap,
+    normalRoutes,
+    doneRoutes,
+    nextUpRoutes,
+    criticalRoutes,
+    dashedRoutes,
     dashedSegments,
   };
 }
 
-export function Tracks({ metro }: TracksProps) {
+export function Tracks({ metro, plan }: TracksProps) {
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
 
   const {
-    normalSegments,
-    doneSegments,
-    nextUpSegments,
-    criticalSegments,
+    normalRoutes,
+    doneRoutes,
+    nextUpRoutes,
+    criticalRoutes,
     dashedSegments,
-  } = useMemo(() => computeTrackCurves(metro), [metro]);
+  } = useMemo(() => computeTrackCurves(metro, plan), [metro, plan]);
+
+  // Merged geometries for flat 0.35 ribbons
+  const normalGeometry = useMemo(() => buildMergedRibbonGeometry(normalRoutes), [normalRoutes]);
+  const doneGeometry = useMemo(() => buildMergedRibbonGeometry(doneRoutes), [doneRoutes]);
+  const nextUpGeometry = useMemo(() => buildMergedRibbonGeometry(nextUpRoutes), [nextUpRoutes]);
+  const criticalGeometry = useMemo(() => buildMergedRibbonGeometry(criticalRoutes), [criticalRoutes]);
+
+  // Materials with polygonOffset for routeLane
+  const normalMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.trackNormal,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const doneMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.done,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const nextUpMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.available,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    []
+  );
+
+  const criticalMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: criticalPathOn ? PALETTE.critical : PALETTE.normalTrack,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
+      }),
+    [criticalPathOn]
+  );
 
   return (
     <group>
-      {/* 1. Normal routes (trackNormal #9AA3AD, width 4) */}
-      {normalSegments.length > 0 && (
-        <Line
-          segments
-          points={normalSegments}
-          color={PALETTE.trackNormal}
-          lineWidth={4}
-          polygonOffset
-          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
-          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
-        />
+      {/* 1. Normal routes (trackNormal #9AA3AD, flat ribbon width 0.35) */}
+      {normalRoutes.length > 0 && (
+        <mesh geometry={normalGeometry} material={normalMaterial} />
       )}
 
-      {/* 2. Done routes (--cw-done #1E7F3B, width 4) */}
-      {doneSegments.length > 0 && (
-        <Line
-          segments
-          points={doneSegments}
-          color={PALETTE.done}
-          lineWidth={4}
-          polygonOffset
-          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
-          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
-        />
+      {/* 2. Done routes (--cw-done #1E7F3B, flat ribbon width 0.35) */}
+      {doneRoutes.length > 0 && (
+        <mesh geometry={doneGeometry} material={doneMaterial} />
       )}
 
-      {/* 3. Next-up routes (--cw-available #1F63D6, width 5) */}
-      {nextUpSegments.length > 0 && (
-        <Line
-          segments
-          points={nextUpSegments}
-          color={PALETTE.available}
-          lineWidth={5}
-          polygonOffset
-          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
-          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
-        />
+      {/* 3. Next-up routes (--cw-available #1F63D6, flat ribbon width 0.35) */}
+      {nextUpRoutes.length > 0 && (
+        <mesh geometry={nextUpGeometry} material={nextUpMaterial} />
       )}
 
-      {/* 4. Critical path routes (only while toggle is on: --cw-critical #D92D20, width 6) */}
-      {criticalSegments.length > 0 && (
-        <Line
-          segments
-          points={criticalSegments}
-          color={criticalPathOn ? PALETTE.critical : PALETTE.normalTrack}
-          lineWidth={criticalPathOn ? 6 : 4}
-          polygonOffset
-          polygonOffsetFactor={POLYGON_OFFSETS.routeLane.factor}
-          polygonOffsetUnits={POLYGON_OFFSETS.routeLane.units}
-        />
+      {/* 4. Critical path routes (only while toggle is on: --cw-critical #D92D20) */}
+      {criticalRoutes.length > 0 && (
+        <mesh geometry={criticalGeometry} material={criticalMaterial} />
       )}
 
       {/* 5. Dashed routes (--cw-undecided #B45309, width 3) */}
