@@ -277,12 +277,20 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                     Requirement
                   </span>
                   <div className="flex items-center gap-2 p-2.5 rounded-lg border border-[var(--cw-border)]/50 bg-[var(--cw-background)]">
-                    <span className="font-semibold text-[var(--cw-text)] capitalize">
-                      {model.overview.requirement.kind}:
-                    </span>
-                    <span className="text-[var(--cw-text-muted)]">
-                      {model.overview.requirement.text}
-                    </span>
+                    {model.overview.requirement.kind === "mandatory" ? (
+                      <span className="font-semibold text-[var(--cw-text)]">
+                        {model.overview.requirement.text}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-[var(--cw-text)] capitalize">
+                          {model.overview.requirement.kind}:
+                        </span>
+                        <span className="text-[var(--cw-text-muted)]">
+                          {model.overview.requirement.text}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

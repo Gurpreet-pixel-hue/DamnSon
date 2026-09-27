@@ -167,7 +167,7 @@ export function buildStepDrawerModel(
 
   if (!isMilestone) {
     if (step.mode === "in_person" || step.mode === "hybrid") {
-      const officeName = step.office?.name?.trim() || "Office not specified";
+      const officeName = step.office?.name?.trim() || "Office not verified";
       const officeAddr = step.office?.address?.trim() || "Address not verified";
       const officeHours = step.office?.hours?.trim() || "Hours not verified";
       const officeWard = step.office?.ward?.trim() || null;
@@ -283,7 +283,7 @@ export function buildStepDrawerModel(
   const documentsModel: DrawerDocumentsModel = {
     documents,
     outputs,
-    emptyMessage: documents.length === 0 && outputs.length === 0 ? "No documents required" : null,
+    emptyMessage: documents.length === 0 && outputs.length === 0 ? "No documents listed" : null,
   };
 
   // Fees & SLA

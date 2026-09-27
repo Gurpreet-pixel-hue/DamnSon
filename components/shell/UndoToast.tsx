@@ -24,7 +24,7 @@ export function UndoToast() {
   };
 
   return (
-    <aside aria-label="Notifications and alerts" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+    <aside aria-label="Notifications and alerts" className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
       {/* Undo Toast */}
       <AnimatePresence>
         {undoToast && (
