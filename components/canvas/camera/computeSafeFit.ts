@@ -36,6 +36,8 @@ export interface SafeFitResult {
   fits: boolean;
   scale: number;
   distanceMultiplier: number;
+  coverageWidth: number;
+  coverageHeight: number;
   pointsBounds: {
     minX: number;
     maxX: number;
@@ -69,6 +71,8 @@ export function computeSafeFit(
       fits: true,
       scale: 1,
       distanceMultiplier: 1,
+      coverageWidth: 0,
+      coverageHeight: 0,
       pointsBounds: {
         minX: 0,
         maxX: 0,
@@ -152,10 +156,15 @@ export function computeSafeFit(
     y: vpCenterY + (pt.y - vpCenterY) * effectiveScale,
   }));
 
+  const coverageWidth = safeBounds.width > 0 ? pWidth / safeBounds.width : 0;
+  const coverageHeight = safeBounds.height > 0 ? pHeight / safeBounds.height : 0;
+
   return {
     fits,
     scale: effectiveScale,
     distanceMultiplier,
+    coverageWidth,
+    coverageHeight,
     pointsBounds: {
       minX,
       maxX,

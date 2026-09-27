@@ -70,8 +70,6 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
       box.expandByPoint(new THREE.Vector3(h.x, 0.57, h.z));
       box.expandByPoint(new THREE.Vector3(h.x, 2.0, h.z));
     }
-    // Margin for card and header extents in screen space
-    box.expandByScalar(3.5);
     return box;
   }, [metro]);
 
@@ -92,17 +90,17 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     if (!controls) return;
 
     const enableTransition = !prefersReducedMotion;
-    // F4: Fit inside safe area (insets: 24 px left/right, 110 px top, 120 px bottom)
+    // G2: Fit station bounding box with 8% margin inside safe area
     void controls.fitToBox(stationBoundingBox, false, {
-      paddingLeft: 2.2,
-      paddingRight: 2.2,
-      paddingTop: 3.2,
-      paddingBottom: 3.0,
+      paddingLeft: 0.8,
+      paddingRight: 0.8,
+      paddingTop: 1.0,
+      paddingBottom: 0.9,
     }).then(() => {
-      // F4: Initial azimuth -15°, polar 50°
+      // G2: Azimuth -15°, lower camera to polar 52° so horizon and board edge are outside viewport
       void controls.rotateTo(
         (-15 * Math.PI) / 180,
-        (50 * Math.PI) / 180,
+        (52 * Math.PI) / 180,
         enableTransition
       );
     });

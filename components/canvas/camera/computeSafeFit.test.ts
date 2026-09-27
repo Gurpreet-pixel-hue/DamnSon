@@ -81,4 +81,58 @@ describe("computeSafeFit (F4)", () => {
     expect(result.scale).toBe(1.0);
     expect(result.fittedPoints).toEqual([]);
   });
+
+  it("the station bounding box spans at least 70 % of the safe-area width for the demo (G2)", () => {
+    const viewport = { width: 1440, height: 900 };
+    const demoPoints = [
+      { x: 61, y: 616 },
+      { x: 209, y: 590 },
+      { x: 358, y: 598 },
+      { x: 492, y: 542 },
+      { x: 628, y: 551 },
+      { x: 757, y: 528 },
+      { x: 883, y: 507 },
+      { x: 974, y: 437 },
+      { x: 1008, y: 454 },
+      { x: 1122, y: 465 },
+      { x: 1244, y: 413 },
+      { x: 1041, y: 505 },
+      { x: 1348, y: 425 },
+    ];
+    const result = computeSafeFit(demoPoints, viewport, insets);
+    expect(result.coverageWidth).toBeGreaterThanOrEqual(0.70);
+  });
+
+  it("it spans at least 60 % of the safe-area height for the stress graph (G2)", () => {
+    const viewport = { width: 1440, height: 900 };
+    const stressPoints = [
+      { x: 191, y: 488 },
+      { x: 196, y: 564 },
+      { x: 212, y: 693 },
+      { x: 218, y: 788 },
+      { x: 376, y: 468 },
+      { x: 382, y: 494 },
+      { x: 403, y: 615 },
+      { x: 419, y: 701 },
+      { x: 431, y: 750 },
+      { x: 556, y: 474 },
+      { x: 578, y: 544 },
+      { x: 602, y: 622 },
+      { x: 627, y: 663 },
+      { x: 768, y: 550 },
+      { x: 886, y: 377 },
+      { x: 920, y: 485 },
+      { x: 960, y: 557 },
+      { x: 1005, y: 636 },
+      { x: 1043, y: 352 },
+      { x: 1088, y: 414 },
+      { x: 1180, y: 602 },
+      { x: 1128, y: 526 },
+      { x: 1211, y: 399 },
+      { x: 1262, y: 463 },
+      { x: 1330, y: 488 },
+    ];
+    const result = computeSafeFit(stressPoints, viewport, insets);
+    expect(result.coverageHeight).toBeGreaterThanOrEqual(0.60);
+  });
 });

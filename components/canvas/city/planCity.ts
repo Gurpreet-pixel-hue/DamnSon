@@ -136,15 +136,16 @@ export function computeBoardBounds(stations: StationLocation[]): BoardBounds {
     maxZ = Math.max(maxZ, s.position3D[2]);
   }
 
-  // Station bounds plus 14-unit margin on every side, rounded up to 7-unit blocks
-  const rawWidth = maxX - minX + 28;
-  const rawDepth = maxZ - minZ + 28;
+  // G2: Extend board bounds beyond the framed area so no bare background shows
+  const rawWidth = Math.max(maxX - minX + 56, 98);
+  const rawDepth = Math.max(maxZ - minZ + 84, 112);
 
   const width = Math.ceil(rawWidth / 7) * 7;
   const depth = Math.ceil(rawDepth / 7) * 7;
 
   const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
+  // Shift board center toward -Z so ground extends far behind stations
+  const centerZ = (minZ + maxZ) / 2 - 14;
 
   return {
     minX: centerX - width / 2,
