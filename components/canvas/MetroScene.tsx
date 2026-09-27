@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
@@ -181,6 +181,19 @@ export function MetroScene({
 
   // Hook keyboard navigation
   useSceneKeyboard(metro);
+
+  // Shader warm-up before first visible frame (§9.2, D3)
+  const { scene, camera, gl } = useThree();
+  const warmUpRef = useRef(false);
+
+  useEffect(() => {
+    if (!warmUpRef.current && gl && typeof (gl as unknown as { compileAsync?: unknown }).compileAsync === "function") {
+      warmUpRef.current = true;
+      (gl as THREE.WebGLRenderer).compileAsync(scene, camera).catch(() => {
+        // Safe catch for warm-up
+      });
+    }
+  }, [gl, scene, camera]);
 
   // Compute deterministic city plan
   const plan = useMemo(() => {
