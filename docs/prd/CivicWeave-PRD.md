@@ -6,9 +6,21 @@
 |---|---|
 | Problem statement | **PSWB 02 · Municipal Bureaucracy Path Visualizer** · Internal Hackathon 2026-27, Computer Engineering Department, Web category |
 | Product / repo | CivicWeave / `DamnSon` (`github.com/Gurpreet-pixel-hue/DamnSon`, one repository) |
-| Version, date | **1.1.0** · 2026-09-26 (supersedes 1.0.0 of the same day) |
+| Version, date | **1.2.0** · 2026-09-27 (supersedes 1.1.0; changes in "What changed in 1.2") |
 | Team | **Gurpreet**: all frontend · **Divvye**: platform and API · **Jai**: AI service · **Pruthviraj**: data, verification and evaluation |
 | Status | **Single source of truth.** The graph contract (§8, Appendix D), API contracts (§10, Appendix F) and database (Appendix A) are normative. Change control is in §13.3 |
+
+## What changed in 1.2
+
+Frontend experience only. Contracts, APIs, database and data rules are unchanged.
+
+| # | Area | 1.1 said | 1.2 says | Why |
+|---|---|---|---|---|
+| 1 | **Journey page layout** | Full-screen canvas with floating HUD panels (`frontend-spec.md` "HUD") | An **app shell**: the 3D scene sits in a framed window, with the top bar and summary tiles above it, a left rail, and a docked right drawer. The 2D panel and trip plan sit below the window. Parameters are in `docs/visual-direction.md` §9.1 | Matches the reference composition the team agreed on; every later milestone has a fixed slot |
+| 2 | **Intro sequence** | Not specified | A skippable kinetic-typography intro on `/` (first visit per session, ≤ 4.5 s, DOM/SVG only). It doubles as the preloader for the 3D chunk and models. **P1**, in FE-5. Spec in `visual-direction.md` §9.2 | A memorable first impression that also hides load time |
+| 3 | **Landing → journey transition** | Not specified | Search, fact card and questions on the landing, then a ≤ 2.4 s transition: the query moves into the top bar, the city rises and the camera lands on the route. **P1**, in FE-5. Reduced motion skips it. Spec in §9.3–9.4 | Connects typing a sentence to seeing the route |
+| 4 | Design system | Dark civic theme (§11.6) | Light civic theme per `visual-direction.md` (already built in FE-1V) | §11.6 was out of date |
+| 5 | Stack | `motion` for animation | `motion` for UI micro-interactions. **`gsap` 3.15.0** (Standard no-charge licence: SplitText, ScrambleText, DrawSVG, Flip) only for the intro and landing timelines, loaded with `next/dynamic` on `/` | Timeline sequencing and text splitting for the intro |
 
 ## What changed in 1.1 (read this first)
 
@@ -147,7 +159,7 @@ flowchart LR
 |---|---|---|---|---|
 | Data | `start-business-mumbai` template + SaaS modules + FSSAI branch, verified | 1 municipal procedure, verified. Eval sets | MCGM health licence module for the food branch | More cities and procedures |
 | Contract | v3 schema, rules, composition, analysis (Appendix D) | | | Property-based tests |
-| Frontend | Search box → fact card (with lexical-fallback notice). Journey page: Civic Metro 3D + same-layout 2D, decisive questions, step drawer (official links, review state), mark done → unlock, summary bar | Landing extras (published journeys, continue card), timeline panel, document checklist, source viewer, copilot panel, admin UI (verify / flag / publish / audit), undo toast, WebGL fallback | Trip plan, print checklist, Hindi/Marathi UI strings | List mode, offline PWA, bookmarks, saved journeys, Department Explorer |
+| Frontend | Search box → fact card (with lexical-fallback notice). Journey page: Civic Metro 3D + same-layout 2D, decisive questions, step drawer (official links, review state), mark done → unlock, summary bar, app shell | Landing extras (published journeys, continue card), intro sequence, landing → journey transition, timeline panel, document checklist, source viewer, copilot panel, admin UI (verify / flag / publish / audit), undo toast, WebGL fallback | Trip plan, print checklist, Hindi/Marathi UI strings | List mode, offline PWA, bookmarks, saved journeys, Department Explorer |
 | API | `/templates`, `/templates/{id}`, `/health`, `/search` with lexical fallback | `/copilot`, `/feedback`, admin API | `/sources/excerpt` | `/me/*` sync, runs API, `/api/v2` |
 | AI | Fact + intent extraction (EN, HI, MR, Hinglish), jurisdiction, template ranking | Copilot RAG with citations + validator, eval script | Prompt caching | Extraction pipeline, Review Briefs, reranker, Bhashini, semantic cache, MCP |
 | Ingestion | One script: registry → fetch → chunk → embed → pgvector | | Snapshots in Supabase Storage | Scheduler, change detection, OCR |
@@ -738,20 +750,21 @@ Derived values (composition, status, totals, timeline, layout) are memoised sele
 
 | Route | Purpose | States handled |
 |---|---|---|
-| `/` | Landing + search + published journeys + continue card | Loading, AI unavailable (lexical search still works), no results |
-| `/journey/[taskId]` | Fact card, decisive questions, Civic Metro 3D/2D, drawer, summary bar, timeline, documents, copilot, source viewer | Loading skeleton, invalid journey (error), partially verified banner, success |
+| `/` | Intro (first visit per session, skippable) → landing: natural-language search, fact card, decisive questions, published journeys, continue card; then the transition to the journey (`visual-direction.md` §9.2–9.4) | Intro skipped / reduced motion, loading, AI unavailable (lexical search still works), no results |
+| `/journey/[taskId]` | App shell (§9.1): top bar with summary tiles and Share, left rail, framed Civic Metro 3D window, docked drawer; below it the 2D panel, timeline, documents, copilot, source viewer | Loading skeleton, invalid journey (error), partially verified banner, success |
 | `/admin` | Sign-in, modules table, step review sheet, publish with issues, audit | Unauthorised, forbidden, validation errors highlighted, 409 conflict, success |
 
 ### 11.3 Interaction and accessibility
 
 - Every 3D action (hover, select, focus, mark done, open source) exists in 2D and by keyboard. Tab moves in topological order, Enter opens the drawer, Space toggles done.
-- `prefers-reduced-motion`: no camera tweens, no track pulse.
+- `prefers-reduced-motion`: no camera tweens, no track pulse, no intro timeline (static wordmark for 600 ms), no landing → journey entrance.
+- The intro is always skippable (button visible from the first frame, any key, click or tap), plays once per browser session, has no audio, and never flashes more than 3 times per second (WCAG 2.3.1).
 - No WebGL or context lost: switch to 2D automatically and say why. Below 1024 px wide: 2D with a "best on a laptop" note.
 - Contrast ≥ 4.5:1, targets ≥ 44 px, works at 200% zoom, status changes announced with `aria-live`.
 
 ### 11.4 Performance budget
 
-60 fps on a MacBook Air-class laptop; ≤ 30 draw calls with 25 stations (spec budget), 50 as the hard limit. `dpr={[1,2]}`, one instanced mesh per archetype, three batched track draw calls, drei `<Html>` labels only for hovered/focused/next-up stations, one `EffectComposer` disabled by `PerformanceMonitor` on decline, no allocations or `setState` in `useFrame`, 3D chunk loaded with `next/dynamic({ ssr: false })`.
+60 fps on a MacBook Air-class laptop; ≤ 30 draw calls with 25 stations (spec budget), 50 as the hard limit. `dpr={[1,2]}`, one instanced mesh per archetype, three batched track draw calls, drei `<Html>` labels only for hovered/focused/next-up stations, one `EffectComposer` disabled by `PerformanceMonitor` on decline, no allocations or `setState` in `useFrame`, 3D chunk loaded with `next/dynamic({ ssr: false })`. The intro uses no WebGL; the 3D chunk and the three GLBs preload while it plays. The landing → journey entrance adds no draw calls. GSAP never ships on `/journey`.
 
 ### 11.5 Languages
 
@@ -766,7 +779,7 @@ Numbers and currency use Indian formatting (₹1,00,000).
 
 ### 11.6 Design system
 
-Dark civic theme per `frontend-spec.md` colour tokens (zinc-950 `#09090b` background, cyan available, emerald done, amber undecided/may apply), frosted HUD panels, Geist fonts, tokens in `app/globals.css`, never raw hex in components. Components: `SearchBar`, `FactCard`, `QuestionChip`, `StationNode2D`, `StepDrawer`, `TrustBadge` (verified / unverified / flagged / official / non-government), `SummaryBar`, `TimelineBar` (SLA / conditional / waiting), `DocumentChecklist`, `SourceViewer`, `CopilotPanel`, `Toast` (with undo), admin `ModuleTable` and `StepReviewSheet`.
+Light civic theme per `docs/visual-direction.md` (cream page, white cards, brick-red brand, blue available, green done, amber may apply), app shell per §9.1 of that file, Geist fonts, tokens in `app/globals.css`, never raw hex in components. Components: `SearchBar`, `FactCard`, `QuestionChip`, `StationNode2D`, `StepDrawer`, `TrustBadge` (verified / unverified / flagged / official / non-government), `SummaryBar`, `TimelineBar` (SLA / conditional / waiting), `DocumentChecklist`, `SourceViewer`, `CopilotPanel`, `Toast` (with undo), admin `ModuleTable` and `StepReviewSheet`.
 
 ---
 
@@ -849,7 +862,7 @@ Quality gate: `npm run verify` (lint → typecheck → test → build) and `make
 | Runtime | Node.js 24 LTS (min 22.12), npm ≥ 11, Python 3.12 (uv) |
 | Web | `next` 16.3.6, `react` / `react-dom` 19.2.8, `typescript` 5.9.x, `tailwindcss` 4.3.x, `eslint` 9.x + `eslint-config-next` 16.3.6 |
 | 3D / 2D | `three` 0.186.1, `@react-three/fiber` 9.8.1, `@react-three/drei` 10.7.9, `@react-three/postprocessing` 3.1.2, `postprocessing` 6.39.5, `@xyflow/react` 12.12.0 |
-| UI / state | shadcn CLI 4.21.0 (radix, nova), `lucide-react` 1.48.0, `motion` 13.4.4, `geist` 1.7.2, `zustand` 5.0.15, `zod` 4.6.5 |
+| UI / state | shadcn CLI 4.21.0 (radix, nova), `lucide-react` 1.48.0, `motion` 13.4.4, `gsap` 3.15.0 (intro and landing only), `geist` 1.7.2, `zustand` 5.0.15, `zod` 4.6.5 |
 | Tests | `vitest` 5.0.2, `@types/node` 24.19.0, `ajv` 8.20.0, `ajv-formats` 3.0.1, `@playwright/test` 1.63.0, `@axe-core/playwright` 4.13.0 |
 | Backend (web) | `prisma` 7.10.0, `@prisma/client` 7.10.0, `@prisma/adapter-pg` 7.10.0, `pg` 8.23.0, `@supabase/supabase-js` 2.117.2, `@supabase/ssr` 0.12.7, `server-only` 0.0.1; dev: `@types/pg` 8.23.1, `dotenv` 18.0.4, `tsx` 4.23.15 |
 | AI service | `fastapi` 0.141.1, `uvicorn` 0.54.0, `pydantic` 2.13.5, `pydantic-settings` 2.15.0, `httpx` 0.28.1, `google-genai` 2.25.0, `groq` 1.7.0, `psycopg[binary]` 3.3.6, `pgvector` 0.5.0, `trafilatura` 2.2.0, `pymupdf` 1.28.2; optional `langgraph` 1.2.12, `langchain-core` 1.6.5; dev: `pytest` 9.1.1, `pytest-asyncio` 1.4.0, `ruff` 0.16.9, `mypy` 2.3.1 |
@@ -971,7 +984,7 @@ Hours are counted from kickoff (H0). The sprint-plan page mirrors this section a
 | **S0 · H0–H3 · Contracts** | **FE-1** M2 Civic Metro 3D on view models (H0–H5) | **PL-1** Contract v3 PR to `main` (Appendix D code + D.7 tests + fixtures + `contract:schemas` + `validate:seed`) | **AI-1** Service skeleton: FastAPI, settings, `/health`, service token, LLM router + breaker, PII redaction, Makefile, Dockerfile | **DA-1** Source registry v1 → Jai |
 | **S1 · H3–H12 · Foundations** | **FE-2** M1.3 v3 migration (H5–H9): derivations, stores v2, view-model adapter, delete v2 · **FE-3** Journey page from the repository, composing in the client (H9–H12) | **PL-2** File repository, `/templates`, `/templates/{id}`, `/health`, error envelope, request id, CI (H3–H6) · **PL-3** Prisma 7 + Supabase, migrations + guards, seed loader, DB repository (H6–H12) | **AI-2** Knowledge migration + ingestion script (H3–H10) · **AI-3** `/v1/search` facts, jurisdiction, ranking, clarifications (H8–H14) | **DA-2** Verify SPICe+ (+ milestone), founder KYC, DSC, bank account, Shops & Establishments, GST; template v1 (H3–H12) · **DA-3** Gazetteer (H10–H12) |
 | **CP1 · H12** | Checkpoint (§15.4) | | | |
-| **S2 · H12–H24 · Integration** | **FE-4** M3 2D + HUD: fact card, decisive questions, drawer, mark done + undo, not-needed list (H12–H18) · **FE-5** Landing + search UI (H18–H23) | **PL-4** `/api/v1/search` BFF with lexical fallback, `/feedback` (H12–H16) · **PL-5** Auth + admin API (H16–H23) | **AI-3** (finish) · **AI-4** `/v1/copilot` with citation validator (H14–H24) | **DA-4** Verify Udyam, DPIIT, trademark, PT, EPFO, ESIC, FSSAI; complete template (H12–H22) · **DA-5** Eval sets (H16–H24) |
+| **S2 · H12–H24 · Integration** | **FE-4** M3 2D + HUD: fact card, decisive questions, drawer, mark done + undo, not-needed list (H12–H18) · **FE-5** Landing + search UI; P1: intro sequence and landing → journey transition (H18–H23) | **PL-4** `/api/v1/search` BFF with lexical fallback, `/feedback` (H12–H16) · **PL-5** Auth + admin API (H16–H23) | **AI-3** (finish) · **AI-4** `/v1/copilot` with citation validator (H14–H24) | **DA-4** Verify Udyam, DPIIT, trademark, PT, EPFO, ESIC, FSSAI; complete template (H12–H22) · **DA-5** Eval sets (H16–H24) |
 | **CP2 · H24** | Checkpoint (§15.4) | | | |
 | **S3 · H24–H36 · Complete** | **FE-6** Timeline, documents, source viewer, copilot panel, feedback (H24–H30) · **FE-7** Admin UI (H30–H35) | **PL-6** `/api/v1/copilot` BFF, production deploy, security headers (H24–H28) · **PL-7** Playwright E2E, integration fixes (H28–H36) | **AI-5** Cloud Run deploy (H24–H28) · **AI-6** `make eval`, injection samples, prompt tuning (H28–H36) | **DA-6** Municipal procedure verified (H24–H32) · **DA-7** Content QA in admin, link check 1 (H30–H36) |
 | **CP3 · H36** | Checkpoint (§15.4) | | | |
@@ -1007,11 +1020,12 @@ Hours are counted from kickoff (H0). The sprint-plan page mirrors this section a
 If a checkpoint is missed, cut from the top of this list until the P0 path is green again:
 
 1. P2 items (trip plan, print, Hindi/Marathi UI strings, excerpt endpoint, MFA).
-2. The municipal procedure (demo SaaS + FSSAI only).
-3. Admin editing beyond verify / flag / publish.
-4. Copilot generation (show retrieved official passages with `notice: degraded`).
-5. Hindi/Marathi search (English only).
-6. Relative timeline (show per-step SLA and conditional bars only).
+2. Intro sequence and landing → journey transition (the landing shows directly; the journey opens at its final camera pose).
+3. The municipal procedure (demo SaaS + FSSAI only).
+4. Admin editing beyond verify / flag / publish.
+5. Copilot generation (show retrieved official passages with `notice: degraded`).
+6. Hindi/Marathi search (English only).
+7. Relative timeline (show per-step SLA and conditional bars only).
 
 **Never cut:** official links with verification states, mark done → unlock, the 2D fallback, "not verified" for missing data.
 
@@ -1080,6 +1094,8 @@ If a checkpoint is missed, cut from the top of this list until the P0 path is gr
 | D17 | Hackathon database security: RLS on, no policies, BFF as table owner, secret key never deployed |
 | D18 | Copilot returns validated JSON; streaming later |
 | D19 | Four lanes: Gurpreet frontend; Divvye platform; Jai AI; Pruthviraj data |
+| D20 | Journey page is an app shell with a framed 3D window (reference composition), not a full-screen canvas |
+| D21 | Intro sequence doubles as the 3D preloader; GSAP only on `/`; reduced motion and skip always available |
 
 **Glossary:** **SPICe+** MCA's integrated incorporation form. **DSC** digital signature certificate. **DIN** director identification number. **CIN** corporate identity number. **COI** Certificate of Incorporation. **PTRC** Professional Tax registration certificate. **S&E** Shops and Establishments. **DPIIT** Department for Promotion of Industry and Internal Trade. **NSWS** National Single Window System. **SLA** published service time. **LGD** Local Government Directory. **RAG** retrieval-augmented generation. **RLS** row-level security. **BFF** backend-for-frontend. **RRF** reciprocal rank fusion.
 
