@@ -1,18 +1,30 @@
-import type { ResolvedPath } from "./resolvePath";
-import { analyzeGraph } from "./analyzeGraph";
+import type { ComposedJourney, ComposedStep } from "@/lib/contract/compose";
+import { analyzeJourney } from "@/lib/contract/analyze";
+import { evaluateRule } from "@/lib/contract/rules";
 
 export interface FeeSummary {
   minINR: number;
   maxINR: number;
   unconfirmedCount: number;
-  undecidedCount: number;
+  mayApplyCount: number;
+  annualMinINR: number;
+  annualMaxINR: number;
+  annualUnconfirmedCount: number;
+  conditionalMaxINR: number;
 }
 
 export interface TimeSummary {
   minDays: number;
   maxDays: number;
+  openEnded: boolean;
   unknownCount: number;
   criticalStepIds: string[];
+  relativeTo: string | null;
+  relative?: {
+    minDays: number;
+    maxDays: number;
+    openEnded: boolean;
+  };
 }
 
 export function toCalendarDays(
@@ -26,48 +38,78 @@ export function toCalendarDays(
 }
 
 export function summarizeFees(
-  path: ResolvedPath,
+  journey: ComposedJourney,
   completed: ReadonlySet<string>
 ): FeeSummary {
   let minINR = 0;
   let maxINR = 0;
   let unconfirmedCount = 0;
-  let undecidedCount = 0;
+  let mayApplyCount = 0;
+  let annualMinINR = 0;
+  let annualMaxINR = 0;
+  let annualUnconfirmedCount = 0;
+  let conditionalMaxINR = 0;
 
-  const undecidedSet = new Set(path.undecidedStepIds);
+  for (const step of journey.steps) {
+    // Totals skip done, optional and milestone steps
+    if (step.kind === "milestone") continue;
+    if (step.applicability === "optional" || step.requirement.kind === "optional") continue;
+    if (completed.has(step.id)) continue;
 
-  for (const node of path.graph.nodes) {
-    // Both summaries skip optional steps and completed steps
-    if (node.requirement.kind === "optional" || completed.has(node.id)) {
-      continue;
+    const isMayApply = step.applicability === "may_apply";
+    if (isMayApply) {
+      mayApplyCount++;
     }
 
-    const isUndecided = undecidedSet.has(node.id);
-    if (isUndecided) {
-      undecidedCount++;
-    }
+    const fee = step.fee;
+    const isAnnual = "recurrence" in fee && fee.recurrence === "annual";
 
-    const fee = node.fee;
     switch (fee.kind) {
       case "free":
         break;
       case "fixed":
-        if (isUndecided) {
-          maxINR += fee.amountINR;
+        if (isAnnual) {
+          if (isMayApply) {
+            annualMaxINR += fee.amountINR;
+          } else {
+            annualMinINR += fee.amountINR;
+            annualMaxINR += fee.amountINR;
+          }
         } else {
-          minINR += fee.amountINR;
-          maxINR += fee.amountINR;
+          if (isMayApply) {
+            maxINR += fee.amountINR;
+            conditionalMaxINR += fee.amountINR;
+          } else {
+            minINR += fee.amountINR;
+            maxINR += fee.amountINR;
+          }
         }
         break;
       case "range":
-        if (isUndecided) {
-          maxINR += fee.maxINR;
+        if (isAnnual) {
+          if (isMayApply) {
+            annualMaxINR += fee.maxINR;
+          } else {
+            annualMinINR += fee.minINR;
+            annualMaxINR += fee.maxINR;
+          }
         } else {
-          minINR += fee.minINR;
-          maxINR += fee.maxINR;
+          if (isMayApply) {
+            maxINR += fee.maxINR;
+            conditionalMaxINR += fee.maxINR;
+          } else {
+            minINR += fee.minINR;
+            maxINR += fee.maxINR;
+          }
         }
         break;
       case "variable":
+        if (isAnnual) {
+          annualUnconfirmedCount++;
+        } else {
+          unconfirmedCount++;
+        }
+        break;
       case "unknown":
         unconfirmedCount++;
         break;
@@ -78,119 +120,163 @@ export function summarizeFees(
     minINR,
     maxINR,
     unconfirmedCount,
-    undecidedCount,
+    mayApplyCount,
+    annualMinINR,
+    annualMaxINR,
+    annualUnconfirmedCount,
+    conditionalMaxINR,
   };
 }
 
 export function summarizeTime(
-  path: ResolvedPath,
+  journey: ComposedJourney,
   completed: ReadonlySet<string>
 ): TimeSummary {
-  const { graph } = path;
-  if (graph.nodes.length === 0) {
+  if (journey.steps.length === 0) {
     return {
       minDays: 0,
       maxDays: 0,
+      openEnded: false,
       unknownCount: 0,
       criticalStepIds: [],
+      relativeTo: null,
     };
   }
 
-  const analysis = analyzeGraph(graph);
-  const nodeOrderMap = new Map<string, number>(
-    graph.nodes.map((n, idx) => [n.id, idx])
-  );
-  const undecidedSet = new Set(path.undecidedStepIds);
+  const analysis = analyzeJourney(journey);
+  const evaluationOrder = analysis.ok
+    ? analysis.order
+    : journey.steps.map((s) => s.id);
 
-  // Map incoming prerequisite IDs
-  const prereqsMap = new Map<string, string[]>();
-  for (const node of graph.nodes) {
-    prereqsMap.set(node.id, []);
+  const stepMap = new Map<string, ComposedStep>(
+    journey.steps.map((s) => [s.id, s])
+  );
+  const orderIndexMap = new Map<string, number>(
+    evaluationOrder.map((id, idx) => [id, idx])
+  );
+
+  // Map incoming "requires" prerequisites
+  const requiresPrereqsMap = new Map<string, string[]>();
+  for (const step of journey.steps) {
+    requiresPrereqsMap.set(step.id, []);
   }
-  for (const edge of graph.edges) {
-    prereqsMap.get(edge.to)?.push(edge.from);
+  for (const edge of journey.edges) {
+    if (edge.kind === "requires") {
+      requiresPrereqsMap.get(edge.to)?.push(edge.from);
+    }
   }
 
   let unknownCount = 0;
 
-  // Step durations: remaining [dMin, dMax] and full [fullDMin, fullDMax]
+  // Identify path steps: optional steps are left out entirely.
+  // Done steps and milestones stay on the path with 0 duration.
+  const pathStepIds = new Set<string>();
   const dMinMap = new Map<string, number>();
   const dMaxMap = new Map<string, number>();
-  const fullDMaxMap = new Map<string, number>();
+  const openEndedMap = new Map<string, boolean>();
 
-  for (const node of graph.nodes) {
-    const isCompleted = completed.has(node.id);
-    const isOptional = node.requirement.kind === "optional";
-    const isUndecided = undecidedSet.has(node.id);
-    const pt = node.processingTime;
+  for (const step of journey.steps) {
+    const isOptional =
+      step.applicability === "optional" ||
+      step.requirement.kind === "optional";
+    if (isOptional) continue;
 
-    let baseMin = 0;
-    let baseMax = 0;
+    pathStepIds.add(step.id);
 
-    if (pt.kind === "estimate") {
-      baseMin = toCalendarDays(pt.minDays, pt.dayType);
-      baseMax = toCalendarDays(pt.maxDays, pt.dayType);
-    } else {
-      if (!isCompleted && !isOptional) {
-        unknownCount++;
+    const isDone = completed.has(step.id);
+    const isMilestone = step.kind === "milestone";
+
+    if (isDone || isMilestone) {
+      dMinMap.set(step.id, 0);
+      dMaxMap.set(step.id, 0);
+      openEndedMap.set(step.id, false);
+      continue;
+    }
+
+    // Not-done action step
+    let stepMin = 0;
+    let stepMax = 0;
+    let stepOpenEnded = false;
+
+    const sla = step.timeline.officialSla;
+    if (sla.kind === "sla") {
+      stepMin = toCalendarDays(sla.duration.minDays, sla.duration.dayType);
+      stepMax = toCalendarDays(sla.duration.maxDays, sla.duration.dayType);
+    } else if (sla.kind === "no_fixed_sla") {
+      stepOpenEnded = true;
+    } else if (sla.kind === "unknown") {
+      unknownCount++;
+    }
+
+    for (const c of step.timeline.conditional) {
+      const res = c.rule ? evaluateRule(c.rule, journey.facts) : "unknown";
+      if (res === "false") continue;
+
+      if (c.duration.kind === "open_ended") {
+        stepOpenEnded = true;
+      } else if (c.duration.kind === "range") {
+        const cMin = toCalendarDays(c.duration.minDays, c.duration.dayType);
+        const cMax = toCalendarDays(c.duration.maxDays, c.duration.dayType);
+        stepMax += cMax;
+        if (res === "true") {
+          stepMin += cMin;
+        }
       }
     }
 
-    fullDMaxMap.set(node.id, isOptional ? 0 : baseMax);
-
-    if (isCompleted || isOptional) {
-      dMinMap.set(node.id, 0);
-      dMaxMap.set(node.id, 0);
-    } else if (pt.kind === "unknown") {
-      dMinMap.set(node.id, 0);
-      dMaxMap.set(node.id, 0);
-    } else {
-      dMinMap.set(node.id, isUndecided ? 0 : baseMin);
-      dMaxMap.set(node.id, baseMax);
+    if (step.applicability === "may_apply") {
+      stepMin = 0;
     }
+
+    dMinMap.set(step.id, stepMin);
+    dMaxMap.set(step.id, stepMax);
+    openEndedMap.set(step.id, stepOpenEnded);
   }
 
-  // Longest path in topological order
+  // Walk path steps in evaluation order
   const finishMinMap = new Map<string, number>();
   const finishMaxMap = new Map<string, number>();
-  const fullFinishMaxMap = new Map<string, number>();
+  const finishOpenEndedMap = new Map<string, boolean>();
   const bestPrereqMap = new Map<string, string | null>();
 
-  for (const id of analysis.order) {
-    const prereqs = prereqsMap.get(id) ?? [];
-    const dMin = dMinMap.get(id) ?? 0;
-    const dMax = dMaxMap.get(id) ?? 0;
-    const fullDMax = fullDMaxMap.get(id) ?? 0;
+  for (const stepId of evaluationOrder) {
+    if (!pathStepIds.has(stepId)) continue;
 
-    if (prereqs.length === 0) {
-      finishMinMap.set(id, dMin);
-      finishMaxMap.set(id, dMax);
-      fullFinishMaxMap.set(id, fullDMax);
-      bestPrereqMap.set(id, null);
+    const allPrereqs = requiresPrereqsMap.get(stepId) ?? [];
+    const pathPrereqs = allPrereqs.filter((p) => pathStepIds.has(p));
+
+    const dMin = dMinMap.get(stepId) ?? 0;
+    const dMax = dMaxMap.get(stepId) ?? 0;
+    const stepOpen = openEndedMap.get(stepId) ?? false;
+
+    if (pathPrereqs.length === 0) {
+      finishMinMap.set(stepId, dMin);
+      finishMaxMap.set(stepId, dMax);
+      finishOpenEndedMap.set(stepId, stepOpen);
+      bestPrereqMap.set(stepId, null);
     } else {
       let maxPrereqMin = 0;
       let maxPrereqMax = 0;
-      let maxPrereqFullMax = 0;
+      let anyPrereqOpen = false;
 
-      for (const p of prereqs) {
+      for (const p of pathPrereqs) {
         const pMin = finishMinMap.get(p) ?? 0;
         const pMax = finishMaxMap.get(p) ?? 0;
-        const pFullMax = fullFinishMaxMap.get(p) ?? 0;
+        const pOpen = finishOpenEndedMap.get(p) ?? false;
+
         if (pMin > maxPrereqMin) maxPrereqMin = pMin;
         if (pMax > maxPrereqMax) maxPrereqMax = pMax;
-        if (pFullMax > maxPrereqFullMax) maxPrereqFullMax = pFullMax;
+        if (pOpen) anyPrereqOpen = true;
       }
 
-      finishMinMap.set(id, maxPrereqMin + dMin);
-      finishMaxMap.set(id, maxPrereqMax + dMax);
-      fullFinishMaxMap.set(id, maxPrereqFullMax + fullDMax);
+      finishMinMap.set(stepId, maxPrereqMin + dMin);
+      finishMaxMap.set(stepId, maxPrereqMax + dMax);
+      finishOpenEndedMap.set(stepId, anyPrereqOpen || stepOpen);
 
       // Best prerequisite for critical path backtracking:
-      // Primary: largest finishMax(p)
-      // Secondary: largest fullFinishMax(p) (preserves critical chain through completed steps)
-      // Tertiary: earliest in graph.nodes order
+      // Largest finishMax, ties go to earlier step in analyzeJourney order
       let bestP: string | null = null;
-      for (const p of prereqs) {
+      for (const p of pathPrereqs) {
         if (bestP === null) {
           bestP = p;
         } else {
@@ -199,56 +285,44 @@ export function summarizeTime(
           if (pMax > bestMax) {
             bestP = p;
           } else if (pMax === bestMax) {
-            const pFullMax = fullFinishMaxMap.get(p) ?? 0;
-            const bestFullMax = fullFinishMaxMap.get(bestP) ?? 0;
-            if (pFullMax > bestFullMax) {
+            const pOrder = orderIndexMap.get(p) ?? 0;
+            const bestOrder = orderIndexMap.get(bestP) ?? 0;
+            if (pOrder < bestOrder) {
               bestP = p;
-            } else if (pFullMax === bestFullMax) {
-              const pOrder = nodeOrderMap.get(p) ?? 0;
-              const bestOrder = nodeOrderMap.get(bestP) ?? 0;
-              if (pOrder < bestOrder) {
-                bestP = p;
-              }
             }
           }
         }
       }
-      bestPrereqMap.set(id, bestP);
+      bestPrereqMap.set(stepId, bestP);
     }
   }
 
-  // Maximum finish values across all nodes
+  // Maximum finish values across all path steps
   let totalMinDays = 0;
   let totalMaxDays = 0;
-  for (const id of analysis.order) {
-    const fMin = finishMinMap.get(id) ?? 0;
-    const fMax = finishMaxMap.get(id) ?? 0;
+  let totalOpenEnded = false;
+
+  for (const stepId of pathStepIds) {
+    const fMin = finishMinMap.get(stepId) ?? 0;
+    const fMax = finishMaxMap.get(stepId) ?? 0;
+    const fOpen = finishOpenEndedMap.get(stepId) ?? false;
+
     if (fMin > totalMinDays) totalMinDays = fMin;
     if (fMax > totalMaxDays) totalMaxDays = fMax;
+    if (fOpen) totalOpenEnded = true;
   }
 
-  // Find step with largest finishMax to backtrack critical path
+  // Find step with largest finishMax to backtrack critical path (ties go to earlier step)
   let endStep: string | null = null;
-  for (const id of analysis.order) {
+  for (const stepId of evaluationOrder) {
+    if (!pathStepIds.has(stepId)) continue;
     if (endStep === null) {
-      endStep = id;
+      endStep = stepId;
     } else {
-      const fMax = finishMaxMap.get(id) ?? 0;
+      const fMax = finishMaxMap.get(stepId) ?? 0;
       const endMax = finishMaxMap.get(endStep) ?? 0;
       if (fMax > endMax) {
-        endStep = id;
-      } else if (fMax === endMax) {
-        const fFullMax = fullFinishMaxMap.get(id) ?? 0;
-        const endFullMax = fullFinishMaxMap.get(endStep) ?? 0;
-        if (fFullMax > endFullMax) {
-          endStep = id;
-        } else if (fFullMax === endFullMax) {
-          const idOrder = nodeOrderMap.get(id) ?? 0;
-          const endOrder = nodeOrderMap.get(endStep) ?? 0;
-          if (idOrder < endOrder) {
-            endStep = id;
-          }
-        }
+        endStep = stepId;
       }
     }
   }
@@ -261,10 +335,53 @@ export function summarizeTime(
   }
   criticalStepIds.reverse();
 
+  // relativeTo: the last not-done no_fixed_sla step on the critical path, else null
+  let relativeTo: string | null = null;
+  for (let i = criticalStepIds.length - 1; i >= 0; i--) {
+    const stepId = criticalStepIds[i];
+    if (!stepId) continue;
+    if (completed.has(stepId)) continue;
+    const step = stepMap.get(stepId);
+    if (!step || step.kind === "milestone") continue;
+    if (step.timeline.officialSla.kind === "no_fixed_sla") {
+      relativeTo = stepId;
+      break;
+    }
+  }
+
+  let relative: TimeSummary["relative"] | undefined;
+  if (relativeTo !== null) {
+    // Collect relativeTo and all its requires ancestors
+    const ancestors = new Set<string>();
+    const stack = [relativeTo];
+    while (stack.length > 0) {
+      const currId = stack.pop();
+      if (!currId) continue;
+      const prereqs = requiresPrereqsMap.get(currId) ?? [];
+      for (const p of prereqs) {
+        if (!ancestors.has(p)) {
+          ancestors.add(p);
+          stack.push(p);
+        }
+      }
+    }
+
+    const relCompleted = new Set([...completed, relativeTo, ...ancestors]);
+    const relSummary = summarizeTime(journey, relCompleted);
+    relative = {
+      minDays: relSummary.minDays,
+      maxDays: relSummary.maxDays,
+      openEnded: relSummary.openEnded,
+    };
+  }
+
   return {
     minDays: totalMinDays,
     maxDays: totalMaxDays,
+    openEnded: totalOpenEnded,
     unknownCount,
     criticalStepIds,
+    relativeTo,
+    ...(relative ? { relative } : {}),
   };
 }

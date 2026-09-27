@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 3,
+  "moduleId": "demo-identity",
+  "version": 1,
+  "title": "[Synthetic] Identity and Verification",
+  "summary": "Synthetic module verifying directors and applicants.",
+  "authority": {
+    "slug": "demo-auth",
+    "name": "Example Identity Authority",
+    "tier": "central",
+    "officialUrl": "https://www.india.gov.in/"
+  },
+  "eligibility": [],
+  "sources": [
+    {
+      "id": "s-official",
+      "url": "https://www.india.gov.in/",
+      "title": "National Portal of India",
+      "kind": "portal",
+      "retrievedOn": "2026-09-27"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "government",
+      "id": "verify-id",
+      "title": "[Synthetic] Verify digital identity",
+      "description": "Authenticate identity via portal.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-auth",
+      "department": "Example Verification Department",
+      "mode": "online",
+      "officeType": "online_portal",
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 2, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    },
+    {
+      "kind": "government",
+      "id": "director-kyc",
+      "title": "[Synthetic] Director KYC intimation",
+      "description": "File KYC for each director.",
+      "requirement": { "kind": "mandatory" },
+      "authoritySlug": "demo-auth",
+      "department": "Example Revenue Department",
+      "mode": "online",
+      "officeType": "revenue_office",
+      "repeat": {
+        "fact": "company.founders_count",
+        "label": "Founder",
+        "max": 2
+      },
+      "forms": [],
+      "documents": [],
+      "outputs": [],
+      "fee": { "kind": "free", "sourceRef": "s-official" },
+      "timeline": {
+        "officialSla": {
+          "kind": "sla",
+          "duration": { "minDays": 1, "maxDays": 3, "dayType": "working" },
+          "sourceRef": "s-official"
+        },
+        "conditional": []
+      },
+      "sourceIds": ["s-official"],
+      "review": { "status": "verified", "verifiedOn": "2026-09-27" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-id-kyc",
+      "from": "verify-id",
+      "to": "director-kyc",
+      "kind": "requires"
+    }
+  ],
+  "entrySteps": ["verify-id"],
+  "exitSteps": ["director-kyc"],
+  "meta": { "origin": "curated", "updatedAt": "2026-09-27T10:00:00+05:30" }
+}
