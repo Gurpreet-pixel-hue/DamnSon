@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import time
@@ -21,9 +22,13 @@ def get_auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {exp_str}.{sig}"}
 
 
+async def _passthrough_to_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Synchronous passthrough so monkeypatched module-level functions work unchanged."""
+    return func(*args, **kwargs)
+
+
 def test_copilot_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
-    import civicweave_ai.llm.router
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
     def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
@@ -47,6 +52,7 @@ def test_copilot_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
@@ -69,6 +75,7 @@ def test_copilot_not_found_empty(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
@@ -80,7 +87,7 @@ def test_copilot_retry_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    search_calls = []
+    search_calls: list[list[str] | None] = []
 
     def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
         search_calls.append(scope)
@@ -96,6 +103,7 @@ def test_copilot_retry_scope(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post(
         "/v1/copilot",
@@ -129,16 +137,18 @@ def test_copilot_validation_repair(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["citations"]) == 1
     assert data["citations"][0]["quote"] == "Valid quote."
-    assert call_count[0] == 2  # 1 initial + 1 repair
+    assert call_count[0] == 2  # 1 initial + 1 repair (PRD §1.3: max 2 total attempts)
 
 
 def test_copilot_validation_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After 1 initial + 1 repair both fail validation, return safe fallback (not_found + passages)."""
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
@@ -155,11 +165,12 @@ def test_copilot_validation_fail(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
     assert resp.json()["notice"] == "not_found"
-    assert call_count[0] == 3  # 1 initial + 2 repairs
+    assert call_count[0] == 2  # PRD §1.3: max 2 total attempts (1 initial + 1 repair)
 
 
 def test_copilot_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -177,6 +188,7 @@ def test_copilot_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
@@ -237,9 +249,57 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
     monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    monkeypatch.setattr(asyncio, "to_thread", _passthrough_to_thread)
 
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
     data = resp.json()
     assert "hacked" not in data["answer"].lower()
     assert len(data["citations"]) == 0
+
+
+def test_copilot_deadline_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the first LLM answer call exceeds the deadline, return safe fallback without hanging."""
+    import civicweave_ai.api.copilot
+    from civicweave_ai.api.copilot import RewriteResponse
+
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+        return [{"chunk_id": "chunk-1", "source_title": "T", "source_url": "http://x", "chunk_text": "some text"}]
+
+    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+        if schema == RewriteResponse:
+            return RewriteResponse(rewritten_query="x")
+        # Simulate slow LLM — this won't actually run because to_thread is mocked
+        raise AssertionError("Should not reach LLM after deadline mock")
+
+    async def slow_to_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
+        if func is mock_generate_json or (callable(func) and "generate_json" in getattr(func, "__name__", "")):
+            # simulate generate_json taking 25s — exceeds 22s deadline
+            await asyncio.sleep(25.0)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
+    monkeypatch.setattr(civicweave_ai.api.copilot, "generate_json", mock_generate_json)
+    # Patch to_thread: retrieval calls run instantly, LLM calls sleep 25s → TimeoutError
+    call_idx = [0]
+
+    async def deadline_to_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
+        call_idx[0] += 1
+        if call_idx[0] <= 1:
+            # First call is retrieval (search_chunks) — run instantly
+            return func(*args, **kwargs)
+        # Second call is LLM generation — time out after configured budget
+        await asyncio.sleep(25.0)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", deadline_to_thread)
+
+    start = time.time()
+    resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
+    duration = time.time() - start
+
+    assert resp.status_code == 200
+    data = resp.json()
+    # Must return safe fallback: not_found with passages or just not_found
+    assert data["notice"] == "not_found"
+    assert duration < 22.0, f"Response took {duration:.1f}s — exceeded 22s deadline"

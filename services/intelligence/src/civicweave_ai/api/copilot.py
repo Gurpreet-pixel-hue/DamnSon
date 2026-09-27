@@ -1,3 +1,5 @@
+import asyncio
+import time
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -10,6 +12,12 @@ from civicweave_ai.llm.router import generate_json
 from civicweave_ai.retrieval.db import search_chunks
 
 router = APIRouter()
+
+# PRD §1.3 hard deadlines (seconds)
+_RETRIEVAL_DEADLINE = 3.0
+_ANSWER_TIMEOUT = 12.0
+_REPAIR_TIMEOUT = 8.0
+_OVERALL_DEADLINE = 22.0
 
 
 class Jurisdiction(BaseModel):
@@ -71,12 +79,33 @@ def is_official_url(url: str) -> bool:
     return ".gov.in" in url or ".nic.in" in url
 
 
+def _safe_passages(chunk_map: dict[str, dict[str, object]], locale: str) -> CopilotResponse:
+    """Return top-3 passage fallback (not_found with passages)."""
+    passages = [
+        Passage(
+            url=str(ch["source_url"]),
+            title=str(ch["source_title"]),
+            text=str(ch["chunk_text"])[:1200],
+        )
+        for ch in list(chunk_map.values())[:3]
+    ]
+    return CopilotResponse(language=locale, notice="not_found", passages=passages)
+
+
 @router.post("/v1/copilot", response_model=CopilotResponse)
 async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) -> CopilotResponse:
+    request_start = time.monotonic()
+
+    def elapsed() -> float:
+        return time.monotonic() - request_start
+
+    def budget_remaining() -> float:
+        return _OVERALL_DEADLINE - elapsed()
+
     # 1. PII Redaction
     redacted_q = redact(req.question)
 
-    # 2. Query Rewrite
+    # 2. Query Rewrite (uses the extract task timeout from policy.yaml)
     try:
         rewrite_messages = [
             {
@@ -96,16 +125,24 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     except NoProviderAvailable:
         query_for_search = redacted_q
 
-    # 3. Retrieval & Scope Retry
+    # 3. Retrieval & Scope Retry — must finish within 3s
     state = req.jurisdiction.state if req.jurisdiction else None
     city = req.jurisdiction.city if req.jurisdiction else None
     scope = req.scopeUrls if req.scopeUrls else None
 
-    chunks = search_chunks(query_for_search, state, city, scope, limit=20)
-
-    if len(chunks) < 3 and scope is not None and len(scope) > 0:
-        # Retry without scope
-        chunks = search_chunks(query_for_search, state, city, None, limit=20)
+    try:
+        chunks = await asyncio.wait_for(
+            asyncio.to_thread(search_chunks, query_for_search, state, city, scope, 20),
+            timeout=_RETRIEVAL_DEADLINE,
+        )
+        if len(chunks) < 3 and scope is not None and len(scope) > 0:
+            chunks = await asyncio.wait_for(
+                asyncio.to_thread(search_chunks, query_for_search, state, city, None, 20),
+                timeout=max(0.1, _RETRIEVAL_DEADLINE - elapsed()),
+            )
+    except asyncio.TimeoutError:
+        print(f"Retrieval timed out after {elapsed():.1f}s")
+        return CopilotResponse(language=req.locale, notice="not_found")
 
     if not chunks:
         return CopilotResponse(language=req.locale, notice="not_found")
@@ -116,7 +153,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     # Context string
     context_text = "\n\n".join(f"--- Chunk ID: {c['chunk_id']} ---\nTitle: {c['source_title']}\nURL: {c['source_url']}\nText: {c['chunk_text']}" for c in chunk_map.values())
 
-    # 4. LLM Generation & 2-Attempt Citation Repair
+    # 4. LLM Generation — 1 initial attempt (12s) + at most 1 repair (8s)
     system_prompt = (
         "You are a helpful civic assistant. Answer the user's question using ONLY the "
         "provided text chunks. If the answer is not in the text, say 'I cannot find the "
@@ -132,63 +169,67 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
         },
     ]
 
-    attempts = 0
-    max_attempts = 3  # Initial + 2 repairs
+    # PRD §1.3: max_attempts=2 (1 initial + 1 repair)
+    for attempt in range(2):
+        # Wall-clock check before each LLM call
+        if budget_remaining() < 1.0:
+            print(f"Deadline budget exhausted at attempt {attempt} after {elapsed():.1f}s")
+            return _safe_passages(chunk_map, req.locale)
 
-    while attempts < max_attempts:
+        call_timeout = _ANSWER_TIMEOUT if attempt == 0 else _REPAIR_TIMEOUT
+        # Never exceed overall deadline
+        call_timeout = min(call_timeout, budget_remaining() - 0.5)
+
         try:
-            llm_res = generate_json("copilot", messages, CopilotLLMResponse)
-
-            # Validation
-            valid_citations = []
-            errors = []
-
-            for c in llm_res.citations:
-                if c.chunkId not in chunk_map:
-                    errors.append(f"Error: chunkId '{c.chunkId}' does not exist in context.")
-                    continue
-
-                chunk_data = chunk_map[c.chunkId]
-                if c.quote not in chunk_data["chunk_text"]:
-                    errors.append(f"Error: exact quote '{c.quote}' not found in chunk '{c.chunkId}'.")
-                    continue
-
-                valid_citations.append(c)
-
-            if not errors:
-                # Success! Hydrate and return
-                final_citations = []
-                for idx, c in enumerate(valid_citations[:8]):  # cap at 8
-                    chunk_data = chunk_map[c.chunkId]
-                    final_citations.append(
-                        Citation(
-                            n=idx + 1,
-                            url=chunk_data["source_url"],
-                            title=chunk_data["source_title"],
-                            quote=c.quote,
-                            chunkId=c.chunkId,
-                            official=is_official_url(chunk_data["source_url"]),
-                        )
-                    )
-                return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
-
-            # Repair needed
-            attempts += 1
-            if attempts < max_attempts:
-                messages.append({"role": "assistant", "content": llm_res.model_dump_json()})
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": "\n".join(errors) + "\nPlease correct your citations.",
-                    }
-                )
-
+            llm_res = await asyncio.wait_for(
+                asyncio.to_thread(generate_json, "answer" if attempt == 0 else "repair", messages, CopilotLLMResponse),
+                timeout=call_timeout,
+            )
+        except asyncio.TimeoutError:
+            print(f"LLM call timed out at attempt {attempt} after {elapsed():.1f}s")
+            return _safe_passages(chunk_map, req.locale)
         except NoProviderAvailable:
-            # Degraded fallback
-            passages = []
-            for ch in list(chunk_map.values())[:3]:
-                passages.append(Passage(url=ch["source_url"], title=ch["source_title"], text=ch["chunk_text"][:1200]))
+            # Degraded fallback — return raw passages
+            passages = [Passage(url=str(ch["source_url"]), title=str(ch["source_title"]), text=str(ch["chunk_text"])[:1200]) for ch in list(chunk_map.values())[:3]]
             return CopilotResponse(language=req.locale, notice="degraded", passages=passages)
 
-    # If we exhausted 3 attempts and still failed validation
-    return CopilotResponse(language=req.locale, notice="not_found")
+        # Citation validation
+        valid_citations = []
+        errors = []
+
+        for c in llm_res.citations:
+            if c.chunkId not in chunk_map:
+                errors.append(f"Error: chunkId '{c.chunkId}' does not exist in context.")
+                continue
+            chunk_data = chunk_map[c.chunkId]
+            if c.quote not in str(chunk_data["chunk_text"]):
+                errors.append(f"Error: exact quote '{c.quote}' not found in chunk '{c.chunkId}'.")
+                continue
+            valid_citations.append(c)
+
+        if not errors:
+            # Success — hydrate and return
+            final_citations = [
+                Citation(
+                    n=idx + 1,
+                    url=str(chunk_map[c.chunkId]["source_url"]),
+                    title=str(chunk_map[c.chunkId]["source_title"]),
+                    quote=c.quote,
+                    chunkId=c.chunkId,
+                    official=is_official_url(str(chunk_map[c.chunkId]["source_url"])),
+                )
+                for idx, c in enumerate(valid_citations[:8])
+            ]
+            return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
+
+        # Repair: append errors and loop (only once — attempt 1 exits the loop)
+        messages.append({"role": "assistant", "content": llm_res.model_dump_json()})
+        messages.append(
+            {
+                "role": "user",
+                "content": "\n".join(errors) + "\nPlease correct your citations.",
+            }
+        )
+
+    # Exhausted both attempts and still invalid citations
+    return _safe_passages(chunk_map, req.locale)
