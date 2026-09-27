@@ -21,6 +21,8 @@ interface TracksProps {
 export function computeTrackCurves(metro: MetroVM): {
   curves: TrackCurveData[];
   normalSegments: [number, number, number][];
+  doneSegments: [number, number, number][];
+  nextUpSegments: [number, number, number][];
   criticalSegments: [number, number, number][];
   dashedSegments: [number, number, number][];
 } {
@@ -30,6 +32,8 @@ export function computeTrackCurves(metro: MetroVM): {
 
   const curves: TrackCurveData[] = [];
   const normalSegments: [number, number, number][] = [];
+  const doneSegments: [number, number, number][] = [];
+  const nextUpSegments: [number, number, number][] = [];
   const criticalSegments: [number, number, number][] = [];
   const dashedSegments: [number, number, number][] = [];
 
@@ -38,24 +42,24 @@ export function computeTrackCurves(metro: MetroVM): {
     const toStation = stationMap.get(track.to);
     if (!fromStation || !toStation) continue;
 
-    // Connect from station top-front to station top-back
+    // Connect along road: y = 0.25 above the road per visual-direction §3
     const p0 = new THREE.Vector3(
       fromStation.position3D[0] + 0.7,
-      fromStation.position3D[1] + 0.5,
+      0.25,
       fromStation.position3D[2]
     );
     const p3 = new THREE.Vector3(
       toStation.position3D[0] - 0.7,
-      toStation.position3D[1] + 0.5,
+      0.25,
       toStation.position3D[2]
     );
 
     const deltaX = p3.x - p0.x;
-    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, p0.y, p0.z);
-    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, p3.y, p3.z);
+    const p1 = new THREE.Vector3(p0.x + deltaX * 0.4, 0.25, p0.z);
+    const p2 = new THREE.Vector3(p0.x + deltaX * 0.6, 0.25, p3.z);
 
     const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
-    const points = curve.getPoints(23); // exactly 24 sampled points
+    const points = curve.getPoints(23); // 24 points
     const length = curve.getLength();
 
     curves.push({
@@ -65,7 +69,7 @@ export function computeTrackCurves(metro: MetroVM): {
       length,
     });
 
-    // Populate segment pairs for batched <Line segments>
+    // Populate segment pairs
     const segPairs: [number, number, number][] = [];
     for (let i = 0; i < points.length - 1; i++) {
       const ptA = points[i];
@@ -77,25 +81,22 @@ export function computeTrackCurves(metro: MetroVM): {
 
     if (track.dashed) {
       dashedSegments.push(...segPairs);
+    } else if (track.critical) {
+      criticalSegments.push(...segPairs);
+    } else if (track.toAvailable) {
+      nextUpSegments.push(...segPairs);
+    } else if (fromStation.state === "done" && toStation.state === "done") {
+      doneSegments.push(...segPairs);
     } else {
-      if (track.critical) {
-        criticalSegments.push(...segPairs);
-      }
       normalSegments.push(...segPairs);
-    }
-  }
-
-  // Add online kiosk drop lines to dashed segments
-  for (const station of metro.stations) {
-    if (station.mode === "online" && station.position3D[1] > 0.05) {
-      const [x, y, z] = station.position3D;
-      dashedSegments.push([x, y, z], [x, 0.02, z]);
     }
   }
 
   return {
     curves,
     normalSegments,
+    doneSegments,
+    nextUpSegments,
     criticalSegments,
     dashedSegments,
   };
@@ -104,40 +105,63 @@ export function computeTrackCurves(metro: MetroVM): {
 export function Tracks({ metro }: TracksProps) {
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
 
-  const { normalSegments, criticalSegments, dashedSegments } = useMemo(
-    () => computeTrackCurves(metro),
-    [metro]
-  );
+  const {
+    normalSegments,
+    doneSegments,
+    nextUpSegments,
+    criticalSegments,
+    dashedSegments,
+  } = useMemo(() => computeTrackCurves(metro), [metro]);
 
   return (
     <group>
-      {/* 1. Normal tracks (batch 1: #3f3f46, width 3) */}
+      {/* 1. Normal routes (trackNormal #9AA3AD, width 4) */}
       {normalSegments.length > 0 && (
         <Line
           segments
           points={normalSegments}
-          color={PALETTE.normalTrack}
-          lineWidth={3}
+          color={PALETTE.trackNormal}
+          lineWidth={4}
         />
       )}
 
-      {/* 2. Critical path tracks (batch 2: #67e8f9, width 5, only when criticalPathOn is true) */}
-      {criticalPathOn && criticalSegments.length > 0 && (
+      {/* 2. Done routes (--cw-done #1E7F3B, width 4) */}
+      {doneSegments.length > 0 && (
         <Line
           segments
-          points={criticalSegments}
-          color={PALETTE.critical}
+          points={doneSegments}
+          color={PALETTE.done}
+          lineWidth={4}
+        />
+      )}
+
+      {/* 3. Next-up routes (--cw-available #1F63D6, width 5) */}
+      {nextUpSegments.length > 0 && (
+        <Line
+          segments
+          points={nextUpSegments}
+          color={PALETTE.available}
           lineWidth={5}
         />
       )}
 
-      {/* 3. Undecided / optional dashed tracks (batch 3: dashed #fbbf24, width 2) */}
+      {/* 4. Critical path routes (only while toggle is on: --cw-critical #D92D20, width 6) */}
+      {criticalSegments.length > 0 && (
+        <Line
+          segments
+          points={criticalSegments}
+          color={criticalPathOn ? PALETTE.critical : PALETTE.normalTrack}
+          lineWidth={criticalPathOn ? 6 : 4}
+        />
+      )}
+
+      {/* 5. Dashed routes (--cw-undecided #B45309, width 3) */}
       {dashedSegments.length > 0 && (
         <Line
           segments
           points={dashedSegments}
           color={PALETTE.undecided}
-          lineWidth={2}
+          lineWidth={3}
           dashed
           dashScale={2}
           dashSize={0.4}

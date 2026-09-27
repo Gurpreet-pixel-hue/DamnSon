@@ -93,8 +93,11 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
 
     const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
     expect(composeResult.ok, "Stress journey must compose successfully").toBe(true);
+    if (!composeResult.ok) {
+      throw new Error(`Compose failed: ${composeResult.message}`);
+    }
 
-    const metro = fromJourney(composeResult.journey!, new Set());
+    const metro = fromJourney(composeResult.journey, new Set());
     expect(metro.stations.length).toBeGreaterThanOrEqual(24);
 
     const stations: StationLocation[] = metro.stations.map((s) => ({

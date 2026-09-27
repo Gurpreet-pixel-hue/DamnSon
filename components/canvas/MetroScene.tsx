@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
-import { Ground } from "./Ground";
+import { useTaskStore } from "@/lib/store/useTaskStore";
+import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
+import { Board } from "./Board";
+import { CityBatches } from "./CityBatches";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
 import { Pulses } from "./Pulses";
 import { LabelProjector } from "./labels/LabelProjector";
 import { CameraRig } from "./CameraRig";
 import { useSceneKeyboard } from "./useSceneKeyboard";
+import { PALETTE } from "./palette";
 
 export interface SceneDebugMetrics {
   sceneDraws: number;
@@ -69,7 +73,7 @@ function DebugCollector() {
       scene.traverse((obj) => {
         if (
           obj.visible &&
-          (obj instanceof THREE.Mesh || obj instanceof THREE.Line)
+          (obj instanceof THREE.Mesh || obj instanceof THREE.Line || (obj as any).isBatchedMesh)
         ) {
           count++;
         }
@@ -98,10 +102,45 @@ interface MetroSceneProps {
 }
 
 export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: MetroSceneProps) {
-  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const { scene, gl } = useThree();
+  const activeTaskId = useTaskStore((s) => s.activeTaskId);
+
+  // Performance degradation stages:
+  // 0: Full (Bloom on, dpr 2, shadow 2048, props on)
+  // 1: Bloom off
+  // 2: dpr 1
+  // 3: shadow map 1024
+  // 4: hide props
+  const [perfLevel, setPerfLevel] = useState(0);
 
   // Hook keyboard navigation
   useSceneKeyboard(metro);
+
+  // Configure renderer tone mapping and fog per visual-direction §5
+  useEffect(() => {
+    gl.toneMapping = THREE.NeutralToneMapping;
+    gl.toneMappingExposure = 1.0;
+    scene.fog = new THREE.Fog(PALETTE.sky, 60, 160);
+  }, [gl, scene]);
+
+  // Compute deterministic city plan
+  const plan = useMemo(() => {
+    const stations: StationLocation[] = metro.stations.map((s) => ({
+      id: s.id,
+      position3D: s.position3D,
+    }));
+    const tracks: TrackLocation[] = metro.tracks.map((t) => ({
+      id: t.id,
+      from: t.from,
+      to: t.to,
+    }));
+
+    return planCity({
+      taskId: activeTaskId || "mumbai-default",
+      stations,
+      tracks,
+    });
+  }, [activeTaskId, metro.stations, metro.tracks]);
 
   const isDebug =
     process.env.NODE_ENV === "development" &&
@@ -109,24 +148,45 @@ export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: Metro
     new URLSearchParams(window.location.search).get("debug") === "1";
 
   const handleDecline = () => {
-    setBloomEnabled(false);
-    onDprChange?.(1);
+    setPerfLevel((prev) => {
+      const next = Math.min(prev + 1, 4);
+      if (next >= 2) onDprChange?.(1);
+      return next;
+    });
   };
 
   const handleIncline = () => {
-    setBloomEnabled(true);
-    onDprChange?.(2);
+    setPerfLevel((prev) => {
+      const next = Math.max(prev - 1, 0);
+      if (next < 2) onDprChange?.(2);
+      return next;
+    });
   };
+
+  const bloomEnabled = perfLevel < 1;
+  const visibleProps = perfLevel < 4;
 
   return (
     <>
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
       {isDebug && <DebugCollector />}
 
-      <Ground />
+      {/* 1. Board slab, coastal water shader, roads, kerbs, and lighting */}
+      <Board plan={plan} />
+
+      {/* 2. BatchedMesh city buildings and props */}
+      <CityBatches plan={plan} visibleProps={visibleProps} />
+
+      {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
       <Stations stations={metro.stations} />
+
+      {/* 4. Routes batches */}
       <Tracks metro={metro} />
+
+      {/* 5. Pulses */}
       <Pulses metro={metro} />
+
+      {/* 6. Screen-projected DOM Label system */}
       {slotsRef && (
         <LabelProjector
           metro={metro}
@@ -134,17 +194,19 @@ export function MetroScene({ metro, slotsRef, selectionRef, onDprChange }: Metro
           selectionRef={selectionRef}
         />
       )}
-      <CameraRig metro={metro} />
 
-      <EffectComposer>
+      {/* 7. Camera rig with isometric bounds fitting */}
+      <CameraRig metro={metro} boardBounds={plan.bounds} />
+
+      {/* 8. Post-processing: EffectComposer with Bloom only per visual-direction §5 */}
+      <EffectComposer multisampling={4}>
         {bloomEnabled && (
           <Bloom
             mipmapBlur
-            luminanceThreshold={0.9}
-            intensity={0.8}
+            luminanceThreshold={1.0}
+            intensity={0.6}
           />
         )}
-        <Vignette eskil={false} offset={0.1} darkness={0.6} />
       </EffectComposer>
     </>
   );
