@@ -156,7 +156,7 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
     });
 
     expect(plan.buildings.length).toBeLessThanOrEqual(260);
-    expect(plan.trees.length).toBeLessThanOrEqual(240);
+    expect(plan.trees.length).toBeLessThanOrEqual(180);
     expect(plan.props.length).toBeLessThanOrEqual(40);
   });
 
@@ -299,6 +299,89 @@ describe("planCity (visual-direction §3 & Amendment D5)", () => {
           expect(effectiveHeight).toBeLessThanOrEqual(maxAllowed + 0.001);
         }
       }
+    }
+  });
+
+  it("satisfies H1 occupancy and caps for demo and stress fixtures", async () => {
+    process.env.DATA_SOURCE = "fixtures";
+    for (const graphName of ["demo", "stress"]) {
+      const bundle = await loadJourneyForPage(
+        graphName === "stress" ? { graph: "stress" } : {}
+      );
+      expect(bundle).not.toBeNull();
+      const composeResult = safeCompose(bundle!.template, bundle!.modules, {});
+      expect(composeResult.ok).toBe(true);
+      if (!composeResult.ok) continue;
+
+      const metro = fromJourney(composeResult.journey, new Set());
+      const stations: StationLocation[] = metro.stations.map((s) => ({
+        id: s.id,
+        position3D: s.position3D,
+      }));
+      const tracks: TrackLocation[] = metro.tracks.map((t) => ({
+        id: t.id,
+        from: t.from,
+        to: t.to,
+      }));
+
+      const plan = planCity({
+        taskId: bundle!.template.taskId,
+        stations,
+        tracks,
+      });
+
+      // 1. Caps
+      expect(plan.buildings.length).toBeLessThanOrEqual(260);
+      expect(plan.trees.length).toBeLessThanOrEqual(180);
+
+      // 2. No building in a plaza cell
+      const { cellSize } = plan.cellGrid;
+      for (const b of plan.buildings) {
+        const c = Math.floor((b.position[0] - plan.bounds.minX) / cellSize);
+        const r = Math.floor((b.position[2] - plan.bounds.minZ) / cellSize);
+        expect(plan.cellGrid.cells[r]![c]).not.toBe("plaza");
+      }
+
+      // 3. At least 60% of non-road, non-plaza, non-water cells within 5 cells of any station hold a building
+      let eligibleNearCells = 0;
+      let occupiedNearCells = 0;
+
+      for (let r = 0; r < plan.cellGrid.rows; r++) {
+        for (let c = 0; c < plan.cellGrid.cols; c++) {
+          const type = plan.cellGrid.cells[r]![c];
+          if (type === "road" || type === "plaza" || type === "water") continue;
+
+          let within5Cells = false;
+          for (const s of stations) {
+            const sc = Math.floor((s.position3D[0] - plan.bounds.minX) / cellSize);
+            const sr = Math.floor((s.position3D[2] - plan.bounds.minZ) / cellSize);
+            if (Math.max(Math.abs(r - sr), Math.abs(c - sc)) <= 5) {
+              within5Cells = true;
+              break;
+            }
+          }
+
+          if (within5Cells) {
+            eligibleNearCells++;
+            const cellCenterX = plan.bounds.minX + (c + 0.5) * cellSize;
+            const cellCenterZ = plan.bounds.minZ + (r + 0.5) * cellSize;
+            const hasBuilding = plan.buildings.some(
+              (b) =>
+                Math.abs(b.position[0] - cellCenterX) < 0.1 &&
+                Math.abs(b.position[2] - cellCenterZ) < 0.1
+            );
+            if (hasBuilding) {
+              occupiedNearCells++;
+            }
+          }
+        }
+      }
+
+      const occupancyPct = (occupiedNearCells / eligibleNearCells) * 100;
+      console.log(
+        `[H1 OCCUPANCY] ${graphName}: ${occupiedNearCells}/${eligibleNearCells} (${occupancyPct.toFixed(1)}%), buildings=${plan.buildings.length}, trees=${plan.trees.length}`
+      );
+      expect(occupancyPct).toBeGreaterThanOrEqual(60);
     }
   });
 });

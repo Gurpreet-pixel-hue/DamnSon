@@ -360,7 +360,7 @@ export function planCity(options: PlanCityOptions): CityPlan {
     }
   }
 
-  // 4. Place Buildings
+  // 4. Place Buildings (H1: nearest-first up to 260)
   // E5: Buildings fill 3x3 blocks between streets.
   // Density: low-rise 2-6 units from stations; mid-rise 6-14; tall beyond 14 ONLY in back third.
   // No adjacent duplicates; rotation in 90 deg steps; height Y=0.17 above board basin.
@@ -370,14 +370,27 @@ export function planCity(options: PlanCityOptions): CityPlan {
     Array.from({ length: cols }, () => null)
   );
 
-  for (let r = 0; r < rows && buildings.length < MAX_BUILDINGS; r++) {
-    for (let c = 0; c < cols && buildings.length < MAX_BUILDINGS; c++) {
-      if (cells[r]![c] !== "building" || occupied[r]![c]) continue;
+  interface CandidateBuildingCell {
+    r: number;
+    c: number;
+    cx: number;
+    cz: number;
+    distSq: number;
+    dist: number;
+    minStationCellDist: number;
+    nearestStation: StationLocation | null;
+    tieBreaker: number;
+  }
+
+  const candidateBuildingCells: CandidateBuildingCell[] = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (cells[r]![c] !== "building") continue;
 
       const cx = bounds.minX + (c + 0.5) * cellSize;
       const cz = bounds.minZ + (r + 0.5) * cellSize;
 
-      // Distance to nearest station determines tier and G3 height capping
       let minDistSq = Infinity;
       let minStationCellDist = Infinity;
       let nearestStation: StationLocation | null = null;
@@ -394,77 +407,107 @@ export function planCity(options: PlanCityOptions): CityPlan {
           nearestStation = s;
         }
       }
-      const dist = Math.sqrt(minDistSq);
 
-      const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
-      const distToCameraTarget = Math.hypot(
-        cx - bounds.centerX,
-        cz - (bounds.minZ + bounds.depth * 0.4)
-      );
-
-      let candidatePool: readonly CityKindInfo[];
-      if (minStationCellDist <= 3) {
-        // G3: fill buildings within 3 cells of a station use low-rise pool
-        candidatePool = LOW_BUILDINGS;
-      } else if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
-        // E6: anything more than 20 units from camera target uses low-detail buildings
-        candidatePool = LOW_DETAIL_BUILDINGS;
-      } else if (dist <= 6.0) {
-        candidatePool = LOW_BUILDINGS;
-      } else if (dist <= 14.0) {
-        candidatePool = MID_BUILDINGS;
-      } else if (isBackThird) {
-        // E6: tall tier uses low-detail buildings
-        candidatePool = LOW_DETAIL_BUILDINGS;
-      } else {
-        candidatePool = MID_BUILDINGS;
-      }
-
-      if (candidatePool.length === 0) continue;
-
-      // E5: Never adjacent duplicates
-      const adjacentVariants = new Set<string>();
-      if (r > 0 && placedVariantGrid[r - 1]?.[c]) adjacentVariants.add(placedVariantGrid[r - 1]![c]!);
-      if (r + 1 < rows && placedVariantGrid[r + 1]?.[c]) adjacentVariants.add(placedVariantGrid[r + 1]![c]!);
-      if (c > 0 && placedVariantGrid[r]?.[c - 1]) adjacentVariants.add(placedVariantGrid[r]![c - 1]!);
-      if (c + 1 < cols && placedVariantGrid[r]?.[c + 1]) adjacentVariants.add(placedVariantGrid[r]![c + 1]!);
-
-      let pool: readonly CityKindInfo[] = candidatePool.filter((b) => !adjacentVariants.has(b.name));
-      if (pool.length === 0) pool = candidatePool;
-
-      const variant = pool[Math.floor(rand() * pool.length)]!;
-
-      occupied[r]![c] = true;
-      placedVariantGrid[r]![c] = variant.name;
-
-      const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
-      const sJitter = 0.9 + rand() * 0.2;
-      let scaleY = sJitter;
-
-      // G3: fill buildings within 3 cells of a station are capped at 0.7 * that station's height
-      if (minStationCellDist <= 3 && nearestStation) {
-        const stationH = nearestStation.height ?? 3.0;
-        const maxH = 0.7 * stationH;
-        if (variant.height * scaleY > maxH) {
-          scaleY = maxH / variant.height;
-        }
-      }
-
-      buildings.push({
-        kind: variant.name,
-        position: [cx, 0.17, cz],
-        rotationY: rotY,
-        scale: [sJitter, scaleY, sJitter],
+      candidateBuildingCells.push({
+        r,
+        c,
+        cx,
+        cz,
+        distSq: minDistSq,
+        dist: Math.sqrt(minDistSq),
+        minStationCellDist,
+        nearestStation,
+        tieBreaker: rand(),
       });
     }
   }
 
-  // 5. Place Trees & Palms
+  // H1: Sort candidate building cells nearest to nearest station first, breaking ties with seeded rand
+  candidateBuildingCells.sort((a, b) => a.distSq - b.distSq || a.tieBreaker - b.tieBreaker);
+
+  for (const cell of candidateBuildingCells) {
+    if (buildings.length >= MAX_BUILDINGS) break;
+    const { r, c, cx, cz, dist, minStationCellDist, nearestStation } = cell;
+    if (occupied[r]![c]) continue;
+
+    const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
+    const distToCameraTarget = Math.hypot(
+      cx - bounds.centerX,
+      cz - (bounds.minZ + bounds.depth * 0.4)
+    );
+
+    let candidatePool: readonly CityKindInfo[];
+    if (minStationCellDist <= 3) {
+      // G3: fill buildings within 3 cells of a station use low-rise pool
+      candidatePool = LOW_BUILDINGS;
+    } else if (distToCameraTarget > 20 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // E6: anything more than 20 units from camera target uses low-detail buildings
+      candidatePool = LOW_DETAIL_BUILDINGS;
+    } else if (dist <= 6.0) {
+      candidatePool = LOW_BUILDINGS;
+    } else if (dist <= 14.0) {
+      candidatePool = MID_BUILDINGS;
+    } else if (isBackThird) {
+      // E6: tall tier uses low-detail buildings
+      candidatePool = LOW_DETAIL_BUILDINGS;
+    } else {
+      candidatePool = MID_BUILDINGS;
+    }
+
+    if (candidatePool.length === 0) continue;
+
+    // E5: Never adjacent duplicates
+    const adjacentVariants = new Set<string>();
+    if (r > 0 && placedVariantGrid[r - 1]?.[c]) adjacentVariants.add(placedVariantGrid[r - 1]![c]!);
+    if (r + 1 < rows && placedVariantGrid[r + 1]?.[c]) adjacentVariants.add(placedVariantGrid[r + 1]![c]!);
+    if (c > 0 && placedVariantGrid[r]?.[c - 1]) adjacentVariants.add(placedVariantGrid[r]![c - 1]!);
+    if (c + 1 < cols && placedVariantGrid[r]?.[c + 1]) adjacentVariants.add(placedVariantGrid[r]![c + 1]!);
+
+    let pool: readonly CityKindInfo[] = candidatePool.filter((b) => !adjacentVariants.has(b.name));
+    if (pool.length === 0) pool = candidatePool;
+
+    const variant = pool[Math.floor(rand() * pool.length)]!;
+
+    occupied[r]![c] = true;
+    placedVariantGrid[r]![c] = variant.name;
+
+    const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
+    const sJitter = 0.9 + rand() * 0.2;
+    let scaleY = sJitter;
+
+    // G3: fill buildings within 3 cells of a station are capped at 0.7 * that station's height
+    if (minStationCellDist <= 3 && nearestStation) {
+      const stationH = nearestStation.height ?? 3.0;
+      const maxH = 0.7 * stationH;
+      if (variant.height * scaleY > maxH) {
+        scaleY = maxH / variant.height;
+      }
+    }
+
+    buildings.push({
+      kind: variant.name,
+      position: [cx, 0.17, cz],
+      rotationY: rotY,
+      scale: [sJitter, scaleY, sJitter],
+    });
+  }
+
+  // 5. Place Trees & Palms (H1: nearest-first up to 180)
   const trees: PlacedInstance[] = [];
-  const MAX_TREES = 240;
+  const MAX_TREES = 180;
+
+  interface CandidateTree {
+    kind: string;
+    position: [number, number, number];
+    rotationY: number;
+    scale: [number, number, number];
+    distSq: number;
+    tieBreaker: number;
+  }
+  const candidateTrees: CandidateTree[] = [];
 
   // A. Palms along the promenade road (every second cell)
-  for (let c = 0; c < cols && trees.length < MAX_TREES; c += 2) {
+  for (let c = 0; c < cols; c += 2) {
     const px = bounds.minX + (c + 0.5) * cellSize;
     const pz = promenadeZ - 0.5; // On pavement edge along shore
     const palmVariants = ["tree-palm-tall", "tree-palm-bend", "tree-palm-short"];
@@ -472,17 +515,25 @@ export function planCity(options: PlanCityOptions): CityPlan {
     const rotY = rand() * Math.PI * 2;
     const sJitter = 0.85 + rand() * 0.3;
 
-    trees.push({
+    let minDistSq = Infinity;
+    for (const s of stations) {
+      const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
+      if (dSq < minDistSq) minDistSq = dSq;
+    }
+
+    candidateTrees.push({
       kind,
       position: [px, 0.17, pz],
       rotationY: rotY,
       scale: [sJitter, sJitter, sJitter],
+      distSq: minDistSq,
+      tieBreaker: rand(),
     });
   }
 
   // B. Trees in park cells
-  for (let r = 0; r < rows && trees.length < MAX_TREES; r++) {
-    for (let c = 0; c < cols && trees.length < MAX_TREES; c++) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (cells[r]![c] === "park") {
         const px = bounds.minX + (c + 0.5) * cellSize + (rand() - 0.5) * 0.4;
         const pz = bounds.minZ + (r + 0.5) * cellSize + (rand() - 0.5) * 0.4;
@@ -491,11 +542,19 @@ export function planCity(options: PlanCityOptions): CityPlan {
         const rotY = rand() * Math.PI * 2;
         const sJitter = 0.8 + rand() * 0.35;
 
-        trees.push({
+        let minDistSq = Infinity;
+        for (const s of stations) {
+          const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
+          if (dSq < minDistSq) minDistSq = dSq;
+        }
+
+        candidateTrees.push({
           kind,
           position: [px, 0.17, pz],
           rotationY: rotY,
           scale: [sJitter, sJitter, sJitter],
+          distSq: minDistSq,
+          tieBreaker: rand(),
         });
       }
     }
@@ -503,8 +562,8 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
   // C. Street trees on every 3rd street cell along block edges (F5)
   let streetEdgeCellCount = 0;
-  for (let r = 0; r < rows && trees.length < MAX_TREES; r++) {
-    for (let c = 0; c < cols && trees.length < MAX_TREES; c++) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (cells[r]![c] === "road") {
         const isBlockEdge =
           (r > 0 && cells[r - 1]?.[c] === "building") ||
@@ -520,18 +579,38 @@ export function planCity(options: PlanCityOptions): CityPlan {
             const streetTrees = ["tree-simple", "tree-oak", "tree-pine"];
             const kind = streetTrees[Math.floor(rand() * streetTrees.length)]!;
             const rotY = rand() * Math.PI * 2;
-            const sJitter = 0.75 + rand() * 0.25;
+            const sJitter = 0.75 + rand() * 0.3;
 
-            trees.push({
+            let minDistSq = Infinity;
+            for (const s of stations) {
+              const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
+              if (dSq < minDistSq) minDistSq = dSq;
+            }
+
+            candidateTrees.push({
               kind,
               position: [px, 0.17, pz],
               rotationY: rotY,
               scale: [sJitter, sJitter, sJitter],
+              distSq: minDistSq,
+              tieBreaker: rand(),
             });
           }
         }
       }
     }
+  }
+
+  // H1: Sort candidate trees nearest to nearest station first, fill nearest first up to 180
+  candidateTrees.sort((a, b) => a.distSq - b.distSq || a.tieBreaker - b.tieBreaker);
+  for (let i = 0; i < Math.min(candidateTrees.length, MAX_TREES); i++) {
+    const t = candidateTrees[i]!;
+    trees.push({
+      kind: t.kind,
+      position: t.position,
+      rotationY: t.rotationY,
+      scale: t.scale,
+    });
   }
 
   // 6. Place Props (Boats, Lamps, Barriers)
