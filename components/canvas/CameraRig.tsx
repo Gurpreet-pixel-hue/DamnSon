@@ -161,7 +161,7 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         enableTransition
       );
     }
-  }, [selectedStepId, focusedStepId, metro.stations, prefersReducedMotion]);
+  }, [targetStationId, selectedStepId, focusedStepId, metro.stations, prefersReducedMotion]);
 
   return (
     <CameraControls

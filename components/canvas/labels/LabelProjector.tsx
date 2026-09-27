@@ -111,7 +111,6 @@ export function LabelProjector({
     const halfW = size.width / 2;
     const halfH = size.height / 2;
     const count = stations.length;
-    const placedBoxes: { minX: number; maxX: number; minY: number; maxY: number }[] = [];
 
     const headerBoxes: ScreenRect[] = [];
     for (const h of headers) {

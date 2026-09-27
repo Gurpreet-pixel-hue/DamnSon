@@ -16,6 +16,7 @@ import {
 export interface StationLocation {
   id: string;
   position3D: [number, number, number];
+  height?: number;
 }
 
 export interface TrackLocation {
