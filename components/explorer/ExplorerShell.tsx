@@ -2,9 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { CivicTaskGraph } from "@/lib/graph/schema";
-import { resolvePath } from "@/lib/graph/resolvePath";
-import { fromV2 } from "@/lib/graph/viewModel";
+import {
+  composeJourney,
+  ComposeError,
+  type ComposedJourney,
+} from "@/lib/contract/compose";
+import { analyzeJourney } from "@/lib/contract/analyze";
+import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
+import type { JourneyBundle } from "@/app/loadJourney";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { SearchBar } from "@/components/hud/SearchBar";
@@ -42,7 +47,7 @@ const FlowchartView = dynamic(
 );
 
 interface ExplorerShellProps {
-  initialGraph?: CivicTaskGraph | null;
+  initialBundle?: JourneyBundle | null;
 }
 
 function subscribeDebugParam(callback: () => void) {
@@ -98,19 +103,19 @@ function DebugOverlay() {
   );
 }
 
-const EMPTY_ANSWERS: Record<string, boolean> = {};
 const EMPTY_COMPLETED: string[] = [];
 
-export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
+export function ExplorerShell({ initialBundle }: ExplorerShellProps) {
   const viewMode = useViewStore((s) => s.viewMode);
   const webglFallbackReason = useViewStore((s) => s.webglFallbackReason);
 
+  // C3: Rehydrate once on mount
   useEffect(() => {
     void useTaskStore.persist.rehydrate();
-    if (initialGraph) {
-      useTaskStore.getState().setActiveTask(initialGraph.taskId);
+    if (initialBundle) {
+      useTaskStore.getState().setActiveTask(initialBundle.template.taskId);
     }
-  }, [initialGraph]);
+  }, [initialBundle]);
 
   useEffect(() => {
     if (
@@ -129,20 +134,56 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
     }
   }, []);
 
-  const answersByTask = useTaskStore((s) => s.answersByTask);
+  const factsByTask = useTaskStore((s) => s.factsByTask);
   const completedByTask = useTaskStore((s) => s.completedByTask);
 
-  const taskId = initialGraph?.taskId ?? "";
-  const answers = (taskId ? answersByTask[taskId] : undefined) ?? EMPTY_ANSWERS;
+  const taskId = initialBundle?.template.taskId ?? "";
+  const facts = useMemo(
+    () => (taskId ? factsByTask[taskId] : undefined) ?? {},
+    [taskId, factsByTask]
+  );
   const completedList =
     (taskId ? completedByTask[taskId] : undefined) ?? EMPTY_COMPLETED;
   const completed = useMemo(() => new Set(completedList), [completedList]);
 
-  const metro = useMemo(() => {
-    if (!initialGraph) return null;
-    const resolved = resolvePath(initialGraph, answers);
-    return fromV2(resolved, completed);
-  }, [initialGraph, answers, completed]);
+  // C2: Memoise composed journey on (template.revision, facts) with try/catch
+  const templateRevision = initialBundle?.template.revision;
+  const composeResult = useMemo<{
+    ok: boolean;
+    journey?: ComposedJourney;
+    errorCodes?: string[];
+  }>(() => {
+    if (!initialBundle) return { ok: true };
+    void templateRevision;
+    try {
+      const journey = composeJourney(
+        initialBundle.template,
+        initialBundle.modules,
+        facts
+      );
+      const analysis = analyzeJourney(journey);
+      if (!analysis.ok) {
+        return {
+          ok: false,
+          errorCodes: analysis.issues
+            .filter((i) => i.severity === "error")
+            .map((i) => i.code),
+        };
+      }
+      return { ok: true, journey };
+    } catch (err) {
+      if (err instanceof ComposeError) {
+        return { ok: false, errorCodes: ["COMPOSE_ERROR"] };
+      }
+      return { ok: false, errorCodes: ["UNEXPECTED_ERROR"] };
+    }
+  }, [initialBundle, templateRevision, facts]);
+
+  // C2: Memoise MetroVM on (composed journey, completed)
+  const metro = useMemo<MetroVM | null>(() => {
+    if (!composeResult.journey) return null;
+    return fromJourney(composeResult.journey, completed);
+  }, [composeResult.journey, completed]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#09090b]">
@@ -173,7 +214,32 @@ export function ExplorerShell({ initialGraph }: ExplorerShellProps) {
         data-view={viewMode}
         className="h-full w-full"
       >
-        {!initialGraph || !metro ? (
+        {!composeResult.ok ? (
+          // C2: Render error state with issue codes instead of map
+          <div
+            data-testid="composition-error"
+            className="flex h-full w-full flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="max-w-md rounded-2xl border border-red-500/30 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
+              <h2 className="text-lg font-semibold text-red-400">
+                Journey Composition Failed
+              </h2>
+              <p className="mt-2 text-xs text-zinc-400">
+                The civic procedure could not be assembled due to contract validation errors:
+              </p>
+              <ul className="mt-4 space-y-1 text-xs font-mono text-amber-300">
+                {composeResult.errorCodes?.map((code, idx) => (
+                  <li
+                    key={idx}
+                    className="rounded border border-red-500/20 bg-red-950/40 px-2 py-1"
+                  >
+                    {code}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : !initialBundle || !metro ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center">
             <div className="max-w-md rounded-2xl border border-white/10 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-md">
               <h2 className="text-lg font-semibold text-zinc-100">

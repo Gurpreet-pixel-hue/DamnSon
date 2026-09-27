@@ -1,110 +1,108 @@
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { civicTaskGraphSchema, type CivicTaskGraph } from "./schema";
-import { resolvePath } from "./resolvePath";
-import { computeMetroLayout } from "./layout";
-import { fromV2 } from "./viewModel";
+import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
+import {
+  journeyTemplateSchema,
+  approvalModuleSchema,
+} from "@/lib/contract/schema";
+import { composeJourney } from "@/lib/contract/compose";
+import { fromJourney } from "./viewModel";
 
-function loadFixture(relPath: string): CivicTaskGraph {
-  const fullPath = path.resolve(process.cwd(), relPath);
-  return civicTaskGraphSchema.parse(
-    JSON.parse(fs.readFileSync(fullPath, "utf8"))
+function loadExampleStartupJourney() {
+  const template = journeyTemplateSchema.parse(
+    readTemplateFixture("example-startup")
   );
+  const moduleNames = [
+    "ex-directors",
+    "ex-incorporation",
+    "ex-banking",
+    "ex-tax",
+    "ex-food",
+    "ex-recognition",
+    "ex-local",
+  ];
+  const modules = moduleNames.map((name) =>
+    approvalModuleSchema.parse(readModuleFixture(name))
+  );
+  const facts = {
+    "business.sector": "it_saas",
+    "company.founders_count": 2,
+    "employees.count": 5,
+  };
+  const journey = composeJourney(template, modules, facts);
+  return { journey };
 }
 
-describe("fromV2 view model adapter", () => {
-  const demoGraph = loadFixture("data/fixtures/demo/demo-metro.json");
-
-  it("maps demo graph to stations with unique positions and same layers as computeMetroLayout", () => {
-    const resolved = resolvePath(demoGraph, {});
-    const placements = computeMetroLayout(resolved);
+describe("viewModel fromJourney", () => {
+  it("converts ComposedJourney into MetroVM with correct station and track properties", () => {
+    const { journey } = loadExampleStartupJourney();
     const completed = new Set<string>();
 
-    const metro = fromV2(resolved, completed);
+    const metro = fromJourney(journey, completed);
 
-    expect(metro.stations.length).toBe(resolved.graph.nodes.length);
-    expect(metro.stations.length).toBe(placements.length);
+    expect(metro.stations.length).toBe(9);
+    expect(metro.tracks.length).toBeGreaterThan(0);
 
-    // Positions must be unique
-    const pos3DSet = new Set<string>();
-    const pos2DSet = new Set<string>();
+    const stationMap = new Map(metro.stations.map((s) => [s.id, s]));
 
-    for (const station of metro.stations) {
-      const p3 = station.position3D.join(",");
-      const p2 = `${station.position2D.x},${station.position2D.y}`;
-      expect(pos3DSet.has(p3)).toBe(false);
-      expect(pos2DSet.has(p2)).toBe(false);
-      pos3DSet.add(p3);
-      pos2DSet.add(p2);
-    }
-
-    // Layers and lanes must match computeMetroLayout placements
-    const placementMap = new Map(placements.map((p) => [p.stepId, p]));
-    for (const station of metro.stations) {
-      const p = placementMap.get(station.id);
-      expect(p).toBeDefined();
-      expect(station.layer).toBe(p!.layer);
-      expect(station.lane).toBe(p!.lane);
-      expect(station.position3D).toEqual(p!.position3D);
-      expect(station.position2D).toEqual(p!.position2D);
-      expect(station.kind).toBe("government");
-    }
-  });
-
-  it("maps station states and applicability accurately", () => {
-    // Unanswered answers => conditional steps are undecided
-    const resolved = resolvePath(demoGraph, {});
-    const initialMetro = fromV2(resolved, new Set(["s01-portal-signup"]));
-
-    const doneStation = initialMetro.stations.find(
-      (s) => s.id === "s01-portal-signup"
-    );
-    expect(doneStation?.state).toBe("done");
-
-    // Undecided steps in resolved.undecidedStepIds must have may_apply
-    for (const undecidedId of resolved.undecidedStepIds) {
-      const station = initialMetro.stations.find((s) => s.id === undecidedId);
-      expect(station?.applicability).toBe("may_apply");
-    }
-
-    // When all questions are answered, undecided steps resolve
-    const answeredResolved = resolvePath(demoGraph, {
-      "q-large-area": false,
-      "q-commercial-power": false,
-      "q-heritage-zone": false,
+    // Check station properties
+    const kyc1 = stationMap.get("ex-directors.kyc.1");
+    expect(kyc1).toMatchObject({
+      kind: "government",
+      officeType: "online_portal",
+      mode: "online",
+      state: "available",
+      applicability: "applies",
+      position3D: [0, 2.2, -2.25],
+      position2D: { x: 0, y: -70 },
     });
-    expect(answeredResolved.undecidedStepIds.length).toBe(0);
-    const answeredMetro = fromV2(answeredResolved, new Set());
-    for (const station of answeredMetro.stations) {
-      const node = answeredResolved.graph.nodes.find((n) => n.id === station.id);
-      if (node?.requirement.kind === "optional") {
-        expect(station.applicability).toBe("optional");
-      } else {
-        expect(station.applicability).toBe("applies");
-      }
-    }
-  });
 
-  it("computes track attributes: critical, toAvailable, dashed", () => {
-    const resolved = resolvePath(demoGraph, {});
-    const metro = fromV2(resolved, new Set());
+    const milestone = stationMap.get("ex-incorporation.incorporated");
+    expect(milestone).toMatchObject({
+      kind: "milestone",
+      officeType: null,
+      mode: null,
+      state: "locked",
+      applicability: "applies",
+      position3D: [14, 0, 0],
+      position2D: { x: 560, y: 0 },
+    });
 
-    expect(metro.tracks.length).toBe(resolved.graph.edges.length);
+    const food = stationMap.get("ex-food.apply");
+    expect(food).toMatchObject({
+      applicability: "may_apply",
+      state: "locked",
+    });
 
-    for (const track of metro.tracks) {
-      expect(track.kind).toBe("requires");
-      const targetStation = metro.stations.find((s) => s.id === track.to);
-      expect(track.toAvailable).toBe(targetStation?.state === "available");
+    const rec = stationMap.get("ex-recognition.apply");
+    expect(rec).toMatchObject({
+      applicability: "optional",
+      state: "locked",
+    });
 
-      const sourceStation = metro.stations.find((s) => s.id === track.from);
-      const shouldBeDashed =
-        sourceStation?.applicability === "may_apply" ||
-        sourceStation?.applicability === "optional" ||
-        targetStation?.applicability === "may_apply" ||
-        targetStation?.applicability === "optional";
+    // Check critical path track flag:
+    // Critical path: [ex-directors.kyc.1, ex-incorporation.file, ex-incorporation.incorporated, ex-food.apply]
+    const kycToFile = metro.tracks.find(
+      (t) => t.from === "ex-directors.kyc.1" && t.to === "ex-incorporation.file"
+    );
+    expect(kycToFile?.critical).toBe(true);
 
-      expect(track.dashed).toBe(shouldBeDashed);
-    }
+    const kyc2ToFile = metro.tracks.find(
+      (t) => t.from === "ex-directors.kyc.2" && t.to === "ex-incorporation.file"
+    );
+    expect(kyc2ToFile?.critical).toBe(false);
+
+    // Track to may_apply or optional step is dashed
+    const incToFood = metro.tracks.find(
+      (t) => t.from === "ex-incorporation.incorporated" && t.to === "ex-food.apply"
+    );
+    expect(incToFood?.dashed).toBe(true);
+    expect(incToFood?.critical).toBe(true);
+
+    // Recommended after track is dashed
+    const bankToRec = metro.tracks.find(
+      (t) => t.from === "ex-banking.open-account" && t.to === "ex-recognition.apply"
+    );
+    expect(bankToRec?.kind).toBe("recommended_after");
+    expect(bankToRec?.dashed).toBe(true);
   });
 });
