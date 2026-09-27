@@ -181,15 +181,21 @@ export function LabelLayer({
     return metro.stations.filter((s) => s.layer === displayedStage - 1);
   }, [metro.stations, displayedStage]);
 
-  const isCompact = stageStations.length > 4;
+  const isBigStage = stageStations.length > 4;
+  const isCompact = isBigStage;
 
-  // If > 8 stations, cards only for available ones (§11.2)
+  // In big stages (> 4 stations), cards show only for the selected, focused, or hovered stations (§12.3)
   const visibleStations = useMemo(() => {
-    if (stageStations.length > 8) {
-      return stageStations.filter((s) => s.state === "available");
+    if (isBigStage) {
+      return stageStations.filter(
+        (s) =>
+          s.id === selectedStepId ||
+          s.id === focusedStepId ||
+          s.id === hoveredStepId
+      );
     }
     return stageStations;
-  }, [stageStations]);
+  }, [stageStations, isBigStage, selectedStepId, focusedStepId, hoveredStepId]);
 
   const hoveredStation = useMemo(() => {
     if (!hoveredStepId) return null;

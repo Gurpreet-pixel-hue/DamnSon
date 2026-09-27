@@ -100,6 +100,7 @@ function CardDebugOverlay() {
 }
 
 import { StageBar } from "@/components/canvas/StageBar";
+import { ParallelStageTray } from "@/components/canvas/ParallelStageTray";
 import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
 import { KeysHintModal } from "@/components/hud/KeysHintModal";
 import type { ComposedJourney } from "@/lib/contract/compose";
@@ -197,6 +198,9 @@ export function WindowCard({
         ) : (
           metro && <FlowchartView metro={metro} />
         )}
+
+        {/* Parallel Stage Tray overlay on the left (§12.3) */}
+        {metro && <ParallelStageTray metro={metro} journey={journey} />}
 
         {/* Debug overlay inside card, bottom-left */}
         <CardDebugOverlay />

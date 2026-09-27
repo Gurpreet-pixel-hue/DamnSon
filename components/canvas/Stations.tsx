@@ -15,6 +15,7 @@ import { PALETTE } from "./palette";
 import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore, requestHover } from "@/lib/store/useViewStore";
+import { buildStageTrayModel } from "@/lib/graph/stageTray";
 
 interface StationsProps {
   stations: StationVM[];
@@ -139,8 +140,104 @@ export function Stations({ stations }: StationsProps) {
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
   const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
   const checkDiscMeshRef = useRef<THREE.InstancedMesh>(null);
+  const numberedMarkerMeshRef = useRef<THREE.InstancedMesh>(null);
 
   const focusStage = useViewStore((s) => s.focusStage);
+
+  // Big parallel stage stations with numbered markers matching tray order (§12.3)
+  const bigStageStations = useMemo(() => {
+    if (stations.length === 0) return [];
+    const targetLayer = focusStage - 1;
+    const stageList = stations.filter((s) => s.layer === targetLayer);
+    if (stageList.length <= 4) return [];
+    const trayModel = buildStageTrayModel({
+      metro: { stations, tracks: [] },
+      stageNumber: focusStage,
+    });
+    return trayModel.allOrderedItems;
+  }, [stations, focusStage]);
+
+  // Generate CanvasTexture and instanced plane geometry with aUvOffset for numbered plaza markers (§12.3)
+  const { markerTexture, markerGeometry, markerMaterial } = useMemo(() => {
+    const count = bigStageStations.length;
+    if (count === 0 || typeof document === "undefined") {
+      return { markerTexture: null, markerGeometry: null, markerMaterial: null };
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { markerTexture: null, markerGeometry: null, markerMaterial: null };
+
+    ctx.clearRect(0, 0, 512, 512);
+
+    const uvOffsets = new Float32Array(count * 2);
+
+    for (let i = 0; i < count && i < 16; i++) {
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      const cx = col * 128 + 64;
+      const cy = row * 128 + 64;
+
+      uvOffsets[i * 2] = col * 0.25;
+      uvOffsets[i * 2 + 1] = (3 - row) * 0.25;
+
+      // Disc background
+      ctx.beginPath();
+      ctx.arc(cx, cy, 52, 0, Math.PI * 2);
+      ctx.fillStyle = "#0F172A"; // Slate 900
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.stroke();
+
+      // Disc text (e.g. 4.1)
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 30px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${focusStage}.${i + 1}`, cx, cy);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+
+    const geom = new THREE.PlaneGeometry(0.7, 0.7);
+    geom.rotateX(-Math.PI / 2);
+    geom.setAttribute("aUvOffset", new THREE.InstancedBufferAttribute(uvOffsets, 2));
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      polygonOffset: true,
+      polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+      polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
+    });
+
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = `
+        attribute vec2 aUvOffset;
+        ${shader.vertexShader}
+      `.replace(
+        `#include <uv_vertex>`,
+        `#include <uv_vertex>
+        #ifdef USE_MAP
+          vMapUv = vMapUv * 0.25 + aUvOffset;
+        #endif`
+      );
+    };
+
+    return { markerTexture: tex, markerGeometry: geom, markerMaterial: mat };
+  }, [bigStageStations.length, focusStage]);
+
+  useEffect(() => {
+    return () => {
+      markerTexture?.dispose();
+      markerGeometry?.dispose();
+      markerMaterial?.dispose();
+    };
+  }, [markerTexture, markerGeometry, markerMaterial]);
 
   // Available non-optional stations in focused stage for next-up beacons (§11.2)
   const nextUpStations = useMemo(() => {
@@ -514,6 +611,24 @@ export function Stations({ stations }: StationsProps) {
       checkMesh.instanceMatrix.needsUpdate = true;
     }
 
+    // 6. Update numbered plaza markers for big parallel stages (§12.3)
+    const markerMesh = numberedMarkerMeshRef.current;
+    if (markerMesh && bigStageStations.length > 0) {
+      for (let i = 0; i < bigStageStations.length; i++) {
+        const item = bigStageStations[i];
+        if (!item) continue;
+
+        const [x, , z] = item.station.position3D;
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z - 0.7);
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        markerMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      markerMesh.instanceMatrix.needsUpdate = true;
+    }
+
     if (allFinished) {
       animDoneRef.current = true;
     }
@@ -643,6 +758,14 @@ export function Stations({ stations }: StationsProps) {
         <instancedMesh
           ref={checkDiscMeshRef}
           args={[checkDiscGeometry, checkDiscMaterial, doneStations.length]}
+        />
+      )}
+
+      {/* 3D Numbered Plaza Decal Markers for Big Parallel Stages (§12.3) */}
+      {bigStageStations.length > 0 && markerGeometry && markerMaterial && (
+        <instancedMesh
+          ref={numberedMarkerMeshRef}
+          args={[markerGeometry, markerMaterial, bigStageStations.length]}
         />
       )}
 
