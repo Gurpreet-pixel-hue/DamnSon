@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   layoutStageCards,
+  computeOverlapArea,
   type StageStationInput,
   type LayoutStageCardsInput,
 } from "./layoutStageCards";
 
-describe("layoutStageCards (§11.4, §11.7)", () => {
+describe("layoutStageCards (§11.4, §11.7, §11.8)", () => {
   const sampleStations: StageStationInput[] = [
     {
       id: "step-1",
@@ -55,7 +56,6 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
   });
 
   it("only focused-stage stations get cards", () => {
-    // If a stage has 2 stations, only those 2 get cards
     const stageStations = sampleStations.slice(0, 2);
     const result = layoutStageCards({
       stations: stageStations,
@@ -93,7 +93,6 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
 
     const initialLayout = layoutStageCards(baseInput);
 
-    // Simulate marking step-a done
     const doneInput: LayoutStageCardsInput = {
       stations: [
         {
@@ -101,7 +100,7 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
           title: "Step A",
           anchorX: 350,
           anchorY: 400,
-          state: "done", // changed to done
+          state: "done",
           applicability: "applies",
         },
         {
@@ -109,7 +108,7 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
           title: "Step B",
           anchorX: 500,
           anchorY: 420,
-          state: "available", // became available
+          state: "available",
           applicability: "applies",
         },
       ],
@@ -126,36 +125,73 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
     }
   });
 
-  it("resolves vertical overlap by placing second card below anchor or pushing sideways", () => {
-    const overlappingStations: StageStationInput[] = [
+  it("avoids card-card and card-obstacle overlap with 0 px^2 overlap area (§11.8)", () => {
+    const closeStations: StageStationInput[] = [
       {
-        id: "overlap-1",
+        id: "c-1",
         title: "Station 1",
         anchorX: 400,
         anchorY: 400,
         state: "available",
       },
       {
-        id: "overlap-2",
+        id: "c-2",
         title: "Station 2",
-        anchorX: 420, // very close x
-        anchorY: 405, // very close y
+        anchorX: 430,
+        anchorY: 410,
+        state: "available",
+      },
+      {
+        id: "c-3",
+        title: "Station 3",
+        anchorX: 470,
+        anchorY: 395,
         state: "available",
       },
     ];
 
+    const chipObstacle = { minX: 380, maxX: 500, minY: 320, maxY: 352 };
+
     const result = layoutStageCards({
-      stations: overlappingStations,
+      stations: closeStations,
+      viewport: defaultViewport,
+      obstacles: [chipObstacle],
+    });
+
+    const cards = Array.from(result.values());
+    expect(cards.length).toBe(3);
+
+    // Assert 0 px² overlap between any two cards
+    for (let i = 0; i < cards.length; i++) {
+      for (let j = i + 1; j < cards.length; j++) {
+        const overlap = computeOverlapArea(cards[i]!.cardRect, cards[j]!.cardRect);
+        expect(overlap).toBe(0);
+      }
+    }
+
+    // Assert 0 px² overlap with chip obstacle
+    for (const card of cards) {
+      const overlap = computeOverlapArea(card.cardRect, chipObstacle);
+      expect(overlap).toBe(0);
+    }
+  });
+
+  it("enforces maximum tether length <= 140 px (§11.8)", () => {
+    const stations: StageStationInput[] = [
+      { id: "t-1", title: "Station 1", anchorX: 300, anchorY: 300 },
+      { id: "t-2", title: "Station 2", anchorX: 330, anchorY: 320 },
+      { id: "t-3", title: "Station 3", anchorX: 360, anchorY: 310 },
+      { id: "t-4", title: "Station 4", anchorX: 390, anchorY: 305 },
+    ];
+
+    const result = layoutStageCards({
+      stations,
       viewport: defaultViewport,
     });
 
-    const c1 = result.get("overlap-1")!;
-    const c2 = result.get("overlap-2")!;
-
-    expect(c1).toBeDefined();
-    expect(c2).toBeDefined();
-    // One card is at -56, the other either flips to +56 or pushes sideways
-    expect(c1.yOff !== c2.yOff || c1.xOff !== c2.xOff).toBe(true);
+    for (const card of result.values()) {
+      expect(card.tetherLength).toBeLessThanOrEqual(140);
+    }
   });
 
   it("switches to compact mode when more than 4 stations are in the stage", () => {
@@ -177,5 +213,33 @@ describe("layoutStageCards (§11.4, §11.7)", () => {
       expect(card.isCompact).toBe(true);
       expect(card.width).toBe(180);
     }
+  });
+
+  it("handles drawer obstacle and pushes cards away from drawer area (§11.8)", () => {
+    const rightStation: StageStationInput = {
+      id: "drawer-side",
+      title: "Right Station",
+      anchorX: 1100,
+      anchorY: 400,
+      state: "available",
+    };
+
+    const closed = layoutStageCards({
+      stations: [rightStation],
+      viewport: defaultViewport,
+      drawerOpen: false,
+    });
+    expect(closed.get("drawer-side")).toBeDefined();
+
+    const open = layoutStageCards({
+      stations: [rightStation],
+      viewport: defaultViewport,
+      drawerOpen: true,
+    });
+
+    const cardOpen = open.get("drawer-side")!;
+    expect(cardOpen).toBeDefined();
+    // Drawer occupies [1440 - 380, 1440] = [1060, 1440]
+    expect(cardOpen.cardRect.maxX).toBeLessThanOrEqual(1440 - 380);
   });
 });

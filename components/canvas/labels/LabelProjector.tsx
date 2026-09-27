@@ -7,8 +7,11 @@ import type { MetroVM } from "@/lib/graph/viewModel";
 import {
   layoutStageCards,
   type PlacedStageCard,
+  type ScreenRect,
 } from "./layoutStageCards";
 import { useViewStore } from "@/lib/store/useViewStore";
+import { useTaskStore } from "@/lib/store/useTaskStore";
+import { deriveStageHeaders } from "../StageHeaders";
 
 export interface LabelProjectorProps {
   metro: MetroVM;
@@ -32,6 +35,9 @@ export function LabelProjector({
   const focusStage = useViewStore((s) => s.focusStage);
   const wholeRouteView = useViewStore((s) => s.wholeRouteView);
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
+  const selectedStepId = useTaskStore((s) => s.selectedStepId);
+
+  const headers = useMemo(() => deriveStageHeaders(metro), [metro]);
 
   // Stations in focused stage
   const focusedStations = useMemo(() => {
@@ -49,8 +55,13 @@ export function LabelProjector({
   const cachedPlacements = useRef<Map<string, PlacedStageCard>>(new Map());
   const cachedScreenPos = useRef<Map<string, { x: number; y: number }>>(new Map());
   const lastLayoutKey = useRef<string>("");
+  const isGlidingRef = useRef(false);
+  const stillFrameCountRef = useRef(0);
 
-  // Priority -1: runs after CameraControls update on every frame (§11.4)
+  const cachedWorldMatrix = useRef(new Float64Array(16));
+  const cachedProjMatrix = useRef(new Float64Array(16));
+
+  // Priority -1: runs after CameraControls update on every frame (§11.4 & §11.8)
   useFrame(() => {
     const cardSlots = cardSlotsRef.current;
     if (!cardSlots) return;
@@ -72,11 +83,58 @@ export function LabelProjector({
     const halfW = size.width / 2;
     const halfH = size.height / 2;
 
-    // Check if layout needs to run (focusStage, canvas size) (§11.4)
-    // Nothing re-lays out on click, hover, mark done, drawer open/close or camera damping.
-    const layoutKey = `${focusStage}_${size.width}x${size.height}`;
-    if (lastLayoutKey.current !== layoutKey) {
+    const wm = camera.matrixWorld.elements;
+    const pm = camera.projectionMatrix.elements;
+    const cwm = cachedWorldMatrix.current;
+    const cpm = cachedProjMatrix.current;
+
+    let cameraMoved = false;
+    for (let i = 0; i < 16; i++) {
+      if (wm[i] !== cwm[i] || pm[i] !== cpm[i]) {
+        cameraMoved = true;
+        break;
+      }
+    }
+
+    if (cameraMoved) {
+      for (let i = 0; i < 16; i++) {
+        cwm[i] = wm[i]!;
+        cpm[i] = pm[i]!;
+      }
+      isGlidingRef.current = true;
+      stillFrameCountRef.current = 0;
+    } else {
+      stillFrameCountRef.current += 1;
+    }
+
+    // Camera has arrived / settled after moving or on stage / size change
+    const layoutKey = `${focusStage}_${size.width}x${size.height}_${Boolean(selectedStepId)}`;
+    const shouldReLayout =
+      lastLayoutKey.current !== layoutKey ||
+      (isGlidingRef.current && stillFrameCountRef.current >= 2);
+
+    if (shouldReLayout) {
       lastLayoutKey.current = layoutKey;
+      isGlidingRef.current = false;
+
+      // Project visible stage chips as obstacles (§11.8)
+      const chipObstacles: ScreenRect[] = [];
+      const focusedHeader = headers.find((h) => h.layer === focusStage - 1);
+      const nextHeader = headers.find((h) => h.layer === focusStage);
+
+      for (const h of [focusedHeader, nextHeader]) {
+        if (!h) continue;
+        scratchVec.set(h.x, 0.57, h.z);
+        scratchVec.project(camera);
+        const sx = scratchVec.x * halfW + halfW;
+        const sy = -scratchVec.y * halfH + halfH;
+        chipObstacles.push({
+          minX: sx - 70,
+          maxX: sx + 70,
+          minY: sy - 16,
+          maxY: sy + 16,
+        });
+      }
 
       const stationInputs = visibleStations.map((st) => {
         scratchVec.set(
@@ -101,14 +159,17 @@ export function LabelProjector({
       cachedPlacements.current = layoutStageCards({
         stations: stationInputs,
         viewport: size,
-        insets: { left: 16, right: 396, top: 56, bottom: 52 },
+        insets: { left: 24, right: 24, top: 56, bottom: 68 },
+        drawerOpen: Boolean(selectedStepId),
+        obstacles: chipObstacles,
       });
       cachedScreenPos.current.clear();
     }
 
     const placements = cachedPlacements.current;
 
-    // Project each visible card
+    // Project each visible card:
+    // While camera moves, offsets stay fixed and cards follow their anchors (§11.4)
     for (const station of visibleStations) {
       const el = cardSlots.get(station.id);
       if (!el) continue;
