@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { publishedJourneyResponseSchema, templateSummarySchema } from "@/lib/contract/api";
+import { readModuleFixture, readTemplateFixture } from "@/data/fixtures/v3/loadFixture";
+import { approvalModuleSchema, journeyTemplateSchema } from "@/lib/contract/schema";
+import { getPrisma } from "../db/client";
 import { createDbJourneyRepository } from "./dbRepository";
 import { getJourneyRepository } from "./index";
 
@@ -64,5 +67,68 @@ describe.skipIf(!hasDatabase)("createDbJourneyRepository against a real database
 
   it("returns null for an id that is not published", async () => {
     await expect(createDbJourneyRepository().getPublishedJourney("no-such-journey")).resolves.toBeNull();
+  });
+
+  // Regression: readPinnedModules had no status filter, so a template pinning a version that was
+  // still a draft served unreviewed content straight to citizens, past the §6.4 human gate.
+  describe("a template that pins a draft", () => {
+    const MODULE = "zz-draft-only-test";
+    const TASK = "zz-draft-pin-test";
+
+    beforeEach(async () => {
+      const prisma = getPrisma();
+      const module_ = approvalModuleSchema.parse({ ...readModuleFixture("ex-tax"), moduleId: MODULE, version: 1 });
+      const template = journeyTemplateSchema.parse({
+        ...readTemplateFixture("example-startup"),
+        taskId: TASK,
+        revision: 1,
+        modules: [{ moduleId: MODULE, version: 1, requirement: "mandatory", activation: null, reason: "Draft pin regression test" }],
+        links: [],
+        questions: [],
+      });
+
+      await prisma.approvalModuleVersion.create({
+        data: {
+          module: { create: { id: MODULE, title: module_.title, authoritySlug: module_.authority.slug } },
+          version: 1,
+          content: JSON.parse(JSON.stringify(module_)),
+          contentHash: "d".repeat(64),
+          status: "draft", // never reviewed, never published
+        },
+      });
+      const revision = await prisma.journeyTemplateRevision.create({
+        data: {
+          template: { create: { id: TASK, title: template.title, category: template.category, keywords: [] } },
+          revision: 1,
+          content: JSON.parse(JSON.stringify(template)),
+          contentHash: "e".repeat(64),
+          status: "published",
+          publishedAt: new Date(),
+        },
+        select: { id: true },
+      });
+      await prisma.journeyTemplate.update({ where: { id: TASK }, data: { publishedRevisionId: revision.id } });
+    });
+
+    afterEach(async () => {
+      const prisma = getPrisma();
+      await prisma.journeyTemplate.updateMany({ where: { id: TASK }, data: { publishedRevisionId: null } });
+      await prisma.journeyTemplateRevision.updateMany({ where: { templateId: TASK }, data: { status: "draft" } });
+      await prisma.journeyTemplateRevision.deleteMany({ where: { templateId: TASK } });
+      await prisma.journeyTemplate.deleteMany({ where: { id: TASK } });
+      await prisma.approvalModuleVersion.deleteMany({ where: { moduleId: MODULE } });
+      await prisma.approvalModule.deleteMany({ where: { id: MODULE } });
+    });
+
+    it("is not served, rather than serving unreviewed content", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await expect(createDbJourneyRepository().getPublishedJourney(TASK)).resolves.toBeNull();
+    });
+
+    it("is left out of the listing too", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const templates = await createDbJourneyRepository().listTemplates();
+      expect(templates.map((t) => t.taskId)).not.toContain(TASK);
+    });
   });
 });
