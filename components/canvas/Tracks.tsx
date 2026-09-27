@@ -9,6 +9,7 @@ import { POLYGON_OFFSETS } from "./heights";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { planCity, type CityPlan } from "./city/planCity";
 import { computeRoutesOnRoads, type RouteOnRoad } from "./city/routeOnRoads";
+import { currentStage } from "@/lib/graph/stages";
 
 export interface TrackCurveData {
   track: TrackVM;
@@ -180,6 +181,7 @@ export function Tracks({ metro, plan }: TracksProps) {
     doneRoutes,
     nextUpRoutes,
     criticalRoutes,
+    dashedRoutes,
     dashedSegments,
   } = useMemo(() => computeTrackCurves(metro, plan), [metro, plan]);
 
@@ -192,53 +194,57 @@ export function Tracks({ metro, plan }: TracksProps) {
     [metro.tracks]
   );
 
-  const isFocusRoute = useCallback(
+  const currStageNum = useMemo(() => currentStage(metro), [metro]);
+
+  const isStageViewRoute = useCallback(
     (route: RouteOnRoad) => {
       if (wholeRouteView) return true;
       const track = trackMap.get(route.trackId);
       if (!track) return false;
       const from = stationMap.get(track.from);
       const to = stationMap.get(track.to);
-      return from?.layer === focusStage - 1 || to?.layer === focusStage - 1;
+      if (!from || !to) return false;
+
+      const fLayer = focusStage - 1;
+      const cLayer = currStageNum - 1;
+
+      // 1. Into or out of the focused stage (§12.4)
+      if (from.layer === fLayer || to.layer === fLayer) {
+        return true;
+      }
+
+      // 2. On the path between current stage and focused stage (§12.4)
+      if (fLayer !== cLayer) {
+        const minL = Math.min(cLayer, fLayer);
+        const maxL = Math.max(cLayer, fLayer);
+        if (from.layer >= minL && to.layer <= maxL) {
+          return true;
+        }
+      }
+
+      return false;
     },
-    [wholeRouteView, trackMap, stationMap, focusStage]
+    [wholeRouteView, trackMap, stationMap, focusStage, currStageNum]
   );
 
-  // Split into focused stage routes and dimmed routes (§11.2)
+  // Stage view routes: only into/out of focused stage, plus path from current to focused stage (§12.4).
+  // In wholeRouteView, all routes pass isStageViewRoute.
+  // Other routes are hidden in stage view (§12.4).
   const normalFocus = useMemo(
-    () => normalRoutes.filter(isFocusRoute),
-    [normalRoutes, isFocusRoute]
+    () => normalRoutes.filter(isStageViewRoute),
+    [normalRoutes, isStageViewRoute]
   );
-  const normalDimmed = useMemo(
-    () => normalRoutes.filter((r) => !isFocusRoute(r)),
-    [normalRoutes, isFocusRoute]
-  );
-
   const doneFocus = useMemo(
-    () => doneRoutes.filter(isFocusRoute),
-    [doneRoutes, isFocusRoute]
+    () => doneRoutes.filter(isStageViewRoute),
+    [doneRoutes, isStageViewRoute]
   );
-  const doneDimmed = useMemo(
-    () => doneRoutes.filter((r) => !isFocusRoute(r)),
-    [doneRoutes, isFocusRoute]
-  );
-
   const nextUpFocus = useMemo(
-    () => nextUpRoutes.filter(isFocusRoute),
-    [nextUpRoutes, isFocusRoute]
+    () => nextUpRoutes.filter(isStageViewRoute),
+    [nextUpRoutes, isStageViewRoute]
   );
-  const nextUpDimmed = useMemo(
-    () => nextUpRoutes.filter((r) => !isFocusRoute(r)),
-    [nextUpRoutes, isFocusRoute]
-  );
-
   const criticalFocus = useMemo(
-    () => criticalRoutes.filter(isFocusRoute),
-    [criticalRoutes, isFocusRoute]
-  );
-  const criticalDimmed = useMemo(
-    () => criticalRoutes.filter((r) => !isFocusRoute(r)),
-    [criticalRoutes, isFocusRoute]
+    () => criticalRoutes.filter(isStageViewRoute),
+    [criticalRoutes, isStageViewRoute]
   );
 
   // Full-width geometries (1.0)
@@ -259,23 +265,21 @@ export function Tracks({ metro, plan }: TracksProps) {
     [criticalFocus]
   );
 
-  // 50% width geometries (0.5) for dimmed routes (§11.2)
-  const normalDimGeom = useMemo(
-    () => buildMergedRibbonGeometry(normalDimmed, 0.5),
-    [normalDimmed]
-  );
-  const doneDimGeom = useMemo(
-    () => buildMergedRibbonGeometry(doneDimmed, 0.5),
-    [doneDimmed]
-  );
-  const nextUpDimGeom = useMemo(
-    () => buildMergedRibbonGeometry(nextUpDimmed, 0.5),
-    [nextUpDimmed]
-  );
-  const criticalDimGeom = useMemo(
-    () => buildMergedRibbonGeometry(criticalDimmed, 0.5),
-    [criticalDimmed]
-  );
+  // Active dashed segments respecting stage view filter (§12.4)
+  const activeDashedSegments = useMemo(() => {
+    if (wholeRouteView) return dashedSegments;
+    const segs: [number, number, number][] = [];
+    for (const route of dashedRoutes) {
+      if (isStageViewRoute(route)) {
+        for (let i = 0; i < route.polyline.length - 1; i++) {
+          const ptA = route.polyline[i]!;
+          const ptB = route.polyline[i + 1]!;
+          segs.push([ptA[0], ptA[1], ptA[2]], [ptB[0], ptB[1], ptB[2]]);
+        }
+      }
+    }
+    return segs;
+  }, [wholeRouteView, dashedSegments, dashedRoutes, isStageViewRoute]);
 
   // Focused Materials (full opacity)
   const normalMaterial = useMemo(
@@ -326,66 +330,9 @@ export function Tracks({ metro, plan }: TracksProps) {
     [criticalPathOn]
   );
 
-  // Dimmed Materials (35% opacity) (§11.2)
-  const normalDimMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: PALETTE.trackNormal,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.35,
-        polygonOffset: true,
-        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
-        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
-      }),
-    []
-  );
-
-  const doneDimMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: PALETTE.done,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.35,
-        polygonOffset: true,
-        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
-        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
-      }),
-    []
-  );
-
-  const nextUpDimMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: PALETTE.available,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.35,
-        polygonOffset: true,
-        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
-        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
-      }),
-    []
-  );
-
-  const criticalDimMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: criticalPathOn ? PALETTE.critical : PALETTE.normalTrack,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.35,
-        polygonOffset: true,
-        polygonOffsetFactor: POLYGON_OFFSETS.routeLane.factor,
-        polygonOffsetUnits: POLYGON_OFFSETS.routeLane.units,
-      }),
-    [criticalPathOn]
-  );
-
   return (
     <group>
-      {/* Focused stage routes (full width 0.35, 100% opacity) */}
+      {/* Stage-focused routes (full width 0.35, 100% opacity) */}
       {normalFocus.length > 0 && (
         <mesh geometry={normalGeom} material={normalMaterial} />
       )}
@@ -399,25 +346,11 @@ export function Tracks({ metro, plan }: TracksProps) {
         <mesh geometry={criticalGeom} material={criticalMaterial} />
       )}
 
-      {/* Dimmed routes for other stages (50% width 0.175, 35% opacity) */}
-      {normalDimmed.length > 0 && (
-        <mesh geometry={normalDimGeom} material={normalDimMaterial} />
-      )}
-      {doneDimmed.length > 0 && (
-        <mesh geometry={doneDimGeom} material={doneDimMaterial} />
-      )}
-      {nextUpDimmed.length > 0 && (
-        <mesh geometry={nextUpDimGeom} material={nextUpDimMaterial} />
-      )}
-      {criticalDimmed.length > 0 && (
-        <mesh geometry={criticalDimGeom} material={criticalDimMaterial} />
-      )}
-
-      {/* Dashed routes */}
-      {dashedSegments.length > 0 && (
+      {/* Dashed routes (filtered in stage view per §12.4) */}
+      {activeDashedSegments.length > 0 && (
         <Line
           segments
-          points={dashedSegments}
+          points={activeDashedSegments}
           color={PALETTE.undecided}
           lineWidth={wholeRouteView ? 3 : 2}
           transparent={!wholeRouteView}
