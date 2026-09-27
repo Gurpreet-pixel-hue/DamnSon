@@ -74,7 +74,12 @@ async function readPinnedModules(templates: readonly JourneyTemplate[]): Promise
 
   const prisma = getPrisma();
   const rows = await prisma.approvalModuleVersion.findMany({
-    where: { OR: [...wanted.values()].map((pin) => ({ moduleId: pin.moduleId, version: pin.version })) },
+    // Only content a human has published may reach a citizen (§6.4). Without this filter a template
+    // pinning a version that is still a draft would serve unreviewed content straight to the journey.
+    where: {
+      status: { in: ["published", "superseded"] },
+      OR: [...wanted.values()].map((pin) => ({ moduleId: pin.moduleId, version: pin.version })),
+    },
     select: { moduleId: true, version: true, content: true },
   });
 
