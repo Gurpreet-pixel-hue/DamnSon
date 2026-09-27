@@ -107,32 +107,37 @@ export function LabelProjector({
       stillFrameCountRef.current += 1;
     }
 
-    // Camera has arrived / settled after moving or on stage / size change
-    const layoutKey = `${focusStage}_${size.width}x${size.height}_${Boolean(selectedStepId)}`;
+    // Camera has arrived / settled after moving or on stage / size / station change
+    const stationKey = visibleStations.map((s) => s.id).join(",");
+    const layoutKey = `${focusStage}_${size.width}x${size.height}_${Boolean(selectedStepId)}_${stationKey}`;
+    const missingPlacements = visibleStations.some(
+      (s) => !cachedPlacements.current.has(s.id)
+    );
+
     const shouldReLayout =
       lastLayoutKey.current !== layoutKey ||
+      missingPlacements ||
       (isGlidingRef.current && stillFrameCountRef.current >= 2);
 
     if (shouldReLayout) {
       lastLayoutKey.current = layoutKey;
       isGlidingRef.current = false;
 
-      // Project visible stage chips as obstacles (§11.8)
+      // Project stage chips as obstacles (§11.8)
       const chipObstacles: ScreenRect[] = [];
-      const focusedHeader = headers.find((h) => h.layer === focusStage - 1);
-      const nextHeader = headers.find((h) => h.layer === focusStage);
-
-      for (const h of [focusedHeader, nextHeader]) {
+      for (const h of headers) {
         if (!h) continue;
         scratchVec.set(h.x, 0.57, h.z);
         scratchVec.project(camera);
         const sx = scratchVec.x * halfW + halfW;
         const sy = -scratchVec.y * halfH + halfH;
+        const clampedX = Math.max(94, Math.min(size.width - 94, sx));
+        const clampedY = Math.max(72, Math.min(size.height - 84, sy));
         chipObstacles.push({
-          minX: sx - 70,
-          maxX: sx + 70,
-          minY: sy - 16,
-          maxY: sy + 16,
+          minX: clampedX - 80,
+          maxX: clampedX + 80,
+          minY: clampedY - 24,
+          maxY: clampedY + 24,
         });
       }
 

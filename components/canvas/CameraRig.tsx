@@ -37,6 +37,14 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
+  useEffect(() => {
+    if (controlsRef.current && typeof window !== "undefined") {
+      (
+        window as unknown as { __CW_CONTROLS__: CameraControls }
+      ).__CW_CONTROLS__ = controlsRef.current;
+    }
+  }, []);
+
   // Whole route bounding box (all stations + all stage headers)
   const wholeRouteBoundingBox = useMemo(() => {
     const box = new THREE.Box3();

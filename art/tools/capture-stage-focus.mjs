@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-3.5-stage");
+const REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-3.5-stage-2");
 if (!fs.existsSync(REVIEW_DIR)) {
   fs.mkdirSync(REVIEW_DIR, { recursive: true });
 }
@@ -12,12 +12,13 @@ const CHROME_PATH =
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 async function main() {
-  console.log("=== Starting FE-3.5 Stage Focus Verification & Screenshot Capture ===");
+  console.log("=== Starting FE-3.5 Stage Focus 2 (Framing & Placement) Verification ===");
+  console.log(`Review Directory: ${REVIEW_DIR}`);
   console.log(`Using Chrome: ${CHROME_PATH}`);
 
   const chrome = spawn(CHROME_PATH, [
     "--headless=new",
-    "--remote-debugging-port=9227",
+    "--remote-debugging-port=9228",
     "--enable-webgl",
     "--use-gl=angle",
     "--use-angle=metal",
@@ -27,7 +28,7 @@ async function main() {
 
   await new Promise((r) => setTimeout(r, 2500));
 
-  const listRes = await fetch("http://localhost:9227/json/list");
+  const listRes = await fetch("http://localhost:9228/json/list");
   const pages = await listRes.json();
   const page = pages.find((p) => p.type === "page") || pages[0];
   const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -78,12 +79,16 @@ async function main() {
     mobile: false,
   });
 
+  const capturedFiles = [];
+
   async function saveScreenshot(filename) {
     const res = await send("Page.captureScreenshot", { format: "png" });
     const buffer = Buffer.from(res.result.data, "base64");
     const outPath = path.join(REVIEW_DIR, filename);
     fs.writeFileSync(outPath, buffer);
-    console.log(`Saved screenshot: ${filename} -> ${outPath}`);
+    const sizeBytes = fs.statSync(outPath).size;
+    capturedFiles.push({ filename, path: outPath, sizeBytes });
+    console.log(`Saved screenshot: ${filename} (${sizeBytes.toLocaleString()} bytes) -> ${outPath}`);
     return outPath;
   }
 
@@ -119,250 +124,225 @@ async function main() {
     })()`);
   }
 
+  // Helper to measure camera distance and focused anchor in safe rect
+  async function getCameraAndAnchorMetrics() {
+    return await evaluateExpr(`(() => {
+      const controls = window.__CW_CONTROLS__ || (document.querySelector('canvas')?.__r3f?.root?.cameraControls);
+      // Fallback: estimate from R3F camera
+      const camera = document.querySelector('canvas')?.__r3f?.root?.camera;
+      let distance = 0;
+      if (controls && controls.distance) {
+        distance = controls.distance;
+      } else if (camera) {
+        distance = camera.position.length();
+      }
+
+      // Check focused card anchor
+      const firstCard = document.querySelector('[data-testid="label-layer"] [data-station-id]');
+      let anchorInsideSafeRect = false;
+      let cardRect = null;
+      if (firstCard) {
+        const r = firstCard.getBoundingClientRect();
+        cardRect = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        // Safe rect: [24, 1440 - 24] x [56, 900 - 68]
+        anchorInsideSafeRect = r.left >= 20 && r.right <= 1420 && r.top >= 50 && r.bottom <= 840;
+      }
+
+      return { distance, anchorInsideSafeRect, cardRect };
+    })()`);
+  }
+
+  const fixtureFirstViews = {};
+
   // -------------------------------------------------------------------------
-  // 1. First View: demo-metro-synthetic
+  // 1. First Views of demo, example-startup, stress
   // -------------------------------------------------------------------------
-  console.log("\n--- 1. First View (1440x900) ---");
+  console.log("\n--- 1. First View: demo-metro-synthetic ---");
   await send("Page.navigate", {
     url: "http://localhost:3000/journey/demo-metro-synthetic?debug=1",
   });
   await new Promise((r) => setTimeout(r, 5500));
-
-  const firstViewCardsCount = await evaluateExpr(`(() => {
-    return document.querySelectorAll('[data-testid="label-layer"] [data-station-id]').length;
-  })()`);
-  const pinsCount = await evaluateExpr(`(() => {
-    return document.querySelectorAll('[data-testid="state-pin"]').length;
-  })()`);
-  console.log(`Cards visible in first view: ${firstViewCardsCount}`);
-  console.log(`Pins in first view (must be 0): ${pinsCount}`);
-
+  await saveScreenshot("first-view-demo.png");
   await saveScreenshot("first-view.png");
+  const demoMetrics = await getCameraAndAnchorMetrics();
+  fixtureFirstViews["demo"] = demoMetrics;
   const demoDefaultDebug = await getDebugNumbers();
-  console.log("Demo Default Stage View Debug Numbers (verbatim):", demoDefaultDebug);
+  console.log("Demo First View Metrics:", demoMetrics);
+  console.log("Demo Default Stage View Debug Numbers:", demoDefaultDebug);
   await checkPageScroll("demo 1440x900");
 
-  // -------------------------------------------------------------------------
-  // 2. Hover Displacement Check (10 sweeps at 150 ms)
-  // -------------------------------------------------------------------------
-  console.log("\n--- 2. Hover Displacement Check ---");
-  const hoverDisplacement = await evaluateExpr(`(async () => {
-    const getRects = () => {
-      const map = {};
-      document.querySelectorAll('[data-testid="label-layer"] [data-station-id]').forEach(el => {
-        const id = el.getAttribute('data-station-id');
-        const r = el.getBoundingClientRect();
-        map[id] = { left: r.left, top: r.top, width: r.width, height: r.height };
-      });
-      return map;
-    };
+  console.log("\n--- 1b. First View: example-startup ---");
+  await send("Page.navigate", {
+    url: "http://localhost:3000/journey/example-startup?debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 4500));
+  await saveScreenshot("first-view-startup.png");
+  const startupMetrics = await getCameraAndAnchorMetrics();
+  fixtureFirstViews["example-startup"] = startupMetrics;
+  const startupDefaultDebug = await getDebugNumbers();
+  console.log("Startup First View Metrics:", startupMetrics);
+  console.log("Startup Default Stage View Debug Numbers:", startupDefaultDebug);
 
-    const initial = getRects();
-    let maxDisplacement = 0;
-    const cards = Array.from(document.querySelectorAll('[data-testid="label-layer"] [data-station-id]'));
+  console.log("\n--- 1c. First View: stress-25-synthetic ---");
+  await send("Page.navigate", {
+    url: "http://localhost:3000/journey/stress-25-synthetic?debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 5000));
+  await saveScreenshot("first-view-stress.png");
+  const stressMetrics = await getCameraAndAnchorMetrics();
+  fixtureFirstViews["stress"] = stressMetrics;
+  const stressDefaultDebug = await getDebugNumbers();
+  console.log("Stress First View Metrics:", stressMetrics);
+  console.log("Stress Default Stage View Debug Numbers:", stressDefaultDebug);
 
-    for (let sweep = 0; sweep < 10; sweep++) {
-      for (const card of cards) {
-        card.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 75));
-        const current = getRects();
-        for (const [id, r0] of Object.entries(initial)) {
-          const r1 = current[id];
-          if (r1) {
-            const dx = Math.abs(r1.left - r0.left);
-            const dy = Math.abs(r1.top - r0.top);
-            if (dx > maxDisplacement) maxDisplacement = dx;
-            if (dy > maxDisplacement) maxDisplacement = dy;
+  // -------------------------------------------------------------------------
+  // 2. Every stage of example-startup
+  // -------------------------------------------------------------------------
+  console.log("\n--- 2. Every Stage of example-startup ---");
+  await send("Page.navigate", {
+    url: "http://localhost:3000/journey/example-startup?debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 4500));
+
+  let stage4Metrics = null;
+
+  // Find number of stages
+  const stageCount = await evaluateExpr(`(() => {
+    return document.querySelectorAll('[data-testid="stage-stepper"] button[aria-label*="Stage"]').length || 5;
+  })()`);
+
+  console.log(`Total stages in example-startup: ${stageCount}`);
+
+  for (let s = 1; s <= stageCount; s++) {
+    if (s > 1) {
+      await evaluateExpr(`(() => {
+        const nextBtn = document.querySelector('[data-testid="stepper-next-btn"]');
+        if (nextBtn) nextBtn.click();
+      })()`);
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    const label = await evaluateExpr(`(() => {
+      const el = document.querySelector('[data-testid="stepper-label"]');
+      return el ? el.textContent.trim() : "";
+    })()`);
+    console.log(`Captured Stage ${s}: ${label}`);
+    await saveScreenshot(`startup-stage-${s}.png`);
+    await saveScreenshot(`stage-${s}.png`);
+
+    // On Stage 4: measure card-card and card-obstacle overlap, tether length
+    if (s === 4) {
+      stage4Metrics = await evaluateExpr(`(() => {
+        const cards = Array.from(document.querySelectorAll('[data-testid="label-layer"] [data-station-id]'));
+        const rects = cards.map(c => {
+          const r = c.getBoundingClientRect();
+          return { id: c.getAttribute('data-station-id'), minX: r.left, maxX: r.right, minY: r.top, maxY: r.bottom };
+        });
+
+        // Compute pairwise card-card overlap area in px²
+        let totalCardCardOverlap = 0;
+        for (let i = 0; i < rects.length; i++) {
+          for (let j = i + 1; j < rects.length; j++) {
+            const a = rects[i];
+            const b = rects[j];
+            const ox = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
+            const oy = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
+            totalCardCardOverlap += (ox * oy);
           }
         }
-        card.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 75));
-      }
+
+        // Stepper obstacle: [ (1440-280)/2, (1440+280)/2 ] x [ 900-68, 900 ]
+        const stepperObstacle = { minX: 580, maxX: 860, minY: 832, maxY: 900 };
+        let totalCardObstacleOverlap = 0;
+        for (const a of rects) {
+          const ox = Math.max(0, Math.min(a.maxX, stepperObstacle.maxX) - Math.max(a.minX, stepperObstacle.minX));
+          const oy = Math.max(0, Math.min(a.maxY, stepperObstacle.maxY) - Math.max(a.minY, stepperObstacle.minY));
+          totalCardObstacleOverlap += (ox * oy);
+        }
+
+        // Check chips obstacles
+        const chips = Array.from(document.querySelectorAll('[data-testid="stage-headers"] > div'));
+        for (const chip of chips) {
+          if (chip.style.visibility !== 'hidden') {
+            const cr = chip.getBoundingClientRect();
+            if (cr.width > 0 && cr.height > 0) {
+              const chipRect = { minX: cr.left, maxX: cr.right, minY: cr.top, maxY: cr.bottom };
+              for (const a of rects) {
+                const ox = Math.max(0, Math.min(a.maxX, chipRect.maxX) - Math.max(a.minX, chipRect.minX));
+                const oy = Math.max(0, Math.min(a.maxY, chipRect.maxY) - Math.max(a.minY, chipRect.minY));
+                totalCardObstacleOverlap += (ox * oy);
+              }
+            }
+          }
+        }
+
+        // Measure tether lengths from SVG lines
+        let maxTetherLength = 0;
+        const svgLines = Array.from(document.querySelectorAll('[data-testid="label-layer"] line'));
+        for (const line of svgLines) {
+          const x1 = parseFloat(line.getAttribute('x1') || '0');
+          const y1 = parseFloat(line.getAttribute('y1') || '0');
+          const x2 = parseFloat(line.getAttribute('x2') || '0');
+          const y2 = parseFloat(line.getAttribute('y2') || '0');
+          const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+          if (len > maxTetherLength) maxTetherLength = len;
+        }
+
+        const focusedInsideSafeRect = rects.length > 0 && rects[0].minX >= 20 && rects[0].maxX <= 1420 && rects[0].minY >= 50 && rects[0].maxY <= 840;
+
+        return {
+          cardCount: rects.length,
+          totalCardCardOverlap,
+          totalCardObstacleOverlap,
+          maxTetherLength: Math.round(maxTetherLength),
+          focusedInsideSafeRect,
+        };
+      })()`);
+      console.log("Example-Startup Stage 4 Placement Metrics:", stage4Metrics);
     }
-    return maxDisplacement;
-  })()`);
-  console.log(`Hover max wrapper displacement: ${hoverDisplacement} px`);
+  }
 
   // -------------------------------------------------------------------------
-  // 3. Click Card, Open/Close Drawer, Canvas Size Invariance
+  // 3. Whole Route View of all 3 fixtures + Chip collision check
   // -------------------------------------------------------------------------
-  console.log("\n--- 3. Click Card & Drawer Invariance ---");
-  const drawerCheck = await evaluateExpr(`(async () => {
-    const canvas = document.querySelector('canvas');
-    const r0 = canvas.getBoundingClientRect();
-    const canvasBefore = { width: Math.round(r0.width), height: Math.round(r0.height) };
+  console.log("\n--- 3. Whole Route Views & Chip Collisions ---");
 
-    const getRects = () => {
-      const map = {};
-      document.querySelectorAll('[data-testid="label-layer"] [data-station-id]').forEach(el => {
-        const id = el.getAttribute('data-station-id');
-        const r = el.getBoundingClientRect();
-        map[id] = { left: r.left, top: r.top, width: r.width, height: r.height };
-      });
-      return map;
-    };
-
-    const initial = getRects();
-
-    // Click first card
-    const firstBtn = document.querySelector('[data-testid="label-layer"] [data-station-id] button');
-    if (firstBtn) firstBtn.click();
-
-    await new Promise(r => setTimeout(r, 800));
-
-    const r1 = canvas.getBoundingClientRect();
-    const canvasAfter = { width: Math.round(r1.width), height: Math.round(r1.height) };
-
-    const current = getRects();
-    let maxDisplacement = 0;
-    for (const [id, rect0] of Object.entries(initial)) {
-      const rect1 = current[id];
-      if (rect1) {
-        const dx = Math.abs(rect1.left - rect0.left);
-        const dy = Math.abs(rect1.top - rect0.top);
-        if (dx > maxDisplacement) maxDisplacement = dx;
-        if (dy > maxDisplacement) maxDisplacement = dy;
-      }
-    }
-
-    return {
-      canvasBefore,
-      canvasAfter,
-      canvasDeltaW: Math.abs(canvasAfter.width - canvasBefore.width),
-      canvasDeltaH: Math.abs(canvasAfter.height - canvasBefore.height),
-      maxDisplacement,
-    };
-  })()`);
-
-  console.log(`Canvas before drawer: ${drawerCheck.canvasBefore.width}x${drawerCheck.canvasBefore.height}`);
-  console.log(`Canvas after drawer:  ${drawerCheck.canvasAfter.width}x${drawerCheck.canvasAfter.height}`);
-  console.log(`Canvas size delta:    ${drawerCheck.canvasDeltaW}x${drawerCheck.canvasDeltaH} px`);
-  console.log(`Click & Drawer max wrapper displacement: ${drawerCheck.maxDisplacement} px`);
-
-  await saveScreenshot("drawer-open.png");
-
-  // Close drawer
+  // 3a. Startup whole route
   await evaluateExpr(`(() => {
-    const closeBtn = document.querySelector('[data-testid="drawer-close-button"]');
-    if (closeBtn) closeBtn.click();
-  })()`);
-  await new Promise((r) => setTimeout(r, 600));
-
-  // -------------------------------------------------------------------------
-  // 4. Mark Done Sequence
-  // -------------------------------------------------------------------------
-  console.log("\n--- 4. Mark Done Sequence ---");
-  // Select first card to open drawer
-  await evaluateExpr(`(() => {
-    const firstBtn = document.querySelector('[data-testid="label-layer"] [data-station-id] button');
-    if (firstBtn) firstBtn.click();
-  })()`);
-  await new Promise((r) => setTimeout(r, 800));
-  await saveScreenshot("mark-done-before.png");
-
-  // Check displacement when marking done
-  const markDoneDisplacement = await evaluateExpr(`(async () => {
-    const getRects = () => {
-      const map = {};
-      document.querySelectorAll('[data-testid="label-layer"] [data-station-id]').forEach(el => {
-        const id = el.getAttribute('data-station-id');
-        const r = el.getBoundingClientRect();
-        map[id] = { left: r.left, top: r.top, width: r.width, height: r.height };
-      });
-      return map;
-    };
-
-    const initial = getRects();
-    const btn = document.querySelector('[data-testid="drawer-mark-done-btn"]');
+    const btn = document.querySelector('[data-testid="footer-whole-route-toggle"]');
     if (btn) btn.click();
+  })()`);
+  await new Promise((r) => setTimeout(r, 2000));
+  await saveScreenshot("whole-route-startup.png");
+  await saveScreenshot("whole-route-example-startup.png");
+  const startupWholeRouteDebug = await getDebugNumbers();
 
-    await new Promise(r => setTimeout(r, 300));
-    const current = getRects();
+  const chipCollisionsInWholeRoute = await evaluateExpr(`(() => {
+    const chips = Array.from(document.querySelectorAll('[data-testid="stage-headers"] > div'))
+      .filter(el => el.style.visibility !== 'hidden')
+      .map(el => {
+        const r = el.getBoundingClientRect();
+        return { text: el.textContent.trim(), minX: r.left, maxX: r.right, minY: r.top, maxY: r.bottom };
+      });
 
-    let maxDisplacement = 0;
-    const diffs = [];
-    // Check non-marked other wrappers
-    for (const [id, rect0] of Object.entries(initial)) {
-      const rect1 = current[id];
-      if (rect1) {
-        const dx = Math.abs(Math.round(rect1.left) - Math.round(rect0.left));
-        const dy = Math.abs(Math.round(rect1.top) - Math.round(rect0.top));
-        diffs.push({ id, r0: rect0, r1: rect1, dx, dy });
-        if (dx > maxDisplacement) maxDisplacement = dx;
-        if (dy > maxDisplacement) maxDisplacement = dy;
+    let collisionCount = 0;
+    for (let i = 0; i < chips.length; i++) {
+      for (let j = i + 1; j < chips.length; j++) {
+        const a = chips[i];
+        const b = chips[j];
+        const ox = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
+        const oy = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
+        if (ox > 0 && oy > 0) collisionCount++;
       }
     }
-    return { maxDisplacement, diffs };
+    return { visibleChips: chips.length, collisionCount };
   })()`);
-  console.log(`Mark done other wrappers displacement: ${markDoneDisplacement.maxDisplacement} px`);
-  console.log("Mark done rect diffs:", JSON.stringify(markDoneDisplacement.diffs));
+  console.log("Startup Whole Route Chip Collisions:", chipCollisionsInWholeRoute);
 
-  await saveScreenshot("mark-done-after.png");
-
-  // Click Undo on toast
-  await evaluateExpr(`(() => {
-    const undoBtn = document.querySelector('[data-testid="undo-toast-btn"]');
-    if (undoBtn) undoBtn.click();
-  })()`);
-  await new Promise((r) => setTimeout(r, 600));
-  await saveScreenshot("mark-done-undo.png");
-
-  // Close drawer
-  await evaluateExpr(`(() => {
-    const closeBtn = document.querySelector('[data-testid="drawer-close-button"]');
-    if (closeBtn) closeBtn.click();
-  })()`);
-  await new Promise((r) => setTimeout(r, 600));
-
-  // -------------------------------------------------------------------------
-  // 5. Stage Stepper Navigation
-  // -------------------------------------------------------------------------
-  console.log("\n--- 5. Stepper Sequence ---");
-  const stageSequence = [];
-  const initialStage = await evaluateExpr(`(() => {
-    const el = document.querySelector('[data-testid="stepper-label"]');
-    return el ? el.textContent.trim() : "";
-  })()`);
-  stageSequence.push(initialStage);
-  await saveScreenshot("stage-1.png");
-
-  for (let s = 2; s <= 5; s++) {
-    await evaluateExpr(`(() => {
-      const nextBtn = document.querySelector('[data-testid="stepper-next-btn"]');
-      if (nextBtn) nextBtn.click();
-    })()`);
-    await new Promise((r) => setTimeout(r, 900));
-    const label = await evaluateExpr(`(() => {
-      const el = document.querySelector('[data-testid="stepper-label"]');
-      return el ? el.textContent.trim() : "";
-    })()`);
-    stageSequence.push(label);
-    await saveScreenshot(`stage-${s}.png`);
-  }
-
-  // Step back to stage 1
-  for (let s = 4; s >= 1; s--) {
-    await evaluateExpr(`(() => {
-      const prevBtn = document.querySelector('[data-testid="stepper-prev-btn"]');
-      if (prevBtn) prevBtn.click();
-    })()`);
-    await new Promise((r) => setTimeout(r, 700));
-    const label = await evaluateExpr(`(() => {
-      const el = document.querySelector('[data-testid="stepper-label"]');
-      return el ? el.textContent.trim() : "";
-    })()`);
-    stageSequence.push(label);
-  }
-  await saveScreenshot("stepper-overview.png");
-  console.log("Stage Sequence while stepping:", stageSequence.join(" -> "));
-
-  // -------------------------------------------------------------------------
-  // 6. Whole Route View & Budgets
-  // -------------------------------------------------------------------------
-  console.log("\n--- 6. Whole Route View & Budgets ---");
-
-  // 6a. Demo whole route
-  console.log("Switching Demo to Whole Route View...");
+  // 3b. Demo whole route
+  await send("Page.navigate", {
+    url: "http://localhost:3000/journey/demo-metro-synthetic?debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 4500));
   await evaluateExpr(`(() => {
     const btn = document.querySelector('[data-testid="footer-whole-route-toggle"]');
     if (btn) btn.click();
@@ -370,35 +350,12 @@ async function main() {
   await new Promise((r) => setTimeout(r, 2000));
   await saveScreenshot("whole-route-demo.png");
   const demoWholeRouteDebug = await getDebugNumbers();
-  console.log("Demo Whole Route Debug Numbers (verbatim):", demoWholeRouteDebug);
 
-  // 6b. Example Startup
-  console.log("\nNavigating to Example Startup (Whole Route)...");
-  await send("Page.navigate", {
-    url: "http://localhost:3000/journey/example-startup?debug=1",
-  });
-  await new Promise((r) => setTimeout(r, 4500));
-  const exampleStartupDefaultDebug = await getDebugNumbers();
-  console.log("Example Startup Default Debug Numbers (verbatim):", exampleStartupDefaultDebug);
-
-  await evaluateExpr(`(() => {
-    const btn = document.querySelector('[data-testid="footer-whole-route-toggle"]');
-    if (btn) btn.click();
-  })()`);
-  await new Promise((r) => setTimeout(r, 2000));
-  await saveScreenshot("whole-route-example-startup.png");
-  const exampleStartupWholeRouteDebug = await getDebugNumbers();
-  console.log("Example Startup Whole Route Debug Numbers (verbatim):", exampleStartupWholeRouteDebug);
-
-  // 6c. Stress 25
-  console.log("\nNavigating to Stress 25 (Whole Route)...");
+  // 3c. Stress whole route
   await send("Page.navigate", {
     url: "http://localhost:3000/journey/stress-25-synthetic?debug=1",
   });
   await new Promise((r) => setTimeout(r, 5500));
-  const stressDefaultDebug = await getDebugNumbers();
-  console.log("Stress Default Debug Numbers (verbatim):", stressDefaultDebug);
-
   await evaluateExpr(`(() => {
     const btn = document.querySelector('[data-testid="footer-whole-route-toggle"]');
     if (btn) btn.click();
@@ -406,103 +363,133 @@ async function main() {
   await new Promise((r) => setTimeout(r, 2000));
   await saveScreenshot("whole-route-stress.png");
   const stressWholeRouteDebug = await getDebugNumbers();
-  console.log("Stress Whole Route Debug Numbers (verbatim):", stressWholeRouteDebug);
 
   // -------------------------------------------------------------------------
-  // 7. Flicker Check: Road Close-ups at 3 Zoom Levels
+  // 4. Drawer Open
   // -------------------------------------------------------------------------
-  console.log("\n--- 7. Road Close-ups at Three Zoom Levels ---");
+  console.log("\n--- 4. Drawer Open View ---");
+  await send("Page.navigate", {
+    url: "http://localhost:3000/journey/demo-metro-synthetic?debug=1",
+  });
+  await new Promise((r) => setTimeout(r, 4500));
+  await evaluateExpr(`(() => {
+    const firstBtn = document.querySelector('[data-testid="label-layer"] [data-station-id] button');
+    if (firstBtn) firstBtn.click();
+  })()`);
+  await new Promise((r) => setTimeout(r, 1200));
+  await saveScreenshot("drawer-open.png");
+
+  // -------------------------------------------------------------------------
+  // 5. Mark Done: Before, After, Undo
+  // -------------------------------------------------------------------------
+  console.log("\n--- 5. Mark Done Sequence ---");
+  await saveScreenshot("mark-done-before.png");
+
+  await evaluateExpr(`(() => {
+    const btn = document.querySelector('[data-testid="drawer-mark-done-btn"]');
+    if (btn) btn.click();
+  })()`);
+  await new Promise((r) => setTimeout(r, 400));
+  await saveScreenshot("mark-done-after.png");
+
+  await evaluateExpr(`(() => {
+    const undoBtn = document.querySelector('[data-testid="undo-toast-btn"]');
+    if (undoBtn) undoBtn.click();
+  })()`);
+  await new Promise((r) => setTimeout(r, 600));
+  await saveScreenshot("mark-done-undo.png");
+
+  // -------------------------------------------------------------------------
+  // 6. Three Road Close-ups at Genuinely Different Distances (§11.8)
+  // -------------------------------------------------------------------------
+  console.log("\n--- 6. Three Road Close-ups at Distinct Distances ---");
   await send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
   });
-  await send("Page.navigate", {
-    url: "http://localhost:3000/journey/demo-metro-synthetic",
-  });
-  await new Promise((r) => setTimeout(r, 4500));
 
-  // Zoom level 1
-  await saveScreenshot("road-closeup-zoom1.png");
+  const closeUpDistances = [12, 24, 40];
+  const closeUpResults = [];
 
-  // Zoom level 2 (scroll in)
-  await send("Input.dispatchMouseEvent", {
-    type: "mouseWheel",
-    x: 720,
-    y: 450,
-    deltaX: 0,
-    deltaY: -600,
-  });
-  await new Promise((r) => setTimeout(r, 1200));
-  await saveScreenshot("road-closeup-zoom2.png");
+  for (let idx = 0; idx < closeUpDistances.length; idx++) {
+    const targetDist = closeUpDistances[idx];
+    await send("Page.navigate", {
+      url: "http://localhost:3000/journey/demo-metro-synthetic",
+    });
+    await new Promise((r) => setTimeout(r, 4000));
 
-  // Zoom level 3 (scroll in further)
-  await send("Input.dispatchMouseEvent", {
-    type: "mouseWheel",
-    x: 720,
-    y: 450,
-    deltaX: 0,
-    deltaY: -800,
-  });
-  await new Promise((r) => setTimeout(r, 1200));
-  await saveScreenshot("road-closeup-zoom3.png");
+    // Position camera at exact target distance looking at station plaza
+    await evaluateExpr(`(() => {
+      const controls = window.__CW_CONTROLS__;
+      const az = (-15 * Math.PI) / 180;
+      const pol = (52 * Math.PI) / 180;
+      const u = [
+        Math.sin(pol) * Math.sin(az),
+        Math.cos(pol),
+        Math.sin(pol) * Math.cos(az)
+      ];
+      const target = [0, 0.21, 0];
+      const pos = [
+        target[0] + ${targetDist} * u[0],
+        target[1] + ${targetDist} * u[1],
+        target[2] + ${targetDist} * u[2]
+      ];
+      if (controls && controls.setLookAt) {
+        controls.setLookAt(...pos, ...target, false);
+      }
+    })()`);
+    await new Promise((r) => setTimeout(r, 1000));
+
+    const filename = `road-closeup-zoom${idx + 1}.png`;
+    const outPath = await saveScreenshot(filename);
+    const sizeBytes = fs.statSync(outPath).size;
+    closeUpResults.push({
+      zoom: idx + 1,
+      filename,
+      targetDist,
+      sizeBytes,
+    });
+  }
 
   await send("Emulation.setEmulatedMedia", { features: [] });
 
   // -------------------------------------------------------------------------
-  // 8. Viewport 1280x800 Scroll Check
+  // Summary & Print Output
   // -------------------------------------------------------------------------
-  console.log("\n--- 8. Checking 1280x800 Viewport ---");
-  await send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 800,
-    deviceScaleFactor: 1,
-    mobile: false,
-  });
-  await new Promise((r) => setTimeout(r, 1500));
-  await saveScreenshot("demo-1280x800.png");
-  await checkPageScroll("demo 1280x800");
+  console.log("\n========================================================");
+  console.log("             STAGE FOCUS 2 CAPTURE REPORT               ");
+  console.log("========================================================");
 
-  // -------------------------------------------------------------------------
-  // 9. Summary & Console Analysis
-  // -------------------------------------------------------------------------
-  console.log("\n=== Console & Network Summary ===");
-  const nonClockWarnings = consoleMessages.filter(
-    (m) =>
-      (m.type === "error" || m.type === "warning") &&
-      !m.text.includes("THREE.Clock")
-  );
-  console.log(`Console messages total: ${consoleMessages.length}`);
-  console.log(`Non-clock warnings/errors count: ${nonClockWarnings.length}`);
-  if (nonClockWarnings.length > 0) {
-    console.log("Non-clock warnings/errors:", JSON.stringify(nonClockWarnings, null, 2));
-  } else {
-    console.log("Console is 100% clean (only THREE.Clock warning allowed).");
+  console.log("\n--- 1. First View Metrics ---");
+  for (const [fix, met] of Object.entries(fixtureFirstViews)) {
+    console.log(`- ${fix}: distance = ${met.distance.toFixed(1)}, anchor inside safe rect = ${met.anchorInsideSafeRect}`);
   }
 
-  const nonLocalhostRequests = Array.from(networkRequests).filter((url) => {
-    try {
-      const u = new URL(url);
-      return u.hostname !== "localhost" && u.hostname !== "127.0.0.1";
-    } catch {
-      return false;
-    }
-  });
-  console.log(`Total network request URLs captured: ${networkRequests.size}`);
-  console.log(`External requests: ${nonLocalhostRequests.length}`);
+  console.log("\n--- 2. Example-Startup Stage 4 Placement Metrics ---");
+  if (stage4Metrics) {
+    console.log(`- Card count: ${stage4Metrics.cardCount}`);
+    console.log(`- Card–Card overlap: ${stage4Metrics.totalCardCardOverlap} px²`);
+    console.log(`- Card–Obstacle overlap: ${stage4Metrics.totalCardObstacleOverlap} px²`);
+    console.log(`- Maximum tether length: ${stage4Metrics.maxTetherLength} px`);
+    console.log(`- Focused anchor inside safe rect: ${stage4Metrics.focusedInsideSafeRect}`);
+  }
 
-  console.log("\n=== Stage Focus Capture Results Summary ===");
-  console.log(`First View Cards Count: ${firstViewCardsCount}`);
-  console.log(`First View Pins Count: ${pinsCount}`);
-  console.log(`Hover Max Displacement: ${hoverDisplacement} px`);
-  console.log(`Click & Drawer Max Displacement: ${drawerCheck.maxDisplacement} px`);
-  console.log(`Canvas Size Delta: ${drawerCheck.canvasDeltaW}x${drawerCheck.canvasDeltaH} px`);
-  console.log(`Mark Done Other Displacement: ${markDoneDisplacement.maxDisplacement} px`);
-  console.log(`Stage Sequence: ${stageSequence.join(" -> ")}`);
-  console.log(`Demo Default Debug: ${demoDefaultDebug}`);
-  console.log(`Demo Whole Route Debug: ${demoWholeRouteDebug}`);
-  console.log(`Startup Default Debug: ${exampleStartupDefaultDebug}`);
-  console.log(`Startup Whole Route Debug: ${exampleStartupWholeRouteDebug}`);
-  console.log(`Stress Default Debug: ${stressDefaultDebug}`);
-  console.log(`Stress Whole Route Debug: ${stressWholeRouteDebug}`);
+  console.log("\n--- 3. Chip Collisions in Whole-Route View ---");
+  console.log(`- Visible chips: ${chipCollisionsInWholeRoute.visibleChips}, Collisions: ${chipCollisionsInWholeRoute.collisionCount}`);
+
+  console.log("\n--- 4. Road Close-Up Evidence (3 Distinct Distances) ---");
+  for (const cu of closeUpResults) {
+    console.log(`- Zoom ${cu.zoom} (${cu.filename}): distance = ${cu.targetDist} units, file size = ${cu.sizeBytes.toLocaleString()} bytes`);
+  }
+
+  console.log("\n--- 5. Budget Table (Whole Route Verbatim Debug Numbers) ---");
+  console.log(`- Demo Whole Route: ${demoWholeRouteDebug}`);
+  console.log(`- Startup Whole Route: ${startupWholeRouteDebug}`);
+  console.log(`- Stress Whole Route: ${stressWholeRouteDebug}`);
+
+  console.log("\n--- 6. Captured Screenshots ---");
+  for (const file of capturedFiles) {
+    console.log(`- ${file.filename} (${file.sizeBytes.toLocaleString()} bytes)`);
+  }
 
   // Cleanup
   ws.close();
