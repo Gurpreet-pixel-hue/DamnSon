@@ -145,7 +145,7 @@ export function LabelProjector({
       const stationInputs = visibleStations.map((st) => {
         scratchVec.set(
           st.position3D[0],
-          st.position3D[1] + 2.6,
+          st.position3D[1] + 1.2,
           st.position3D[2]
         );
         scratchVec.project(camera);
@@ -182,7 +182,7 @@ export function LabelProjector({
 
       scratchVec.set(
         station.position3D[0],
-        station.position3D[1] + 2.6,
+        station.position3D[1] + 1.2,
         station.position3D[2]
       );
       scratchCamToStation.subVectors(scratchVec, scratchCamPos);
@@ -219,12 +219,18 @@ export function LabelProjector({
         cachedScreenPos.current.set(station.id, { x: targetX, y: targetY });
         el.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) translate(-50%, -50%)`;
 
-        // Update tether line
+        // Update tether line running from card edge to building top (§11.4)
         const svg = tetherRefs.current?.get(station.id);
         const line = svg?.querySelector("line");
         if (line) {
-          const startY = pl.yOff < 0 ? pl.height / 2 : -pl.height / 2;
-          line.setAttribute("x1", "0");
+          let startX = 0;
+          let startY = 0;
+          if (Math.abs(pl.yOff) >= Math.abs(pl.xOff) * 0.5) {
+            startY = pl.yOff < 0 ? pl.height / 2 : -pl.height / 2;
+          } else {
+            startX = pl.xOff < 0 ? pl.width / 2 : -pl.width / 2;
+          }
+          line.setAttribute("x1", String(startX));
           line.setAttribute("y1", String(startY));
           line.setAttribute("x2", String(Math.round(-pl.xOff)));
           line.setAttribute("y2", String(Math.round(-pl.yOff)));

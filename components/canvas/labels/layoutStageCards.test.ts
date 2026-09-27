@@ -211,7 +211,8 @@ describe("layoutStageCards (§11.4, §11.7, §11.8)", () => {
     expect(result.size).toBe(5);
     for (const card of result.values()) {
       expect(card.isCompact).toBe(true);
-      expect(card.width).toBe(180);
+      expect(card.width).toBe(200);
+      expect(card.height).toBe(46);
     }
   });
 

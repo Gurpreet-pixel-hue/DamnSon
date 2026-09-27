@@ -42,8 +42,8 @@ export interface PlacedStageCard {
 }
 
 export const CARD_SIZES = {
-  standard: { width: 220, height: 60 },
-  compact: { width: 180, height: 38 },
+  standard: { width: 220, height: 52 },
+  compact: { width: 200, height: 46 },
 } as const;
 
 export const DEFAULT_STAGE_INSETS: LayoutSafeInsets = {
@@ -159,23 +159,25 @@ export function layoutStageCards(
       const halfW = width / 2;
       const halfH = height / 2;
 
-      // Candidate search offsets in priority order
+      // Candidate search offsets in priority order (§11.4: cards 24–48 px above building top)
       const candidateOffsets: [number, number][] = [];
 
-      // 1. Above anchor
+      // 1. Above anchor: gap 24–48 px above building top
+      const aboveGaps = [32, 24, 40, 48, 56];
       for (const xOff of [0, -30, 30, -60, 60, -90, 90, -120, 120, -150, 150, -180, 180]) {
-        for (const yOff of [-56, -40, -70, -85]) {
-          candidateOffsets.push([xOff, yOff]);
+        for (const gap of aboveGaps) {
+          candidateOffsets.push([xOff, -(halfH + gap)]);
         }
       }
-      // 2. Below anchor
+      // 2. Below anchor (fallback if blocked above)
+      const belowGaps = [32, 24, 40, 48, 56];
       for (const xOff of [0, -30, 30, -60, 60, -90, 90, -120, 120, -150, 150, -180, 180]) {
-        for (const yOff of [56, 40, 70, 85]) {
-          candidateOffsets.push([xOff, yOff]);
+        for (const gap of belowGaps) {
+          candidateOffsets.push([xOff, halfH + gap]);
         }
       }
       // 3. Side of anchor
-      for (const yOff of [0, -20, 20]) {
+      for (const yOff of [-halfH, 0, halfH]) {
         for (const xOff of [-120, 120, -140, 140, -160, 160, -180, 180]) {
           candidateOffsets.push([xOff, yOff]);
         }

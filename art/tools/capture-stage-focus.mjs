@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-3.5-stage-2");
+const REVIEW_DIR = path.resolve(process.cwd(), ".next/claude-review/fe-3.5-stage-3");
 if (!fs.existsSync(REVIEW_DIR)) {
   fs.mkdirSync(REVIEW_DIR, { recursive: true });
 }
@@ -12,7 +12,7 @@ const CHROME_PATH =
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 async function main() {
-  console.log("=== Starting FE-3.5 Stage Focus 2 (Framing & Placement) Verification ===");
+  console.log("=== Starting FE-3.5 Stage Focus 3 (Final Polish) Verification ===");
   console.log(`Review Directory: ${REVIEW_DIR}`);
   console.log(`Using Chrome: ${CHROME_PATH}`);
 
@@ -124,12 +124,11 @@ async function main() {
     })()`);
   }
 
-  // Helper to measure camera distance and focused anchor in safe rect
+  // Helper to measure camera distance, focused anchor in safe rect, and plaza vs stepper gap
   async function getCameraAndAnchorMetrics() {
     return await evaluateExpr(`(() => {
-      const controls = window.__CW_CONTROLS__ || (document.querySelector('canvas')?.__r3f?.root?.cameraControls);
-      // Fallback: estimate from R3F camera
-      const camera = document.querySelector('canvas')?.__r3f?.root?.camera;
+      const controls = window.__CW_CONTROLS__;
+      const camera = controls?.camera;
       let distance = 0;
       if (controls && controls.distance) {
         distance = controls.distance;
@@ -137,18 +136,61 @@ async function main() {
         distance = camera.position.length();
       }
 
-      // Check focused card anchor
-      const firstCard = document.querySelector('[data-testid="label-layer"] [data-station-id]');
-      let anchorInsideSafeRect = false;
-      let cardRect = null;
-      if (firstCard) {
-        const r = firstCard.getBoundingClientRect();
-        cardRect = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-        // Safe rect: [24, 1440 - 24] x [56, 900 - 68]
-        anchorInsideSafeRect = r.left >= 20 && r.right <= 1420 && r.top >= 50 && r.bottom <= 840;
+      const stepperEl = document.querySelector('[data-testid="stage-stepper"]');
+      const stepperTopY = stepperEl ? Math.round(stepperEl.getBoundingClientRect().top) : 783;
+
+      const halfW = window.innerWidth / 2;
+      const halfH = window.innerHeight / 2;
+
+      // Project focused station cards and plaza bounds
+      const cards = Array.from(document.querySelectorAll('[data-testid="label-layer"] [data-station-id]'));
+      const stations = [];
+      let allAnchorsInsideSafeRect = true;
+
+      for (const card of cards) {
+        const id = card.getAttribute('data-station-id');
+        const cardRect = card.getBoundingClientRect();
+        const line = card.querySelector('line');
+
+        let anchorX = cardRect.left + cardRect.width / 2;
+        let anchorY = cardRect.top + cardRect.height / 2;
+        if (line) {
+          const x2 = parseFloat(line.getAttribute('x2') || '0');
+          const y2 = parseFloat(line.getAttribute('y2') || '0');
+          anchorX = Math.round(cardRect.left + cardRect.width / 2 + x2);
+          anchorY = Math.round(cardRect.top + cardRect.height / 2 + y2);
+        }
+
+        // The station building top is at anchorY.
+        // Station building is 1.2 units tall (y from 0.21 to 1.41).
+        // Plaza pad (radius 2.4, y=0.170) extends ~2.4 units in world z.
+        // In screen space (polar 52°), 1 world unit ~ (height / (2 * tan(fov/2) * distance)) px.
+        const fovRad = ((camera?.fov || 45) * Math.PI) / 180;
+        const pxPerUnit = distance > 0 ? (window.innerHeight / (2 * Math.tan(fovRad / 2) * distance)) : 30;
+        // The southernmost point of the plaza pad projects at:
+        const plazaBottomY = Math.round(anchorY + 1.2 * pxPerUnit * Math.sin((52 * Math.PI) / 180) + 2.4 * pxPerUnit * Math.cos((52 * Math.PI) / 180));
+        const gap = stepperTopY - plazaBottomY;
+
+        const isInsideSafe = cardRect.left >= 20 && cardRect.right <= 1420 && cardRect.top >= 50 && cardRect.bottom <= (stepperTopY + 10);
+        if (!isInsideSafe) allAnchorsInsideSafeRect = false;
+
+        stations.push({
+          id,
+          anchorX,
+          anchorY,
+          plazaBottomY,
+          stepperTopY,
+          gap,
+          cardRect: { left: Math.round(cardRect.left), top: Math.round(cardRect.top), right: Math.round(cardRect.right), bottom: Math.round(cardRect.bottom) },
+        });
       }
 
-      return { distance, anchorInsideSafeRect, cardRect };
+      return {
+        distance,
+        anchorInsideSafeRect: allAnchorsInsideSafeRect,
+        stepperTopY,
+        stations,
+      };
     })()`);
   }
 
@@ -276,6 +318,7 @@ async function main() {
         }
 
         // Measure tether lengths from SVG lines
+        const tetherLengths = [];
         let maxTetherLength = 0;
         const svgLines = Array.from(document.querySelectorAll('[data-testid="label-layer"] line'));
         for (const line of svgLines) {
@@ -283,7 +326,8 @@ async function main() {
           const y1 = parseFloat(line.getAttribute('y1') || '0');
           const x2 = parseFloat(line.getAttribute('x2') || '0');
           const y2 = parseFloat(line.getAttribute('y2') || '0');
-          const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+          const len = Math.round(Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+          tetherLengths.push(len);
           if (len > maxTetherLength) maxTetherLength = len;
         }
 
@@ -293,7 +337,8 @@ async function main() {
           cardCount: rects.length,
           totalCardCardOverlap,
           totalCardObstacleOverlap,
-          maxTetherLength: Math.round(maxTetherLength),
+          tetherLengths,
+          maxTetherLength,
           focusedInsideSafeRect,
         };
       })()`);
@@ -380,7 +425,7 @@ async function main() {
   await saveScreenshot("drawer-open.png");
 
   // -------------------------------------------------------------------------
-  // 5. Mark Done: Before, After, Undo
+  // 5. Mark Done: Before, After (1s), Undo
   // -------------------------------------------------------------------------
   console.log("\n--- 5. Mark Done Sequence ---");
   await saveScreenshot("mark-done-before.png");
@@ -389,7 +434,7 @@ async function main() {
     const btn = document.querySelector('[data-testid="drawer-mark-done-btn"]');
     if (btn) btn.click();
   })()`);
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 1000)); // 1s after per prompt
   await saveScreenshot("mark-done-after.png");
 
   await evaluateExpr(`(() => {
@@ -456,12 +501,17 @@ async function main() {
   // Summary & Print Output
   // -------------------------------------------------------------------------
   console.log("\n========================================================");
-  console.log("             STAGE FOCUS 2 CAPTURE REPORT               ");
+  console.log("             STAGE FOCUS 3 CAPTURE REPORT               ");
   console.log("========================================================");
 
-  console.log("\n--- 1. First View Metrics ---");
+  console.log("\n--- 1. First View & Focused Station Metrics ---");
   for (const [fix, met] of Object.entries(fixtureFirstViews)) {
     console.log(`- ${fix}: distance = ${met.distance.toFixed(1)}, anchor inside safe rect = ${met.anchorInsideSafeRect}`);
+    if (met.stations && met.stations.length > 0) {
+      for (const st of met.stations) {
+        console.log(`  * station "${st.id}": plaza bottom y = ${st.plazaBottomY} px, stepper top y = ${st.stepperTopY} px, gap = ${st.gap} px (target >= 8 px)`);
+      }
+    }
   }
 
   console.log("\n--- 2. Example-Startup Stage 4 Placement Metrics ---");
@@ -469,7 +519,7 @@ async function main() {
     console.log(`- Card count: ${stage4Metrics.cardCount}`);
     console.log(`- Card–Card overlap: ${stage4Metrics.totalCardCardOverlap} px²`);
     console.log(`- Card–Obstacle overlap: ${stage4Metrics.totalCardObstacleOverlap} px²`);
-    console.log(`- Maximum tether length: ${stage4Metrics.maxTetherLength} px`);
+    console.log(`- Tether lengths: ${stage4Metrics.tetherLengths ? stage4Metrics.tetherLengths.join(", ") : stage4Metrics.maxTetherLength} px (max: ${stage4Metrics.maxTetherLength} px)`);
     console.log(`- Focused anchor inside safe rect: ${stage4Metrics.focusedInsideSafeRect}`);
   }
 

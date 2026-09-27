@@ -233,7 +233,7 @@ export function LabelLayer({
                 willChange: "transform, opacity",
               }}
               className={`pointer-events-auto absolute left-0 top-0 ${
-                isCompact ? "w-[180px] h-[36px]" : "w-[220px] h-[52px]"
+                isCompact ? "w-[200px] h-[46px]" : "w-[220px] h-[52px]"
               }`}
             >
               <button
@@ -255,7 +255,7 @@ export function LabelLayer({
                 }}
                 className={`group flex items-center gap-2 rounded-[10px] border shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer select-none text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none box-border ${
                   isCompact
-                    ? "w-[180px] h-[36px] py-1 px-2"
+                    ? "w-[200px] h-[46px] py-1.5 px-2.5"
                     : "w-[220px] h-[52px] px-2.5 py-1.5"
                 } ${
                   isDone
@@ -270,9 +270,9 @@ export function LabelLayer({
                 {renderStateIcon(station)}
                 <div className="flex flex-col min-w-0 pr-1 overflow-hidden">
                   <span
-                    className={`font-semibold leading-tight text-[#1F242E] ${
+                    className={`font-semibold leading-snug text-[#1F242E] ${
                       isCompact
-                        ? "text-[12px] truncate"
+                        ? "text-[12px] line-clamp-2 break-words"
                         : "text-[13px] line-clamp-2 break-words"
                     }`}
                   >
@@ -286,7 +286,7 @@ export function LabelLayer({
                 </div>
               </button>
 
-              {/* Dynamic SVG tether line connecting card edge back to station anchor (§11.4) */}
+              {/* Dynamic SVG tether line connecting card edge back to station building top (§11.4) */}
               <svg
                 ref={(el) => {
                   if (el) {
@@ -303,8 +303,8 @@ export function LabelLayer({
                   y1="0"
                   x2="0"
                   y2="0"
-                  stroke="#B0A48E"
-                  strokeWidth="1.2"
+                  stroke="#9A8E78"
+                  strokeWidth="1.5"
                   strokeLinecap="round"
                 />
               </svg>
