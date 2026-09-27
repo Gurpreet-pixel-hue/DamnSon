@@ -1,276 +1,273 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
+import type { MetroVM } from "@/lib/graph/viewModel";
 import {
-  MAX_LABEL_SLOTS,
-  SAFE_INSETS,
-  resolveLabelCollisions,
-  type ProjectedStationPoint,
+  layoutStageCards,
+  type PlacedStageCard,
   type ScreenRect,
-} from "./selectLabels";
+} from "./layoutStageCards";
+import { useViewStore } from "@/lib/store/useViewStore";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 import { deriveStageHeaders } from "../StageHeaders";
 
 export interface LabelProjectorProps {
   metro: MetroVM;
-  slotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
-  pinSlotsRef: React.RefObject<(HTMLButtonElement | null)[]>;
-  selectionRef?: React.RefObject<StationVM[]>;
+  cardSlotsRef: React.RefObject<Map<string, HTMLDivElement>>;
+  tetherRefs: React.RefObject<Map<string, SVGSVGElement>>;
+  tooltipRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-// Pre-allocated scratch vectors to guarantee 0 allocations in useFrame
 const scratchVec = new THREE.Vector3();
 const scratchCamPos = new THREE.Vector3();
 const scratchCamForward = new THREE.Vector3();
 const scratchCamToStation = new THREE.Vector3();
-const EMPTY_STATIONS: StationVM[] = [];
 
 export function LabelProjector({
   metro,
-  slotsRef,
-  pinSlotsRef,
-  selectionRef,
+  cardSlotsRef,
+  tetherRefs,
+  tooltipRef,
 }: LabelProjectorProps) {
   const { camera, size } = useThree();
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+  const hoveredStepId = useViewStore((s) => s.hoveredStepId);
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
+  const selectedStepId = useTaskStore((s) => s.selectedStepId);
+
   const headers = useMemo(() => deriveStageHeaders(metro), [metro]);
 
-  // Cached matrix elements (16 floats each in Float64Array to preserve exact IEEE-754 precision)
+  // Stations in focused stage
+  const focusedStations = useMemo(() => {
+    return metro.stations.filter((s) => s.layer === focusStage - 1);
+  }, [metro.stations, focusStage]);
+
+  // When stage has > 8 stations: cards only for available ones (§11.2)
+  const visibleStations = useMemo(() => {
+    if (focusedStations.length > 8) {
+      return focusedStations.filter((s) => s.state === "available");
+    }
+    return focusedStations;
+  }, [focusedStations]);
+
+  const cachedPlacements = useRef<Map<string, PlacedStageCard>>(new Map());
+  const cachedScreenPos = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const lastLayoutKey = useRef<string>("");
+  const isGlidingRef = useRef(false);
+  const stillFrameCountRef = useRef(0);
+
   const cachedWorldMatrix = useRef(new Float64Array(16));
   const cachedProjMatrix = useRef(new Float64Array(16));
-  const cachedWidth = useRef(0);
-  const cachedHeight = useRef(0);
-  const cachedStations = useRef<StationVM[] | null>(null);
 
-  // Cached line elements for 0-allocation leader line updates
-  const lineEls = useRef<(SVGLineElement | null)[]>([]);
-
-  // Development projection counter to verify 0 projections/sec when camera is static
-  const devProjectionsRef = useRef(0);
-  const devLastSecRef = useRef(0);
-
+  // Priority -1: runs after CameraControls update on every frame (§11.4 & §11.8)
   useFrame(() => {
-    if (process.env.NODE_ENV !== "production") {
-      const now = performance.now();
-      if (now - devLastSecRef.current >= 1000) {
-        if (typeof window !== "undefined") {
-          (window as unknown as { __devProjectionsPerSec?: number }).__devProjectionsPerSec =
-            devProjectionsRef.current;
-        }
-        devProjectionsRef.current = 0;
-        devLastSecRef.current = now;
+    const cardSlots = cardSlotsRef.current;
+    if (!cardSlots) return;
+
+    // In whole route view, hide all cards (§11.3)
+    if (wholeRouteView) {
+      for (const el of cardSlots.values()) {
+        if (el) el.style.visibility = "hidden";
       }
-    }
-
-    const wm = camera.matrixWorld.elements;
-    const pm = camera.projectionMatrix.elements;
-    const cwm = cachedWorldMatrix.current;
-    const cpm = cachedProjMatrix.current;
-
-    let matrixChanged = false;
-    for (let i = 0; i < 16; i++) {
-      if (wm[i] !== cwm[i] || pm[i] !== cpm[i]) {
-        matrixChanged = true;
-        break;
+      if (tooltipRef?.current) {
+        tooltipRef.current.style.visibility = "hidden";
       }
-    }
-
-    const sizeChanged =
-      size.width !== cachedWidth.current || size.height !== cachedHeight.current;
-
-    const stations = selectionRef?.current ?? EMPTY_STATIONS;
-    const stationsChanged = stations !== cachedStations.current;
-
-    if (!matrixChanged && !sizeChanged && !stationsChanged) {
       return;
     }
-
-    if (process.env.NODE_ENV !== "production") {
-      devProjectionsRef.current++;
-    }
-
-    // Update caches
-    if (matrixChanged) {
-      for (let i = 0; i < 16; i++) {
-        cwm[i] = wm[i]!;
-        cpm[i] = pm[i]!;
-      }
-    }
-    if (sizeChanged) {
-      cachedWidth.current = size.width;
-      cachedHeight.current = size.height;
-    }
-    if (stationsChanged) {
-      cachedStations.current = stations;
-    }
-
-    const slots = slotsRef.current;
-    const pinSlots = pinSlotsRef.current;
-    if (!slots || !pinSlots) return;
 
     camera.getWorldPosition(scratchCamPos);
     camera.getWorldDirection(scratchCamForward);
 
     const halfW = size.width / 2;
     const halfH = size.height / 2;
-    const count = stations.length;
 
-    const headerBoxes: ScreenRect[] = [];
-    for (const h of headers) {
-      scratchVec.set(h.x, 0.57, h.z);
-      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
-      if (scratchCamToStation.dot(scratchCamForward) <= 0) continue;
+    const wm = camera.matrixWorld.elements;
+    const pm = camera.projectionMatrix.elements;
+    const cwm = cachedWorldMatrix.current;
+    const cpm = cachedProjMatrix.current;
 
-      scratchVec.project(camera);
-      const hScreenX = scratchVec.x * halfW + halfW;
-      const hScreenY = -scratchVec.y * halfH + halfH;
-
-      const safeMinX = SAFE_INSETS.left;
-      const safeMaxX = size.width - SAFE_INSETS.right;
-      const safeMinY = SAFE_INSETS.top;
-      const safeMaxY = size.height - SAFE_INSETS.bottom;
-
-      const clampedHX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, hScreenX));
-      const clampedHY = Math.max(safeMinY + 16, Math.min(safeMaxY - 16, hScreenY));
-
-      headerBoxes.push({
-        minX: clampedHX - 70,
-        maxX: clampedHX + 70,
-        minY: clampedHY - 16,
-        maxY: clampedHY + 16,
-      });
-    }
-
-    // Project station points (both card anchor at +2.6 and pin anchor at +0.8)
-    const projectedMap = new Map<string, ProjectedStationPoint>();
-    for (const station of metro.stations) {
-      // 1. Card anchor projection
-      scratchVec.set(
-        station.position3D[0],
-        station.position3D[1] + 2.6,
-        station.position3D[2]
-      );
-      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
-      if (scratchCamToStation.dot(scratchCamForward) <= 0) continue;
-
-      scratchVec.project(camera);
-      const cardX = scratchVec.x * halfW + halfW;
-      const cardY = -scratchVec.y * halfH + halfH;
-
-      // 2. Pin anchor projection
-      scratchVec.set(
-        station.position3D[0],
-        station.position3D[1] + 0.8,
-        station.position3D[2]
-      );
-      scratchVec.project(camera);
-      const pinX = scratchVec.x * halfW + halfW;
-      const pinY = -scratchVec.y * halfH + halfH;
-
-      if (
-        cardX >= -40 &&
-        cardX <= size.width + 40 &&
-        cardY >= -40 &&
-        cardY <= size.height + 40
-      ) {
-        projectedMap.set(station.id, {
-          id: station.id,
-          title: station.title,
-          lane: station.lane,
-          layer: station.layer,
-          x: cardX,
-          y: cardY,
-          pinX,
-          pinY,
-        });
+    let cameraMoved = false;
+    for (let i = 0; i < 16; i++) {
+      if (wm[i] !== cwm[i] || pm[i] !== cpm[i]) {
+        cameraMoved = true;
+        break;
       }
     }
 
-    // Single unified pure collision pass (G1 & G5)
-    const placements = resolveLabelCollisions({
-      stations,
-      projectedPoints: projectedMap,
-      stageHeaders: headerBoxes,
-      viewport: size,
-    });
+    if (cameraMoved) {
+      for (let i = 0; i < 16; i++) {
+        cwm[i] = wm[i]!;
+        cpm[i] = pm[i]!;
+      }
+      isGlidingRef.current = true;
+      stillFrameCountRef.current = 0;
+    } else {
+      stillFrameCountRef.current += 1;
+    }
 
-    // 1. Update Cards
-    for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
-      const el = slots[i];
+    // Camera has arrived / settled after moving or on stage / size / station change
+    const stationKey = visibleStations.map((s) => s.id).join(",");
+    const layoutKey = `${focusStage}_${size.width}x${size.height}_${Boolean(selectedStepId)}_${stationKey}`;
+    const missingPlacements = visibleStations.some(
+      (s) => !cachedPlacements.current.has(s.id)
+    );
+
+    const shouldReLayout =
+      lastLayoutKey.current !== layoutKey ||
+      missingPlacements ||
+      (isGlidingRef.current && stillFrameCountRef.current >= 2);
+
+    if (shouldReLayout) {
+      lastLayoutKey.current = layoutKey;
+      isGlidingRef.current = false;
+
+      // Project stage chips as obstacles (§11.8)
+      const chipObstacles: ScreenRect[] = [];
+      for (const h of headers) {
+        if (!h) continue;
+        scratchVec.set(h.x, 0.57, h.z);
+        scratchVec.project(camera);
+        const sx = scratchVec.x * halfW + halfW;
+        const sy = -scratchVec.y * halfH + halfH;
+        const clampedX = Math.max(94, Math.min(size.width - 94, sx));
+        const clampedY = Math.max(72, Math.min(size.height - 84, sy));
+        chipObstacles.push({
+          minX: clampedX - 80,
+          maxX: clampedX + 80,
+          minY: clampedY - 24,
+          maxY: clampedY + 24,
+        });
+      }
+
+      const stationInputs = visibleStations.map((st) => {
+        scratchVec.set(
+          st.position3D[0],
+          st.position3D[1] + 1.2,
+          st.position3D[2]
+        );
+        scratchVec.project(camera);
+        const anchorX = scratchVec.x * halfW + halfW;
+        const anchorY = -scratchVec.y * halfH + halfH;
+
+        return {
+          id: st.id,
+          title: st.title,
+          anchorX,
+          anchorY,
+          state: st.state,
+          applicability: st.applicability,
+        };
+      });
+
+      cachedPlacements.current = layoutStageCards({
+        stations: stationInputs,
+        viewport: size,
+        insets: { left: 24, right: 24, top: 56, bottom: stepperBottomInset },
+        drawerOpen: Boolean(selectedStepId),
+        obstacles: chipObstacles,
+      });
+      cachedScreenPos.current.clear();
+    }
+
+    const placements = cachedPlacements.current;
+
+    // Project each visible card:
+    // While camera moves, offsets stay fixed and cards follow their anchors (§11.4)
+    for (const station of visibleStations) {
+      const el = cardSlots.get(station.id);
       if (!el) continue;
 
-      if (i >= count) {
+      scratchVec.set(
+        station.position3D[0],
+        station.position3D[1] + 1.2,
+        station.position3D[2]
+      );
+      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
+      if (scratchCamToStation.dot(scratchCamForward) <= 0) {
         el.style.visibility = "hidden";
         continue;
       }
 
-      const station = stations[i];
-      if (!station) {
+      scratchVec.project(camera);
+      const anchorX = scratchVec.x * halfW + halfW;
+      const anchorY = -scratchVec.y * halfH + halfH;
+
+      if (
+        anchorX < -100 ||
+        anchorX > size.width + 100 ||
+        anchorY < -100 ||
+        anchorY > size.height + 100
+      ) {
         el.style.visibility = "hidden";
         continue;
       }
 
       const pl = placements.get(station.id);
-      const pt = projectedMap.get(station.id);
+      if (!pl) {
+        el.style.visibility = "hidden";
+        continue;
+      }
 
-      if (pl && pt && (pl.mode === "full" || pl.mode === "compact")) {
-        el.dataset.mode = pl.mode;
-        const targetX = Math.round(pt.x + pl.xOff);
-        const targetY = Math.round(pt.y + pl.yOff);
+      const targetX = Math.round(anchorX + pl.xOff);
+      const targetY = Math.round(anchorY + pl.yOff);
+
+      const cached = cachedScreenPos.current.get(station.id);
+      if (!cached || cached.x !== targetX || cached.y !== targetY) {
+        cachedScreenPos.current.set(station.id, { x: targetX, y: targetY });
         el.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) translate(-50%, -50%)`;
-        el.style.visibility = "visible";
 
-        // Update leader line connecting card edge back to station anchor (H2 & H3)
-        let lineEl = lineEls.current[i];
-        if (!lineEl && el) {
-          lineEl = el.querySelector("line");
-          lineEls.current[i] = lineEl;
+        // Update tether line running from card edge to building top (§11.4)
+        const svg = tetherRefs.current?.get(station.id);
+        const line = svg?.querySelector("line");
+        if (line) {
+          let startX = 0;
+          let startY = 0;
+          if (Math.abs(pl.yOff) >= Math.abs(pl.xOff) * 0.5) {
+            startY = pl.yOff < 0 ? pl.height / 2 : -pl.height / 2;
+          } else {
+            startX = pl.xOff < 0 ? pl.width / 2 : -pl.width / 2;
+          }
+          line.setAttribute("x1", String(startX));
+          line.setAttribute("y1", String(startY));
+          line.setAttribute("x2", String(Math.round(-pl.xOff)));
+          line.setAttribute("y2", String(Math.round(-pl.yOff)));
         }
-        if (lineEl) {
-          const startY = pl.yOff < 0 ? (pl.mode === "full" ? 22 : 14) : (pl.mode === "full" ? -22 : -14);
-          lineEl.setAttribute("x1", "0");
-          lineEl.setAttribute("y1", String(startY));
-          lineEl.setAttribute("x2", String(Math.round(-pl.xOff)));
-          lineEl.setAttribute("y2", String(Math.round(-pl.yOff)));
+      }
+
+      el.style.visibility = "visible";
+    }
+
+    // Hover tooltip projection (§11.2 & §11.4)
+    if (tooltipRef?.current) {
+      if (hoveredStepId) {
+        const station = metro.stations.find((s) => s.id === hoveredStepId);
+        if (station) {
+          scratchVec.set(
+            station.position3D[0],
+            station.position3D[1] + 1.2,
+            station.position3D[2]
+          );
+          scratchCamToStation.subVectors(scratchVec, scratchCamPos);
+          if (scratchCamToStation.dot(scratchCamForward) > 0) {
+            scratchVec.project(camera);
+            const tipX = Math.round(scratchVec.x * halfW + halfW);
+            const tipY = Math.round(-scratchVec.y * halfH + halfH);
+            tooltipRef.current.style.transform = `translate3d(${tipX}px, ${tipY - 24}px, 0) translate(-50%, -100%)`;
+            tooltipRef.current.style.visibility = "visible";
+          } else {
+            tooltipRef.current.style.visibility = "hidden";
+          }
+        } else {
+          tooltipRef.current.style.visibility = "hidden";
         }
       } else {
-        el.style.visibility = "hidden";
+        tooltipRef.current.style.visibility = "hidden";
       }
     }
-
-    // 2. Update Pins (pins are shown only for stations without a card; pins intersecting cards are hidden)
-    if (pinSlots) {
-      const stationCount = metro.stations.length;
-      for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
-        const pinEl = pinSlots[i];
-        if (!pinEl) continue;
-
-        if (i >= stationCount) {
-          pinEl.style.visibility = "hidden";
-          continue;
-        }
-
-        const station = metro.stations[i];
-        if (!station) {
-          pinEl.style.visibility = "hidden";
-          continue;
-        }
-
-        const pl = placements.get(station.id);
-        const pt = projectedMap.get(station.id);
-
-        if (pl && pt && pl.mode === "pin") {
-          const px = pt.pinX ?? pt.x;
-          const py = pt.pinY ?? pt.y;
-          pinEl.style.transform = `translate3d(${Math.round(px)}px, ${Math.round(py)}px, 0) translate(-50%, -100%)`;
-          pinEl.style.visibility = "visible";
-        } else {
-          pinEl.style.visibility = "hidden";
-        }
-      }
-    }
-  });
+  }, -1);
 
   return null;
 }

@@ -10,7 +10,7 @@ if (!fs.existsSync(MODELS_DIR)) {
   fs.mkdirSync(MODELS_DIR, { recursive: true });
 }
 
-const files = ["stations.glb", "city.glb", "props.glb"];
+const files = ["stations.glb", "city.glb", "props.glb", "roads.glb", "cars.glb"];
 
 console.log("Optimizing GLB files with meshopt...");
 

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from "react";
 import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
 import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
+import { currentStage } from "@/lib/graph/stages";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { deriveSummaryValues } from "@/components/hud/SummaryBar";
@@ -13,6 +14,7 @@ import { TopBar } from "./TopBar";
 import { LeftRail } from "./LeftRail";
 import { WindowCard } from "./WindowCard";
 import { RightDrawer } from "./RightDrawer";
+import { UndoToast } from "./UndoToast";
 import { useShareJourney } from "./useShareJourney";
 
 export interface JourneyShellProps {
@@ -115,6 +117,16 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
     }
   }, []);
 
+  // On load, focusStage = currentStage(metro) (§11.1)
+  const initialStageRef = React.useRef(false);
+  useEffect(() => {
+    if (metro && metro.stations.length > 0 && !initialStageRef.current) {
+      initialStageRef.current = true;
+      const initial = currentStage(metro);
+      useViewStore.getState().setFocusStage(initial);
+    }
+  }, [metro]);
+
   return (
     <div
       data-testid="journey-shell"
@@ -144,17 +156,20 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         )}
       </div>
 
-      {/* Main Shell Row: Rail, Framed 3D Window, Docked Drawer */}
+      {/* Main Shell Row: Rail, Framed 3D Window with Overlay Drawer (§11.3) */}
       <div className="flex-1 min-h-0 flex gap-4 relative">
         {/* Left Rail */}
         <LeftRail />
 
-        {/* Framed 3D Window Card */}
-        <WindowCard metro={metro} />
-
-        {/* Right Docked / Overlay Drawer (P11) */}
-        <RightDrawer journey={journey} />
+        {/* Framed 3D Window Card with internal Overlay Drawer */}
+        <WindowCard
+          metro={metro}
+          drawer={<RightDrawer journey={journey} />}
+        />
       </div>
+
+      {/* 8s Undo Toast on Mark Done (§10.7) */}
+      <UndoToast />
     </div>
   );
 }

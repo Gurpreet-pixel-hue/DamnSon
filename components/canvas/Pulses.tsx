@@ -5,9 +5,14 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeTrackCurves, type TrackCurveData } from "./Tracks";
+import { HEIGHTS, POLYGON_OFFSETS } from "./heights";
+import type { CityPlan } from "./city/planCity";
+
+import { useViewStore } from "@/lib/store/useViewStore";
 
 interface PulsesProps {
   metro: MetroVM;
+  plan?: CityPlan;
 }
 
 const _tempObj = new THREE.Object3D();
@@ -20,30 +25,57 @@ interface PulseLUT {
   phaseOffset: number;
 }
 
-export function Pulses({ metro }: PulsesProps) {
+export function Pulses({ metro, plan }: PulsesProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
-  // Filter curves that end at an available station
+  // Filter curves that touch focused stage and end at an available station (§11.2)
   const pulseTracks = useMemo(() => {
-    const { curves } = computeTrackCurves(metro);
-    const available = curves.filter((c) => c.track.toAvailable);
-    return available.slice(0, MAX_PULSES);
-  }, [metro]);
+    if (wholeRouteView) return [];
+    const { curves } = computeTrackCurves(metro, plan);
+    const stationMap = new Map(metro.stations.map((s) => [s.id, s]));
 
-  // Precomputed Arc-length Lookup Tables (LUT)
+    const available = curves.filter((c) => {
+      if (!c.track.toAvailable) return false;
+      const fromStation = stationMap.get(c.track.from);
+      const toStation = stationMap.get(c.track.to);
+      const touchesFocus =
+        fromStation?.layer === focusStage - 1 ||
+        toStation?.layer === focusStage - 1;
+      return touchesFocus;
+    });
+    return available.slice(0, MAX_PULSES);
+  }, [metro, plan, focusStage, wholeRouteView]);
+
+  // Precomputed Arc-length Lookup Tables (LUT) along the road polyline
   const luts = useMemo<PulseLUT[]>(() => {
     return pulseTracks.map((item: TrackCurveData, idx: number) => {
       const pts: [number, number, number][] = [];
-      for (let s = 0; s < LUT_SAMPLES; s++) {
-        const u = s / (LUT_SAMPLES - 1);
-        const p = item.curve.getPointAt(u);
-        pts.push([p.x, p.y, p.z]);
+      const numPts = item.points.length;
+
+      if (numPts >= 2) {
+        for (let s = 0; s < LUT_SAMPLES; s++) {
+          const u = s / (LUT_SAMPLES - 1);
+          const idxFloat = u * (numPts - 1);
+          const i0 = Math.floor(idxFloat);
+          const i1 = Math.min(i0 + 1, numPts - 1);
+          const frac = idxFloat - i0;
+          const pA = item.points[i0]!;
+          const pB = item.points[i1]!;
+          pts.push([
+            pA[0] + frac * (pB[0] - pA[0]),
+            HEIGHTS.pulses,
+            pA[2] + frac * (pB[2] - pA[2]),
+          ]);
+        }
       }
+
       return {
         trackId: item.track.id,
         points: pts,
@@ -59,6 +91,9 @@ export function Pulses({ metro }: PulsesProps) {
       new THREE.MeshBasicMaterial({
         color: "#FFFFFF",
         toneMapped: false,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.pulses.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.pulses.units,
       }),
     []
   );
@@ -72,7 +107,7 @@ export function Pulses({ metro }: PulsesProps) {
 
     for (let i = 0; i < luts.length; i++) {
       const lut = luts[i];
-      if (!lut) continue;
+      if (!lut || lut.points.length === 0) continue;
 
       const progress = (time * speed + lut.phaseOffset) % 1;
       const indexFloat = progress * (LUT_SAMPLES - 1);
@@ -84,7 +119,7 @@ export function Pulses({ metro }: PulsesProps) {
       const p1 = lut.points[i1];
       if (p0 && p1) {
         const x = p0[0] + frac * (p1[0] - p0[0]);
-        const y = p0[1] + frac * (p1[1] - p0[1]);
+        const y = HEIGHTS.pulses; // 0.240 (§11.5)
         const z = p0[2] + frac * (p1[2] - p0[2]);
 
         _tempObj.position.set(x, y, z);

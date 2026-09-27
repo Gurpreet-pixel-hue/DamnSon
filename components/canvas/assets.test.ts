@@ -139,12 +139,82 @@ describe("3D Assets Verification (Stage 1 F & D4)", () => {
     }
   });
 
-  it("verifies total file sizes of models stay within budget", () => {
-    const stationsSize = fs.statSync(path.resolve(process.cwd(), "public/models/stations.glb")).size;
-    const citySize = fs.statSync(path.resolve(process.cwd(), "public/models/city.glb")).size;
-    const propsSize = fs.statSync(path.resolve(process.cwd(), "public/models/props.glb")).size;
+  it("verifies roads.glb exists and has known road tiles with clean D4 attributes", async () => {
+    const filePath = path.resolve(process.cwd(), "public/models/roads.glb");
+    expect(fs.existsSync(filePath), "roads.glb must exist in public/models/").toBe(true);
 
-    const totalMB = (stationsSize + citySize + propsSize) / (1024 * 1024);
-    expect(totalMB, "public/models total size must be <= 3 MB").toBeLessThanOrEqual(3.0);
+    const doc = await io.read(filePath);
+    const meshes = doc.getRoot().listMeshes();
+    expect(meshes.length).toBeGreaterThanOrEqual(6);
+
+    for (const mesh of meshes) {
+      const name = mesh.getName();
+      const prims = mesh.listPrimitives();
+      for (const prim of prims) {
+        const semantics = prim.listSemantics().sort();
+        expect(semantics, `${name} attributes must be exactly POSITION, NORMAL, TEXCOORD_0, COLOR_0`).toEqual(
+          ["COLOR_0", "NORMAL", "POSITION", "TEXCOORD_0"]
+        );
+        expect(prim.getIndices(), `${name} must have indexed geometry`).not.toBeNull();
+      }
+    }
+  });
+
+  it("verifies cars.glb exists and has known car models with clean D4 attributes", async () => {
+    const filePath = path.resolve(process.cwd(), "public/models/cars.glb");
+    expect(fs.existsSync(filePath), "cars.glb must exist in public/models/").toBe(true);
+
+    const doc = await io.read(filePath);
+    const meshes = doc.getRoot().listMeshes();
+    expect(meshes.length).toBeGreaterThanOrEqual(8);
+
+    for (const mesh of meshes) {
+      const name = mesh.getName();
+      const prims = mesh.listPrimitives();
+      for (const prim of prims) {
+        const semantics = prim.listSemantics().sort();
+        expect(semantics, `${name} attributes must be exactly POSITION, NORMAL, TEXCOORD_0, COLOR_0`).toEqual(
+          ["COLOR_0", "NORMAL", "POSITION", "TEXCOORD_0"]
+        );
+        expect(prim.getIndices(), `${name} must have indexed geometry`).not.toBeNull();
+      }
+    }
+  });
+
+  it("verifies every composed mesh in art/out/*.glb has min.y within ±0.01 (§10.1)", async () => {
+    const outFiles = ["stations.glb", "city.glb", "props.glb", "roads.glb", "cars.glb"];
+    const rawIo = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+
+    for (const file of outFiles) {
+      const outPath = path.resolve(process.cwd(), "art/out", file);
+      if (!fs.existsSync(outPath)) continue;
+
+      const doc = await rawIo.read(outPath);
+      for (const mesh of doc.getRoot().listMeshes()) {
+        const prim = mesh.listPrimitives()[0]!;
+        const pos = prim.getAttribute("POSITION")!.getArray()!;
+        let minY = Infinity;
+        for (let i = 1; i < pos.length; i += 3) {
+          minY = Math.min(minY, pos[i]!);
+        }
+        expect(
+          Math.abs(minY),
+          `${file} mesh '${mesh.getName()}' min.y (${minY}) must be within ±0.01`
+        ).toBeLessThanOrEqual(0.01);
+      }
+    }
+  });
+
+  it("verifies total file sizes of models stay within 6 MB budget (§10.8)", () => {
+    const modelFiles = ["stations.glb", "city.glb", "props.glb", "roads.glb", "cars.glb"];
+    let totalBytes = 0;
+    for (const file of modelFiles) {
+      const p = path.resolve(process.cwd(), "public/models", file);
+      expect(fs.existsSync(p), `${file} must exist`).toBe(true);
+      totalBytes += fs.statSync(p).size;
+    }
+
+    const totalMB = totalBytes / (1024 * 1024);
+    expect(totalMB, "public/models total size must be <= 6 MB (§10.8)").toBeLessThanOrEqual(6.0);
   });
 });

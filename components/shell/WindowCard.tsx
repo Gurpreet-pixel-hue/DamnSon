@@ -99,19 +99,25 @@ function CardDebugOverlay() {
   );
 }
 
+import { StageStepper } from "@/components/canvas/StageStepper";
+
 export interface WindowCardProps {
   metro: MetroVM | null;
+  drawer?: React.ReactNode;
   className?: string;
 }
 
-export function WindowCard({ metro, className = "" }: WindowCardProps) {
+export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const stepperContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const viewMode = useViewStore((s) => s.viewMode);
   const setViewMode = useViewStore((s) => s.setViewMode);
   const criticalPathOn = useViewStore((s) => s.criticalPathOn);
   const toggleCriticalPath = useViewStore((s) => s.toggleCriticalPath);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+  const toggleWholeRouteView = useViewStore((s) => s.toggleWholeRouteView);
 
   // Monitor fullscreen change
   useEffect(() => {
@@ -121,6 +127,30 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  // Measure stepper rect relative to canvas container (§11.8):
+  // bottom inset = canvasBottom − stepperTop + 16
+  useEffect(() => {
+    const measureStepper = () => {
+      if (!cardRef.current || !stepperContainerRef.current) return;
+      const canvasEl = cardRef.current.querySelector("canvas") || cardRef.current;
+      const canvasRect = canvasEl.getBoundingClientRect();
+      const stepperRect = stepperContainerRef.current.getBoundingClientRect();
+      if (canvasRect.height > 0 && stepperRect.height > 0) {
+        const bottomInset = Math.max(
+          80,
+          Math.round(canvasRect.bottom - stepperRect.top + 16)
+        );
+        useViewStore.getState().setStepperBottomInset(bottomInset);
+      }
+    };
+
+    measureStepper();
+    const ro = new ResizeObserver(measureStepper);
+    if (stepperContainerRef.current) ro.observe(stepperContainerRef.current);
+    if (cardRef.current) ro.observe(cardRef.current);
+    return () => ro.disconnect();
+  }, [metro]);
 
   const toggleFullscreen = () => {
     if (!cardRef.current) return;
@@ -153,6 +183,19 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
 
         {/* Debug overlay inside card, bottom-left */}
         <CardDebugOverlay />
+
+        {/* Stage Stepper, bottom center (§11.1) */}
+        {metro && (
+          <div
+            ref={stepperContainerRef}
+            className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30"
+          >
+            <StageStepper metro={metro} />
+          </div>
+        )}
+
+        {/* Overlay Drawer (§11.3) */}
+        {drawer}
       </div>
 
       {/* Card Footer (52px) */}
@@ -165,7 +208,7 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
           <Legend />
         </div>
 
-        {/* Right: Controls (Critical path, 3D/2D, Fullscreen) */}
+        {/* Right: Controls (Critical path, Whole route, 3D/2D, Fullscreen) */}
         <div className="flex items-center gap-2 shrink-0">
           {/* Critical Path Toggle */}
           <button
@@ -180,6 +223,22 @@ export function WindowCard({ metro, className = "" }: WindowCardProps) {
             aria-pressed={criticalPathOn}
           >
             Critical Path
+          </button>
+
+          {/* Whole Route Toggle Button (§11.3) */}
+          <button
+            type="button"
+            data-testid="footer-whole-route-toggle"
+            onClick={toggleWholeRouteView}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              wholeRouteView
+                ? "border-[var(--cw-brand)] bg-[var(--cw-brand)]/15 text-[var(--cw-brand)] font-semibold"
+                : "border-[var(--cw-border)] bg-[var(--cw-background)] text-[var(--cw-text-muted)] hover:text-[var(--cw-text)]"
+            }`}
+            aria-pressed={wholeRouteView}
+            title={wholeRouteView ? "Return to stage framing" : "Fit whole route"}
+          >
+            Whole route
           </button>
 
           {/* 3D / 2D Toggle */}

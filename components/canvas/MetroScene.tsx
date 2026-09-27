@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
-import * as THREE from "three";
-import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
+import type { MetroVM } from "@/lib/graph/viewModel";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
 import { Board } from "./Board";
+import { Roads } from "./city/Roads";
+import { Traffic } from "./city/Traffic";
+import { Pedestrians } from "./city/Pedestrians";
 import { CityBatches } from "./CityBatches";
 import { Stations } from "./Stations";
 import { Tracks } from "./Tracks";
@@ -151,19 +154,19 @@ function DebugCollector() {
 
 interface MetroSceneProps {
   metro: MetroVM;
-  slotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
-  pinSlotsRef?: React.RefObject<(HTMLButtonElement | null)[]>;
+  cardSlotsRef?: React.RefObject<Map<string, HTMLDivElement>>;
+  tetherRefs?: React.RefObject<Map<string, SVGSVGElement>>;
+  tooltipRef?: React.RefObject<HTMLDivElement | null>;
   headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
-  selectionRef?: React.RefObject<StationVM[]>;
   onDprChange?: (dpr: number) => void;
 }
 
 export function MetroScene({
   metro,
-  slotsRef,
-  pinSlotsRef,
+  cardSlotsRef,
+  tetherRefs,
+  tooltipRef,
   headerSlotsRef,
-  selectionRef,
   onDprChange,
 }: MetroSceneProps) {
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
@@ -199,7 +202,6 @@ export function MetroScene({
   }, [activeTaskId, metro.stations, metro.tracks]);
 
   const isDebug =
-    process.env.NODE_ENV === "development" &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("debug") === "1";
 
@@ -228,28 +230,37 @@ export function MetroScene({
       <PerformanceMonitor onDecline={handleDecline} onIncline={handleIncline} />
       {isDebug && <DebugCollector />}
 
-      {/* 1. Board slab, coastal water shader, roads, kerbs, and lighting */}
+      {/* 1. Board slab, coastal water shader, and lighting */}
       <Board plan={plan} />
 
+      {/* 1b. Kenney road tiles in BatchedMesh (+1 draw, visual-direction §10.2) */}
+      <Roads plan={plan} />
+
       {/* 2. BatchedMesh city buildings and props */}
-      <CityBatches plan={plan} visibleProps={visibleProps} />
+      <CityBatches plan={plan} visibleProps={visibleProps} stations={metro.stations} />
+
+      {/* 2b. Traffic: keep-left cars and parked service vehicles in BatchedMesh (+1 draw, §10.3) */}
+      <Traffic plan={plan} stations={metro.stations} stopped={perfLevel >= 3} />
+
+      {/* 2c. Pedestrians: walkers and office queues in InstancedMesh (+1 draw, §10.4) */}
+      <Pedestrians plan={plan} stations={metro.stations} stopped={perfLevel >= 2} />
 
       {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
       <Stations stations={metro.stations} />
 
-      {/* 4. Routes batches */}
-      <Tracks metro={metro} />
+      {/* 4. Routes batches (flat 0.35 ribbons following streets, §11.5) */}
+      <Tracks metro={metro} plan={plan} />
 
-      {/* 5. Pulses */}
-      <Pulses metro={metro} />
+      {/* 5. Pulses (following road polyline, §11.5) */}
+      <Pulses metro={metro} plan={plan} />
 
-      {/* 6. Screen-projected DOM Label system & Pins */}
-      {slotsRef && pinSlotsRef && (
+      {/* 6. Screen-projected DOM Label system (§11.2 & §11.4) */}
+      {cardSlotsRef && tetherRefs && (
         <LabelProjector
           metro={metro}
-          slotsRef={slotsRef}
-          pinSlotsRef={pinSlotsRef}
-          selectionRef={selectionRef}
+          cardSlotsRef={cardSlotsRef}
+          tetherRefs={tetherRefs}
+          tooltipRef={tooltipRef}
         />
       )}
 

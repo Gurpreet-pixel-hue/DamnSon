@@ -66,6 +66,55 @@ export function Legend() {
           </span>
         </div>
       )}
+
+      {/* Divider */}
+      <div className="w-[1px] h-3.5 bg-[#E6DDC8]" aria-hidden="true" />
+
+      {/* Mode entries (§10.5: Online · In person · Both) */}
+      <div className="flex items-center gap-1.5">
+        <svg
+          className="w-3 h-3 text-[#1F63D6] shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+        <span className="text-[11px] font-medium text-[#1F242E]">Online</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <svg
+          className="w-3 h-3 text-[#697586] shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <path d="M3 21h18M5 21V7l8-4v18M13 10h4v11" />
+        </svg>
+        <span className="text-[11px] font-medium text-[#1F242E]">In person</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <svg
+          className="w-3 h-3 text-[#8A4A0A] shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <rect x="2" y="3" width="12" height="10" rx="1.5" />
+          <path d="M14 9h6v12H8v-4" />
+        </svg>
+        <span className="text-[11px] font-medium text-[#1F242E]">Both</span>
+      </div>
     </div>
   );
 }

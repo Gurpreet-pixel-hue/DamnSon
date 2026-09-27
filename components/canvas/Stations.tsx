@@ -12,19 +12,24 @@ import {
   getStationGeometries,
 } from "./stationGeometries";
 import { PALETTE } from "./palette";
+import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
-import { useViewStore } from "@/lib/store/useViewStore";
+import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 
 interface StationsProps {
   stations: StationVM[];
 }
 
 const _tempObj = new THREE.Object3D();
-const _targetColor = new THREE.Color();
-const _currentColor = new THREE.Color();
+const _scratchColor = new THREE.Color();
+const _scratchBase = new THREE.Color();
+const _scratchPaper = new THREE.Color(PALETTE.background);
 
 function getArchetypeKey(station: StationVM): ArchetypeKey {
   if (station.kind === "milestone") return "milestone";
+  if (station.mode === "online" || station.officeType === "online_portal") {
+    return "online_portal";
+  }
   if (station.officeType && ARCHETYPE_KEYS.includes(station.officeType)) {
     return station.officeType;
   }
@@ -132,15 +137,32 @@ export function Stations({ stations }: StationsProps) {
   const padMeshRef = useRef<THREE.InstancedMesh>(null);
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
+  const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
+  const checkDiscMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Available non-optional stations for next-up beacons
+  const focusStage = useViewStore((s) => s.focusStage);
+
+  // Available non-optional stations in focused stage for next-up beacons (§11.2)
   const nextUpStations = useMemo(() => {
     return stations.filter(
-      (s) => s.state === "available" && s.applicability !== "optional"
+      (s) =>
+        s.layer === focusStage - 1 &&
+        s.state === "available" &&
+        s.applicability !== "optional"
     );
+  }, [stations, focusStage]);
+
+  // Done stations for 3D green check discs on the plaza (§11.2)
+  const doneStations = useMemo(() => {
+    return stations.filter((s) => s.state === "done");
   }, [stations]);
 
-  // Geometries for Plaza Pads, Plaza Rings, and Beacons
+  // Hybrid stations for floating roof screen (§10.5)
+  const hybridStations = useMemo(() => {
+    return stations.filter((s) => s.mode === "hybrid");
+  }, [stations]);
+
+  // Geometries for Plaza Pads, Plaza Rings, Beacons, and Check Discs
   const padGeometry = useMemo(() => {
     // E9: Plaza pad (plaza colour, radius 1.6, 0.04 high)
     return new THREE.CylinderGeometry(1.6, 1.6, 0.04, 32);
@@ -152,6 +174,9 @@ export function Stations({ stations }: StationsProps) {
         color: PALETTE.plaza,
         roughness: 0.9,
         metalness: 0.05,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.plazaPad.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.plazaPad.units,
       }),
     []
   );
@@ -170,11 +195,33 @@ export function Stations({ stations }: StationsProps) {
     return geom;
   }, []);
 
+  // 3D green check disc decal on plaza for done stations (§11.2)
+  const checkDiscGeometry = useMemo(() => {
+    const geom = new THREE.CircleGeometry(0.35, 32);
+    geom.rotateX(-Math.PI / 2);
+    return geom;
+  }, []);
+
+  const checkDiscMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: PALETTE.done,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
+      }),
+    []
+  );
+
   const ringMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
         toneMapped: false,
         side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+        polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
       }),
     []
   );
@@ -196,6 +243,19 @@ export function Stations({ stations }: StationsProps) {
     []
   );
 
+  // Floating screen for hybrid stations (§10.5)
+  const hybridScreenGeometry = useMemo(() => new THREE.BoxGeometry(0.8, 0.5, 0.08), []);
+  const hybridScreenMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: PALETTE.available,
+        emissive: PALETTE.available,
+        emissiveIntensity: 0.5,
+        roughness: 0.5,
+      }),
+    []
+  );
+
   // Animation timing
   const animStartRef = useRef<number | null>(null);
   const animDoneRef = useRef(false);
@@ -205,10 +265,94 @@ export function Stations({ stations }: StationsProps) {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
+  // Track previous station states to trigger 0.6s unlock pop when becoming available (§10.7)
+  const prevStatesRef = useRef<Map<string, string>>(new Map());
+  const unlockTimesRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    if (prevStatesRef.current.size > 0) {
+      const now = performance.now() / 1000;
+      for (const station of stations) {
+        const prevState = prevStatesRef.current.get(station.id);
+        if (prevState === "locked" && station.state === "available") {
+          unlockTimesRef.current.set(station.id, now);
+        }
+      }
+    }
+    const newMap = new Map<string, string>();
+    for (const station of stations) {
+      newMap.set(station.id, station.state);
+    }
+    prevStatesRef.current = newMap;
+  }, [stations, prefersReducedMotion]);
+
   useEffect(() => {
     animStartRef.current = null;
     animDoneRef.current = prefersReducedMotion;
   }, [stations, prefersReducedMotion]);
+
+  // Update instance colors only when stations or focusStage change (§11.2, AGENTS rule)
+  useEffect(() => {
+    // 1. Station building colors
+    for (const key of ARCHETYPE_KEYS) {
+      const mesh = meshRefs.current.get(key);
+      const list = groupedStations.get(key);
+      if (!mesh || !list || list.length === 0) continue;
+
+      for (let i = 0; i < list.length; i++) {
+        const station = list[i];
+        if (!station) continue;
+
+        const isFocusedStage = station.layer === focusStage - 1;
+        if (isFocusedStage) {
+          if (station.state === "locked") {
+            _scratchColor.setRGB(0.75, 0.75, 0.75);
+          } else {
+            _scratchColor.setRGB(1.0, 1.0, 1.0);
+          }
+        } else {
+          if (station.state === "locked") {
+            _scratchBase.setRGB(0.75, 0.75, 0.75);
+          } else {
+            _scratchBase.setRGB(1.0, 1.0, 1.0);
+          }
+          _scratchColor.copy(_scratchBase).lerp(_scratchPaper, 0.4);
+        }
+        mesh.setColorAt(i, _scratchColor);
+      }
+
+      if (mesh.instanceColor) {
+        mesh.instanceColor.needsUpdate = true;
+      }
+    }
+
+    // 2. Status rings colors (§11.2):
+    // Focused stage: state colour x 1.4
+    // Outside focused stage: lerp state colour 60 % toward --cw-paper, without the 1.4 multiplier
+    const ringMesh = ringMeshRef.current;
+    if (ringMesh && stations.length > 0) {
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (!station) continue;
+
+        const isFocusedStage = station.layer === focusStage - 1;
+        const colorHex = getStateColorHex(station);
+
+        if (isFocusedStage) {
+          _scratchColor.set(colorHex).multiplyScalar(1.4);
+        } else {
+          _scratchBase.set(colorHex);
+          _scratchColor.copy(_scratchBase).lerp(_scratchPaper, 0.6);
+        }
+        ringMesh.setColorAt(i, _scratchColor);
+      }
+
+      if (ringMesh.instanceColor) {
+        ringMesh.instanceColor.needsUpdate = true;
+      }
+    }
+  }, [stations, groupedStations, focusStage]);
 
   // Frame loop for scale animation and instance transforms
   useFrame((state) => {
@@ -246,28 +390,35 @@ export function Stations({ stations }: StationsProps) {
           }
         }
 
+        let popScale = 1.0;
+        const unlockTime = unlockTimesRef.current.get(station.id);
+        if (unlockTime !== undefined && !prefersReducedMotion) {
+          const dt = performance.now() / 1000 - unlockTime;
+          if (dt < 0.6) {
+            const p = dt / 0.6;
+            // 0.6s unlock pop: scale 1 -> 1.12 -> 1
+            popScale = 1.0 + Math.sin(p * Math.PI) * 0.12;
+            allFinished = false;
+          } else {
+            unlockTimesRef.current.delete(station.id);
+          }
+        }
+
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.21, z);
-        // G3: Stations render at 1.25x scale
-        _tempObj.scale.set(1.25, 1.25 * scaleY, 1.25);
+        const bob =
+          key === "online_portal" && !prefersReducedMotion
+            ? Math.sin((time * Math.PI * 2) / 3.0) * 0.08
+            : 0;
+        _tempObj.position.set(x, 0.21 + bob, z);
+        // G3: Stations render at 1.25x scale + unlock pop (§10.7)
+        _tempObj.scale.set(1.25 * popScale, 1.25 * scaleY * popScale, 1.25 * popScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
         mesh.setMatrixAt(i, _tempObj.matrix);
-
-        // G3: Locked buildings dim to no less than 60% luminance (0.75 >= 0.6)
-        if (station.state === "locked") {
-          _targetColor.setRGB(0.75, 0.75, 0.75);
-        } else {
-          _targetColor.setRGB(1.0, 1.0, 1.0);
-        }
-        mesh.setColorAt(i, _targetColor);
       }
 
       mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true;
-      }
     }
 
     // 1b. Update plaza pads (E9: plaza colour, radius 1.6, 0.04 high)
@@ -278,7 +429,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.19, z); // Pad center at 0.19 on y=0.17 land -> top is 0.21
+        _tempObj.position.set(x, PLAZA_PAD_CENTER_Y, z); // Pad center at 0.190 -> top is 0.210 (§11.5)
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -288,7 +439,7 @@ export function Stations({ stations }: StationsProps) {
       padMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 2. Update status rings (toneMapped=false at 1.4x, sitting on plaza pad)
+    // 2. Update status rings (sitting on plaza pad at y = 0.225 per §11.5)
     const ringMesh = ringMeshRef.current;
     if (ringMesh && stations.length > 0) {
       for (let i = 0; i < stations.length; i++) {
@@ -296,26 +447,18 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.211, z);
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
         ringMesh.setMatrixAt(i, _tempObj.matrix);
-
-        // 1.4x multiplier for bloom per visual-direction §3
-        const colorHex = getStateColorHex(station);
-        _currentColor.set(colorHex).multiplyScalar(1.4);
-        ringMesh.setColorAt(i, _currentColor);
       }
 
       ringMesh.instanceMatrix.needsUpdate = true;
-      if (ringMesh.instanceColor) {
-        ringMesh.instanceColor.needsUpdate = true;
-      }
     }
 
-    // 3. Update next-up beacons (sitting on plaza pad)
+    // 3. Update next-up beacons (sitting on plaza pad at y = 0.225 per §11.5)
     const beaconMesh = beaconMeshRef.current;
     if (beaconMesh && nextUpStations.length > 0) {
       for (let i = 0; i < nextUpStations.length; i++) {
@@ -323,7 +466,7 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
-        _tempObj.position.set(x, 0.211, z);
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
         _tempObj.scale.set(1, 1, 1);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
@@ -332,6 +475,43 @@ export function Stations({ stations }: StationsProps) {
       }
 
       beaconMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // 4. Update hybrid floating roof screens (§10.5)
+    const hybridMesh = hybridMeshRef.current;
+    if (hybridMesh && hybridStations.length > 0) {
+      for (let i = 0; i < hybridStations.length; i++) {
+        const station = hybridStations[i];
+        if (!station) continue;
+
+        const [x, , z] = station.position3D;
+        const bob = !prefersReducedMotion ? Math.sin((time * Math.PI * 2) / 3.0) * 0.05 : 0;
+        _tempObj.position.set(x, 2.75 + bob, z);
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        hybridMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      hybridMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // 5. Update done station check discs on the plaza (§11.2)
+    const checkMesh = checkDiscMeshRef.current;
+    if (checkMesh && doneStations.length > 0) {
+      for (let i = 0; i < doneStations.length; i++) {
+        const station = doneStations[i];
+        if (!station) continue;
+
+        const [x, , z] = station.position3D;
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z + 0.8);
+        _tempObj.scale.set(1, 1, 1);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        checkMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      checkMesh.instanceMatrix.needsUpdate = true;
     }
 
     if (allFinished) {
@@ -359,14 +539,14 @@ export function Stations({ stations }: StationsProps) {
     if (list && typeof e.instanceId === "number") {
       const station = list[e.instanceId];
       if (station) {
-        useViewStore.getState().setHoveredStepId(station.id);
+        requestHover(station.id);
       }
     }
   };
 
   const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    useViewStore.getState().setHoveredStepId(null);
+    requestHover(null);
   };
 
   const handleClick = (e: ThreeEvent<MouseEvent>, key: ArchetypeKey) => {
@@ -377,6 +557,7 @@ export function Stations({ stations }: StationsProps) {
       if (station) {
         useTaskStore.getState().selectStep(station.id);
         useViewStore.getState().setFocusedStepId(station.id);
+        useViewStore.getState().setFocusStage(station.layer + 1);
       }
     }
   };
@@ -424,6 +605,28 @@ export function Stations({ stations }: StationsProps) {
           ref={padMeshRef}
           args={[padGeometry, padMaterial, stations.length]}
           receiveShadow
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            if (typeof e.instanceId === "number") {
+              const station = stations[e.instanceId];
+              if (station) requestHover(station.id);
+            }
+          }}
+          onPointerOut={(e) => {
+            e.stopPropagation();
+            requestHover(null);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (typeof e.instanceId === "number") {
+              const station = stations[e.instanceId];
+              if (station) {
+                useTaskStore.getState().selectStep(station.id);
+                useViewStore.getState().setFocusedStepId(station.id);
+                useViewStore.getState().setFocusStage(station.layer + 1);
+              }
+            }
+          }}
         />
       )}
 
@@ -435,11 +638,27 @@ export function Stations({ stations }: StationsProps) {
         />
       )}
 
+      {/* 3D Green Check Discs on Plaza for Done Stations (§11.2) */}
+      {doneStations.length > 0 && (
+        <instancedMesh
+          ref={checkDiscMeshRef}
+          args={[checkDiscGeometry, checkDiscMaterial, doneStations.length]}
+        />
+      )}
+
       {/* Instanced Next-Up Beacons */}
       {nextUpStations.length > 0 && (
         <instancedMesh
           ref={beaconMeshRef}
           args={[beaconGeometry, beaconMaterial, nextUpStations.length]}
+        />
+      )}
+
+      {/* Instanced Hybrid Roof Screens (§10.5) */}
+      {hybridStations.length > 0 && (
+        <instancedMesh
+          ref={hybridMeshRef}
+          args={[hybridScreenGeometry, hybridScreenMaterial, hybridStations.length]}
         />
       )}
 

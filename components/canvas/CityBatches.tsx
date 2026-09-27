@@ -4,9 +4,13 @@ import { useMemo, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import type { CityPlan } from "./city/planCity";
+import type { StationVM } from "@/lib/graph/viewModel";
+import { useViewStore } from "@/lib/store/useViewStore";
+import { PALETTE } from "./palette";
 
 interface CityBatchesProps {
   plan: CityPlan;
+  stations?: StationVM[];
   visibleProps?: boolean;
 }
 
@@ -16,8 +20,10 @@ const _tempQuat = new THREE.Quaternion();
 const _tempScale = new THREE.Vector3();
 const _tempEuler = new THREE.Euler();
 const _whiteColor = new THREE.Color(1, 1, 1);
+const _paperColor = new THREE.Color(PALETTE.background);
+const _currentColor = new THREE.Color();
 
-export function CityBatches({ plan, visibleProps = true }: CityBatchesProps) {
+export function CityBatches({ plan, stations = [], visibleProps = true }: CityBatchesProps) {
   // Preload and load city and props models
   const cityGltf = useGLTF("/models/city.glb");
   const propsGltf = useGLTF("/models/props.glb");
@@ -221,6 +227,78 @@ export function CityBatches({ plan, visibleProps = true }: CityBatchesProps) {
       }
     }
   }, [propsBatchedMesh, visibleProps]);
+
+  // Focus hierarchy: Instances > 10 cells from focused-stage stations lerp 35% toward --cw-paper (§11.5)
+  const focusStage = useViewStore((s) => s.focusStage);
+  const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+
+  useEffect(() => {
+    const cellSize = plan.cellGrid.cellSize;
+    const minX = plan.bounds.minX;
+    const minZ = plan.bounds.minZ;
+    const focusStations = stations.filter((s) => s.layer === focusStage - 1);
+
+    if (cityBatchedMesh) {
+      for (let i = 0; i < plan.buildings.length; i++) {
+        const b = plan.buildings[i];
+        if (!b) continue;
+
+        if (wholeRouteView || focusStations.length === 0) {
+          cityBatchedMesh.setColorAt(i, _whiteColor);
+          continue;
+        }
+
+        const c = Math.floor((b.position[0] - minX) / cellSize);
+        const r = Math.floor((b.position[2] - minZ) / cellSize);
+
+        let minCellDist = Infinity;
+        for (const s of focusStations) {
+          const sc = Math.floor((s.position3D[0] - minX) / cellSize);
+          const sr = Math.floor((s.position3D[2] - minZ) / cellSize);
+          const dist = Math.max(Math.abs(r - sr), Math.abs(c - sc));
+          if (dist < minCellDist) minCellDist = dist;
+        }
+
+        if (minCellDist > 10) {
+          _currentColor.copy(_whiteColor).lerp(_paperColor, 0.35);
+          cityBatchedMesh.setColorAt(i, _currentColor);
+        } else {
+          cityBatchedMesh.setColorAt(i, _whiteColor);
+        }
+      }
+    }
+
+    if (propsBatchedMesh) {
+      const totalItems = plan.trees.length + plan.props.length;
+      for (let i = 0; i < totalItems; i++) {
+        const item = i < plan.trees.length ? plan.trees[i] : plan.props[i - plan.trees.length];
+        if (!item) continue;
+
+        if (wholeRouteView || focusStations.length === 0) {
+          propsBatchedMesh.setColorAt(i, _whiteColor);
+          continue;
+        }
+
+        const c = Math.floor((item.position[0] - minX) / cellSize);
+        const r = Math.floor((item.position[2] - minZ) / cellSize);
+
+        let minCellDist = Infinity;
+        for (const s of focusStations) {
+          const sc = Math.floor((s.position3D[0] - minX) / cellSize);
+          const sr = Math.floor((s.position3D[2] - minZ) / cellSize);
+          const dist = Math.max(Math.abs(r - sr), Math.abs(c - sc));
+          if (dist < minCellDist) minCellDist = dist;
+        }
+
+        if (minCellDist > 10) {
+          _currentColor.copy(_whiteColor).lerp(_paperColor, 0.35);
+          propsBatchedMesh.setColorAt(i, _currentColor);
+        } else {
+          propsBatchedMesh.setColorAt(i, _whiteColor);
+        }
+      }
+    }
+  }, [cityBatchedMesh, propsBatchedMesh, focusStage, wholeRouteView, stations, plan]);
 
   return (
     <group>

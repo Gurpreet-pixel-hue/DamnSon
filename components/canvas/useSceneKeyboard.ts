@@ -42,6 +42,46 @@ export function useSceneKeyboard(metro: MetroVM) {
         list.sort((a, b) => a.lane - b.lane);
       }
       const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
+      const totalStages = Math.max(1, sortedLayers.length);
+
+      if (e.key === "[" || e.code === "BracketLeft") {
+        e.preventDefault();
+        const { focusStage, setFocusStage } = useViewStore.getState();
+        if (focusStage > 1) {
+          setFocusStage(focusStage - 1);
+        }
+        return;
+      }
+
+      if (e.key === "]" || e.code === "BracketRight") {
+        e.preventDefault();
+        const { focusStage, setFocusStage } = useViewStore.getState();
+        if (focusStage < totalStages) {
+          setFocusStage(focusStage + 1);
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const { focusStage } = useViewStore.getState();
+        const focusedStageStations = layerMap.get(focusStage - 1) ?? [];
+        if (focusedStageStations.length > 0) {
+          e.preventDefault();
+          const currentIdx = focusedStageStations.findIndex(
+            (s) => s.id === focusedStepId
+          );
+          let nextIdx: number;
+          if (e.shiftKey) {
+            nextIdx =
+              currentIdx <= 0 ? focusedStageStations.length - 1 : currentIdx - 1;
+          } else {
+            nextIdx =
+              currentIdx >= focusedStageStations.length - 1 ? 0 : currentIdx + 1;
+          }
+          setFocusedStepId(focusedStageStations[nextIdx]!.id);
+          return;
+        }
+      }
 
       if (e.key === "ArrowRight") {
         e.preventDefault();
@@ -117,9 +157,18 @@ export function useSceneKeyboard(metro: MetroVM) {
       } else if (e.key === " " || e.code === "Space") {
         if (focusedStepId && activeTaskId) {
           const current = metro.stations.find((s) => s.id === focusedStepId);
-          if (current && canMarkDone(current.kind)) {
+          if (current && canMarkDone(current.kind) && current.state !== "locked") {
             e.preventDefault();
+            const currentFocus = useViewStore.getState().focusStage;
             toggleStepDone(activeTaskId, focusedStepId);
+            if (current.state === "available") {
+              useViewStore.getState().showUndoToast({
+                taskId: activeTaskId,
+                stepId: focusedStepId,
+                title: current.title,
+                previousFocusStage: currentFocus,
+              });
+            }
           }
         }
       } else if (e.key === "Escape") {

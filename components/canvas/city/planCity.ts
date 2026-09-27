@@ -12,6 +12,7 @@ import {
   LOW_DETAIL_BUILDINGS,
   type CityKindInfo,
 } from "./cityKinds";
+import { buildRoadGraph, type RoadGraph } from "./roadGraph";
 
 export interface StationLocation {
   id: string;
@@ -58,6 +59,8 @@ export interface CityPlan {
   buildings: PlacedInstance[];
   trees: PlacedInstance[];
   props: PlacedInstance[];
+  roads: PlacedInstance[];
+  roadGraph: RoadGraph;
   roadSegments: Array<{ from: [number, number]; to: [number, number] }>;
 }
 
@@ -91,27 +94,6 @@ function createPRNG(seed: number) {
   };
 }
 
-/**
- * Point on cubic Bezier curve
- */
-function cubicBezierPoint(
-  p0: [number, number],
-  p1: [number, number],
-  p2: [number, number],
-  p3: [number, number],
-  t: number
-): [number, number] {
-  const mt = 1 - t;
-  const mt2 = mt * mt;
-  const mt3 = mt2 * mt;
-  const t2 = t * t;
-  const t3 = t2 * t;
-
-  return [
-    mt3 * p0[0] + 3 * mt2 * t * p1[0] + 3 * mt * t2 * p2[0] + t3 * p3[0],
-    mt3 * p0[1] + 3 * mt2 * t * p1[1] + 3 * mt * t2 * p2[1] + t3 * p3[1],
-  ];
-}
 
 export function computeBoardBounds(stations: StationLocation[]): BoardBounds {
   if (stations.length === 0) {
@@ -184,27 +166,23 @@ export function planCity(options: PlanCityOptions): CityPlan {
 
     const p0: [number, number] = [pStart[0] + 0.7, pStart[2]];
     const p3: [number, number] = [pEnd[0] - 0.7, pEnd[2]];
-    const dx = p3[0] - p0[0];
-    const p1: [number, number] = [p0[0] + dx * 0.4, p0[1]];
-    const p2: [number, number] = [p0[0] + dx * 0.6, p3[1]];
+    const c0 = Math.floor((p0[0] - bounds.minX) / cellSize);
+    const r0 = Math.floor((p0[1] - bounds.minZ) / cellSize);
+    const c1 = Math.floor((p3[0] - bounds.minX) / cellSize);
+    const r1 = Math.floor((p3[1] - bounds.minZ) / cellSize);
 
-    const SAMPLES = 60;
-    let prev = p0;
-    for (let i = 0; i <= SAMPLES; i++) {
-      const curr = cubicBezierPoint(p0, p1, p2, p3, i / SAMPLES);
-      const dist = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
-      const subSteps = Math.max(1, Math.ceil(dist / (cellSize * 0.25)));
-      for (let s = 0; s <= subSteps; s++) {
-        const tSub = s / subSteps;
-        const sx = prev[0] + (curr[0] - prev[0]) * tSub;
-        const sz = prev[1] + (curr[1] - prev[1]) * tSub;
-        const c = Math.floor((sx - bounds.minX) / cellSize);
-        const r = Math.floor((sz - bounds.minZ) / cellSize);
-        if (r >= 0 && r < rows && c >= 0 && c < cols) {
-          isCorridor[r]![c] = true;
-        }
+    // Manhattan orthogonal path: horizontal then vertical, ensuring 4-connected cells
+    const stepC = c1 >= c0 ? 1 : -1;
+    for (let c = c0; c !== c1 + stepC; c += stepC) {
+      if (r0 >= 0 && r0 < rows && c >= 0 && c < cols) {
+        isCorridor[r0]![c] = true;
       }
-      prev = curr;
+    }
+    const stepR = r1 >= r0 ? 1 : -1;
+    for (let r = r0; r !== r1 + stepR; r += stepR) {
+      if (r >= 0 && r < rows && c1 >= 0 && c1 < cols) {
+        isCorridor[r]![c1] = true;
+      }
     }
   }
 
@@ -445,24 +423,21 @@ export function planCity(options: PlanCityOptions): CityPlan {
     const isBackThird = cz <= bounds.minZ + bounds.depth / 3;
 
     let candidatePool: readonly CityKindInfo[];
-    if (minNetworkCellDist > 8 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // A7: For cells more than 8 cells away, use low-detail buildings only
-      candidatePool = LOW_DETAIL_BUILDINGS;
-    } else if (minNetworkCellDist > 3 && LOW_DETAIL_BUILDINGS.length > 0) {
-      // A7: Use LOW_DETAIL variants for cells more than 3 cells from any station or route
+    if (minNetworkCellDist > 2 && LOW_DETAIL_BUILDINGS.length > 0) {
+      // §11.6: Far-LOD variants for cells more than 2 cells from any station or route
       candidatePool = LOW_DETAIL_BUILDINGS;
     } else if (minStationCellDist <= 3) {
       // G3: fill buildings within 3 cells of a station use low-rise pool
-      candidatePool = LOW_BUILDINGS;
+      candidatePool = LOW_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (dist <= 6.0) {
-      candidatePool = LOW_BUILDINGS;
+      candidatePool = LOW_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (dist <= 14.0) {
-      candidatePool = MID_BUILDINGS;
+      candidatePool = MID_BUILDINGS.filter((b) => b.triangles <= 2000);
     } else if (isBackThird) {
       // E6: tall tier uses low-detail buildings
       candidatePool = LOW_DETAIL_BUILDINGS;
     } else {
-      candidatePool = MID_BUILDINGS;
+      candidatePool = MID_BUILDINGS.filter((b) => b.triangles <= 2000);
     }
 
     if (candidatePool.length === 0) continue;
@@ -495,8 +470,26 @@ export function planCity(options: PlanCityOptions): CityPlan {
     occupied[r]![c] = true;
     placedVariantGrid[r]![c] = variant.name;
 
-    const rotY = Math.floor(rand() * 4) * (Math.PI / 2);
-    const sJitter = 0.9 + rand() * 0.2;
+    // Buildings face the street: rotation points front at nearest road cell (§10.2)
+    let rotY = Math.floor(rand() * 4) * (Math.PI / 2);
+    if (r + 1 < rows && cells[r + 1]?.[c] === "road") {
+      rotY = 0; // Front faces South (+Z)
+    } else if (r > 0 && cells[r - 1]?.[c] === "road") {
+      rotY = Math.PI; // Front faces North (-Z)
+    } else if (c > 0 && cells[r]?.[c - 1] === "road") {
+      rotY = Math.PI / 2; // Front faces West (-X)
+    } else if (c + 1 < cols && cells[r]?.[c + 1] === "road") {
+      rotY = (3 * Math.PI) / 2; // Front faces East (+X)
+    }
+
+    let sJitter = 0.9 + rand() * 0.2;
+    if (minStationCellDist <= 3 && nearestStation) {
+      const stationH = nearestStation.height ?? 3.0;
+      const maxH = 0.7 * stationH;
+      if (variant.height * sJitter > maxH) {
+        sJitter = Math.min(sJitter, maxH / variant.height);
+      }
+    }
 
     // Uniform scale: scale.x === scale.y === scale.z (visual-direction §10.1)
     buildings.push({
@@ -505,6 +498,15 @@ export function planCity(options: PlanCityOptions): CityPlan {
       rotationY: rotY,
       scale: [sJitter, sJitter, sJitter],
     });
+  }
+
+  // 4b. Empty blocks become small parks (§11.8)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (cells[r]![c] === "building" && !occupied[r]![c]) {
+        cells[r]![c] = "park";
+      }
+    }
   }
 
   // 5. Place Trees & Palms (H1: nearest-first up to 180)
@@ -546,31 +548,34 @@ export function planCity(options: PlanCityOptions): CityPlan {
     });
   }
 
-  // B. Trees in park cells
+  // B. Trees in park cells (2–3 trees per park cell, §11.8)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (cells[r]![c] === "park") {
-        const px = bounds.minX + (c + 0.5) * cellSize + (rand() - 0.5) * 0.4;
-        const pz = bounds.minZ + (r + 0.5) * cellSize + (rand() - 0.5) * 0.4;
-        const parkTrees = ["tree-oak", "tree-simple", "tree-pine", "tree-bush"];
-        const kind = parkTrees[Math.floor(rand() * parkTrees.length)]!;
-        const rotY = rand() * Math.PI * 2;
-        const sJitter = 0.8 + rand() * 0.35;
+        const numTrees = 2 + Math.floor(rand() * 2); // 2 to 3 trees
+        for (let t = 0; t < numTrees; t++) {
+          const px = bounds.minX + (c + 0.5) * cellSize + (rand() - 0.5) * 0.8;
+          const pz = bounds.minZ + (r + 0.5) * cellSize + (rand() - 0.5) * 0.8;
+          const parkTrees = ["tree-simple", "tree-oak", "tree-pine", "tree-bush"];
+          const kind = parkTrees[Math.floor(rand() * parkTrees.length)]!;
+          const rotY = rand() * Math.PI * 2;
+          const sJitter = 0.75 + rand() * 0.35;
 
-        let minDistSq = Infinity;
-        for (const s of stations) {
-          const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
-          if (dSq < minDistSq) minDistSq = dSq;
+          let minDistSq = Infinity;
+          for (const s of stations) {
+            const dSq = (px - s.position3D[0]) ** 2 + (pz - s.position3D[2]) ** 2;
+            if (dSq < minDistSq) minDistSq = dSq;
+          }
+
+          candidateTrees.push({
+            kind,
+            position: [px, 0.17, pz],
+            rotationY: rotY,
+            scale: [sJitter, sJitter, sJitter],
+            distSq: minDistSq,
+            tieBreaker: rand(),
+          });
         }
-
-        candidateTrees.push({
-          kind,
-          position: [px, 0.17, pz],
-          rotationY: rotY,
-          scale: [sJitter, sJitter, sJitter],
-          distSq: minDistSq,
-          tieBreaker: rand(),
-        });
       }
     }
   }
@@ -691,6 +696,48 @@ export function planCity(options: PlanCityOptions): CityPlan {
     });
   }
 
+  // D. Traffic lights at intersections within 2 cells of a station (§10.2)
+  for (const s of stations) {
+    if (props.length >= MAX_PROPS) break;
+    const sc = Math.floor((s.position3D[0] - bounds.minX) / cellSize);
+    const sr = Math.floor((s.position3D[2] - bounds.minZ) / cellSize);
+    let added = false;
+    for (let dr = -2; dr <= 2 && !added; dr++) {
+      for (let dc = -2; dc <= 2 && !added; dc++) {
+        const r = sr + dr;
+        const c = sc + dc;
+        if (r >= 0 && r < rows && c >= 0 && c < cols && r % 4 === 0 && c % 4 === 0) {
+          const tx = bounds.minX + (c + 0.5) * cellSize + 0.6;
+          const tz = bounds.minZ + (r + 0.5) * cellSize + 0.6;
+          props.push({
+            kind: "prop-traffic-light",
+            position: [tx, 0.17, tz],
+            rotationY: 0,
+            scale: [0.9, 0.9, 0.9],
+          });
+          added = true;
+        }
+      }
+    }
+  }
+
+  // 7. Build road graph and road tile instances (§10.2)
+  const roadGraph = buildRoadGraph({
+    bounds,
+    cellSize,
+    rows,
+    cols,
+    cells,
+    stations,
+  });
+
+  const roads: PlacedInstance[] = roadGraph.roadCells.map((rc) => ({
+    kind: rc.tile,
+    position: rc.position,
+    rotationY: rc.rotationY,
+    scale: [cellSize, 1, cellSize],
+  }));
+
   return {
     bounds,
     promenadeZ,
@@ -704,6 +751,8 @@ export function planCity(options: PlanCityOptions): CityPlan {
     buildings,
     trees,
     props,
+    roads,
+    roadGraph,
     roadSegments,
   };
 }
