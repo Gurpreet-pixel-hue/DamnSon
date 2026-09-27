@@ -199,10 +199,10 @@ export function LabelLayer({
             }}
             className={`pointer-events-auto absolute left-0 top-0 flex flex-col items-center cursor-pointer select-none focus-visible:outline-none transition-transform ${
               isFocused
-                ? "scale-110 z-30"
+                ? "scale-110 z-15"
                 : isHovered
-                ? "scale-105 z-25"
-                : "z-15"
+                ? "scale-105 z-10"
+                : "z-5"
             }`}
           >
             {/* 28 px state-coloured icon circle */}
@@ -249,6 +249,8 @@ export function LabelLayer({
               if (slotsRef.current) slotsRef.current[idx] = el;
             }}
             type="button"
+            data-mode="full"
+            title={station.title}
             aria-label={`${station.title}, ${stateLabel}`}
             onClick={() => {
               useTaskStore.getState().selectStep(station.id);
@@ -266,20 +268,20 @@ export function LabelLayer({
               visibility: "hidden", // LabelProjector toggles visibility and transform
               willChange: "transform",
             }}
-            className={`pointer-events-auto absolute left-0 top-0 flex items-center gap-2.5 px-3 py-2 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left max-w-[260px] focus-visible:outline-none ${
+            className={`group pointer-events-auto absolute left-0 top-0 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] border bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer select-none text-left max-w-[260px] data-[mode=compact]:max-w-[180px] data-[mode=compact]:py-1 data-[mode=compact]:px-2 focus-visible:outline-none ${
               isFocused
                 ? "border-[#8A4A0A] ring-2 ring-[#8A4A0A]/30 z-30 scale-105"
                 : isHovered
-                ? "border-[#8A4A0A]/50 z-20 scale-[1.02]"
-                : "border-[#E6DDC8] z-10"
+                ? "border-[#8A4A0A]/50 z-25 scale-[1.02]"
+                : "border-[#E6DDC8] z-20"
             }`}
           >
             {renderStateIcon(station)}
             <div className="flex flex-col min-w-0 pr-1">
-              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight line-clamp-2 break-words">
+              <span className="text-[13px] font-semibold text-[#1F242E] leading-tight line-clamp-2 break-words group-data-[mode=compact]:line-clamp-1 group-data-[mode=compact]:truncate group-data-[mode=compact]:max-w-[120px]">
                 {station.title}
               </span>
-              <span className="text-[11px] text-[#697586] leading-tight truncate">
+              <span className="text-[11px] text-[#697586] leading-tight truncate group-data-[mode=compact]:hidden">
                 {formatMode(station.mode)}
               </span>
             </div>

@@ -4,7 +4,12 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM, StationVM } from "@/lib/graph/viewModel";
-import { MAX_LABEL_SLOTS } from "./selectLabels";
+import {
+  MAX_LABEL_SLOTS,
+  resolveLabelCollisions,
+  type ProjectedStationPoint,
+  type ScreenRect,
+} from "./selectLabels";
 import { deriveStageHeaders } from "../StageHeaders";
 
 export interface LabelProjectorProps {
@@ -108,7 +113,7 @@ export function LabelProjector({
     const count = stations.length;
     const placedBoxes: { minX: number; maxX: number; minY: number; maxY: number }[] = [];
 
-    // Stage headers stay on the board's back-edge row and never overlap cards (cull the card on collision, not the header per E7)
+    const headerBoxes: ScreenRect[] = [];
     for (const h of headers) {
       scratchVec.set(h.x, 0.57, h.z);
       scratchCamToStation.subVectors(scratchVec, scratchCamPos);
@@ -118,7 +123,7 @@ export function LabelProjector({
       const hScreenX = scratchVec.x * halfW + halfW;
       const hScreenY = -scratchVec.y * halfH + halfH;
 
-      placedBoxes.push({
+      headerBoxes.push({
         minX: hScreenX - 70,
         maxX: hScreenX + 70,
         minY: hScreenY - 16,
@@ -126,7 +131,88 @@ export function LabelProjector({
       });
     }
 
-    // 1. Project Pins (F3: always visible for every station, never culled)
+    // Project station points (both card anchor at +2.6 and pin anchor at +0.8)
+    const projectedMap = new Map<string, ProjectedStationPoint>();
+    for (const station of metro.stations) {
+      // 1. Card anchor projection
+      scratchVec.set(
+        station.position3D[0],
+        station.position3D[1] + 2.6,
+        station.position3D[2]
+      );
+      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
+      if (scratchCamToStation.dot(scratchCamForward) <= 0) continue;
+
+      scratchVec.project(camera);
+      const cardX = scratchVec.x * halfW + halfW;
+      const cardY = -scratchVec.y * halfH + halfH;
+
+      // 2. Pin anchor projection
+      scratchVec.set(
+        station.position3D[0],
+        station.position3D[1] + 0.8,
+        station.position3D[2]
+      );
+      scratchVec.project(camera);
+      const pinX = scratchVec.x * halfW + halfW;
+      const pinY = -scratchVec.y * halfH + halfH;
+
+      if (
+        cardX >= -40 &&
+        cardX <= size.width + 40 &&
+        cardY >= -40 &&
+        cardY <= size.height + 40
+      ) {
+        projectedMap.set(station.id, {
+          id: station.id,
+          title: station.title,
+          lane: station.lane,
+          layer: station.layer,
+          x: cardX,
+          y: cardY,
+          pinX,
+          pinY,
+        });
+      }
+    }
+
+    // Single unified pure collision pass (G1 & G5)
+    const placements = resolveLabelCollisions({
+      stations,
+      projectedPoints: projectedMap,
+      stageHeaders: headerBoxes,
+      viewport: size,
+    });
+
+    // 1. Update Cards
+    for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
+      const el = slots[i];
+      if (!el) continue;
+
+      if (i >= count) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+
+      const station = stations[i];
+      if (!station) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+
+      const pl = placements.get(station.id);
+      const pt = projectedMap.get(station.id);
+
+      if (pl && pt && (pl.mode === "full" || pl.mode === "compact")) {
+        el.dataset.mode = pl.mode;
+        el.style.transform = `translate3d(${Math.round(pt.x)}px, ${Math.round(pt.y + pl.yOff)}px, 0) translate(-50%, -50%)`;
+        el.style.visibility = "visible";
+      } else {
+        el.style.visibility = "hidden";
+      }
+    }
+
+    // 2. Update Pins (pins are shown only for stations without a card; pins intersecting cards are hidden)
     if (pinSlots) {
       const stationCount = metro.stations.length;
       for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
@@ -144,112 +230,18 @@ export function LabelProjector({
           continue;
         }
 
-        scratchVec.set(
-          station.position3D[0],
-          station.position3D[1] + 0.8,
-          station.position3D[2]
-        );
+        const pl = placements.get(station.id);
+        const pt = projectedMap.get(station.id);
 
-        scratchCamToStation.subVectors(scratchVec, scratchCamPos);
-        if (scratchCamToStation.dot(scratchCamForward) <= 0) {
+        if (pl && pt && pl.mode === "pin") {
+          const px = pt.pinX ?? pt.x;
+          const py = pt.pinY ?? pt.y;
+          pinEl.style.transform = `translate3d(${Math.round(px)}px, ${Math.round(py)}px, 0) translate(-50%, -100%)`;
+          pinEl.style.visibility = "visible";
+        } else {
           pinEl.style.visibility = "hidden";
-          continue;
-        }
-
-        scratchVec.project(camera);
-        const screenX = scratchVec.x * halfW + halfW;
-        const screenY = -scratchVec.y * halfH + halfH;
-
-        if (
-          screenX < -40 ||
-          screenX > size.width + 40 ||
-          screenY < -40 ||
-          screenY > size.height + 40
-        ) {
-          pinEl.style.visibility = "hidden";
-          continue;
-        }
-
-        pinEl.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -100%)`;
-        pinEl.style.visibility = "visible";
-      }
-    }
-
-    // 2. Project Cards (greedy collision culling against stage headers and cards)
-    for (let i = 0; i < MAX_LABEL_SLOTS; i++) {
-      const el = slots[i];
-      if (!el) continue;
-
-      if (i >= count) {
-        el.style.visibility = "hidden";
-        continue;
-      }
-
-      const station = stations[i];
-      if (!station) {
-        el.style.visibility = "hidden";
-        continue;
-      }
-
-      scratchVec.set(
-        station.position3D[0],
-        station.position3D[1] + 2.6,
-        station.position3D[2]
-      );
-
-      // Check if station is behind camera plane
-      scratchCamToStation.subVectors(scratchVec, scratchCamPos);
-      if (scratchCamToStation.dot(scratchCamForward) <= 0) {
-        el.style.visibility = "hidden";
-        continue;
-      }
-
-      // Project into NDC (-1 to 1)
-      scratchVec.project(camera);
-
-      // Screen space pixels
-      const screenX = scratchVec.x * halfW + halfW;
-      const screenY = -scratchVec.y * halfH + halfH;
-
-      // Hide if more than 40px outside viewport
-      if (
-        screenX < -40 ||
-        screenX > size.width + 40 ||
-        screenY < -40 ||
-        screenY > size.height + 40
-      ) {
-        el.style.visibility = "hidden";
-        continue;
-      }
-
-      // Greedy collision culling always runs (E7: cards up to 260px wide)
-      const box = {
-        minX: screenX - 130,
-        maxX: screenX + 130,
-        minY: screenY - 28,
-        maxY: screenY + 28,
-      };
-      let collides = false;
-      for (const placed of placedBoxes) {
-        if (
-          box.minX < placed.maxX + 6 &&
-          box.maxX > placed.minX - 6 &&
-          box.minY < placed.maxY + 6 &&
-          box.maxY > placed.minY - 6
-        ) {
-          collides = true;
-          break;
         }
       }
-      if (collides) {
-        el.style.visibility = "hidden";
-        continue;
-      }
-      placedBoxes.push(box);
-
-      // Write transform BEFORE setting visibility to visible
-      el.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -50%)`;
-      el.style.visibility = "visible";
     }
   });
 
