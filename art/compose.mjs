@@ -674,6 +674,8 @@ async function main() {
     const depth = +(maxZ - minZ).toFixed(2);
     const tier = b.tier || (height <= 2.4 ? "low" : height <= 3.6 ? "mid" : "tall");
     const footprint = (width <= 1.75 && depth <= 1.75) ? "1x1" : "2x2";
+    const indices = joined.getIndices();
+    const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
 
     cityKindsMetadata.push({
       name: b.name,
@@ -682,6 +684,7 @@ async function main() {
       width,
       height,
       depth,
+      triangles,
     });
   }
 
@@ -742,6 +745,8 @@ async function main() {
     const width = +(maxX - minX).toFixed(2);
     const height = +(maxY - minY).toFixed(2);
     const depth = +(maxZ - minZ).toFixed(2);
+    const indices = joined.getIndices();
+    const triangles = indices ? Math.floor(indices.getCount() / 3) : Math.floor(posArr.length / 9);
 
     cityKindsMetadata.push({
       name: p.name,
@@ -750,6 +755,7 @@ async function main() {
       width,
       height,
       depth,
+      triangles,
     });
   }
 
@@ -782,12 +788,17 @@ export interface CityKindInfo {
   width: number;
   height: number;
   depth: number;
+  triangles: number;
 }
 
 export const CITY_KINDS: readonly CityKindInfo[] = ${JSON.stringify(cityKindsMetadata, null, 2)} as const;
 
 export const CITY_KINDS_BY_NAME: Record<string, CityKindInfo> = Object.fromEntries(
   CITY_KINDS.map((k) => [k.name, k])
+);
+
+export const TRIANGLES_BY_KIND: Record<string, number> = Object.fromEntries(
+  CITY_KINDS.map((k) => [k.name, k.triangles])
 );
 
 export function getCityKind(name: string): CityKindInfo | undefined {

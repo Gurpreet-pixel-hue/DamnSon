@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { deriveStageHeaders, MAX_HEADER_SLOTS } from "./StageHeaders";
+import { SAFE_INSETS } from "./labels/selectLabels";
 
 export interface StageHeaderProjectorProps {
   metro: MetroVM;
@@ -102,11 +103,11 @@ export function StageHeaderProjector({
         continue;
       }
 
-      // Safe area clamping (H2): left/right 24 px, top 88 px, bottom 110 px
-      const safeMinX = 24;
-      const safeMaxX = size.width - 24;
-      const safeMinY = 88;
-      const safeMaxY = size.height - 110;
+      // Safe area clamping (H2 & P11): left/right 16 px, top 56 px, bottom 52 px
+      const safeMinX = SAFE_INSETS.left;
+      const safeMaxX = size.width - SAFE_INSETS.right;
+      const safeMinY = SAFE_INSETS.top;
+      const safeMaxY = size.height - SAFE_INSETS.bottom;
 
       // Header width is ~140 px (half width 70), height ~32 px (half height 16)
       const clampedX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, screenX));

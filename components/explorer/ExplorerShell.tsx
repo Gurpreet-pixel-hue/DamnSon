@@ -4,8 +4,13 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
-import type { JourneyBundle } from "@/app/loadJourney";
+import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
 import { useViewStore } from "@/lib/store/useViewStore";
+
+export interface JourneyBundle {
+  template: JourneyTemplate;
+  modules: ApprovalModule[];
+}
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { SearchBar } from "@/components/hud/SearchBar";
 import { ViewModeToggle } from "@/components/hud/ViewModeToggle";

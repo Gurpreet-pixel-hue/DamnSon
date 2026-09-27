@@ -9,6 +9,8 @@ import {
   encodeShareState,
   decodeShareState,
   sanitizeShareState,
+  areShareStatesEqual,
+  isLocalStateEmpty,
   type ShareState,
 } from "./shareState";
 
@@ -105,4 +107,50 @@ describe("shareState on contract v3", () => {
       "ex-incorporation.file",
     ]);
   });
+
+  describe("areShareStatesEqual & isLocalStateEmpty (P4)", () => {
+    it("returns true when facts and completed arrays have same items regardless of key order", () => {
+      const stateA: ShareState = {
+        taskId: "task-1",
+        facts: { "business.sector": "it_saas", "company.founders_count": 2 },
+        completed: ["step-b", "step-a"],
+      };
+      const stateB: ShareState = {
+        taskId: "task-1",
+        facts: { "company.founders_count": 2, "business.sector": "it_saas" },
+        completed: ["step-a", "step-b"],
+      };
+
+      expect(areShareStatesEqual(stateA, stateB)).toBe(true);
+    });
+
+    it("returns false when facts or completed items differ", () => {
+      const stateA: ShareState = {
+        taskId: "task-1",
+        facts: { "business.sector": "it_saas" },
+        completed: ["step-a"],
+      };
+      const stateB: ShareState = {
+        taskId: "task-1",
+        facts: { "business.sector": "other" },
+        completed: ["step-a"],
+      };
+      const stateC: ShareState = {
+        taskId: "task-1",
+        facts: { "business.sector": "it_saas" },
+        completed: ["step-b"],
+      };
+
+      expect(areShareStatesEqual(stateA, stateB)).toBe(false);
+      expect(areShareStatesEqual(stateA, stateC)).toBe(false);
+    });
+
+    it("identifies empty local state correctly", () => {
+      expect(isLocalStateEmpty({ facts: {}, completed: [] })).toBe(true);
+      expect(isLocalStateEmpty({})).toBe(true);
+      expect(isLocalStateEmpty({ facts: { "business.sector": "it_saas" } })).toBe(false);
+      expect(isLocalStateEmpty({ completed: ["step-1"] })).toBe(false);
+    });
+  });
 });
+
