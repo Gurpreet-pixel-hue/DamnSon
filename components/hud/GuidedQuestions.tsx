@@ -37,18 +37,26 @@ export function GuidedQuestions({
   const current = pending[0];
 
   if (!current) {
+    const isZeroQuestions = journey.questions.length === 0;
+    const hasFacts = Object.keys(journey.facts).length > 0;
+    const isSameForEveryone = isZeroQuestions && !hasFacts;
+
     return (
       <div
         className={`flex flex-col gap-3 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-4 shadow-xs ${className}`}
         data-testid="guided-questions-done"
       >
         <p className="text-sm font-semibold text-[var(--cw-text)]">
-          {journey.questions.length === 0
+          {isSameForEveryone
+            ? "Same for everyone"
+            : isZeroQuestions
             ? "Your map is fully personalised."
             : "You skipped the remaining questions."}
         </p>
         <p className="text-xs text-[var(--cw-text-muted)] leading-relaxed">
-          {journey.questions.length === 0
+          {isSameForEveryone
+            ? "This procedure has no conditional questions. Every step applies to all applicants in this jurisdiction."
+            : isZeroQuestions
             ? "Every question that changes your journey has an answer."
             : `${journey.questions.length} question${
                 journey.questions.length === 1 ? "" : "s"
