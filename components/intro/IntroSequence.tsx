@@ -52,9 +52,12 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
   }, [onComplete]);
 
   useEffect(() => {
-    // Check session storage
+    // Check session storage or skipIntro query param
     try {
-      if (sessionStorage.getItem(STORAGE_KEY) === "1") {
+      if (
+        sessionStorage.getItem(STORAGE_KEY) === "1" ||
+        new URLSearchParams(window.location.search).get("skipIntro") === "1"
+      ) {
         onComplete();
         return;
       }

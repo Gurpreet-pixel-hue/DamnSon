@@ -284,10 +284,11 @@ export function LandingSearch({
           </h2>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form action="javascript:void(0)" onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div className="relative flex items-center">
             <input
               type="text"
+              data-testid="landing-search-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -297,6 +298,7 @@ export function LandingSearch({
             <div className="absolute right-2.5 flex items-center gap-2">
               <button
                 type="submit"
+                data-testid="landing-search-btn"
                 disabled={isSearching || !query.trim()}
                 className="min-h-[46px] px-5 rounded-xl bg-[var(--cw-brand)] text-white text-sm font-semibold hover:bg-[var(--cw-brand)]/90 disabled:opacity-50 transition-all shadow-xs flex items-center gap-1.5"
               >
@@ -355,7 +357,10 @@ export function LandingSearch({
 
         {/* Lexical fallback notice (PRD §6.6) */}
         {searchResult && searchResult.mode === "lexical_fallback" && (
-          <div className="p-3 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface-muted)] text-xs text-[var(--cw-text-muted)] flex items-center gap-2">
+          <div
+            data-testid="search-mode-indicator"
+            className="p-3 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface-muted)] text-xs text-[var(--cw-text-muted)] flex items-center gap-2"
+          >
             <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
             <span>Smart reading is offline; matched by keywords (PRD §6.6).</span>
           </div>
@@ -474,7 +479,7 @@ export function LandingSearch({
               <span className="text-[11px] text-amber-700 font-medium">Nothing applied until confirmed</span>
             </div>
 
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-2.5" data-testid="suggested-facts-row">
               {suggestedFacts.map((s) => {
                 const label = FACTS[s.fact]?.label || s.fact;
                 const displayVal = formatFactValue(s.fact, s.value);
@@ -483,6 +488,7 @@ export function LandingSearch({
                 return (
                   <div
                     key={s.fact}
+                    data-testid={`suggested-chip-${s.fact}`}
                     className="flex items-center gap-2 p-2 rounded-xl bg-white border border-amber-200 text-xs shadow-xs"
                   >
                     <div className="flex flex-col">
@@ -510,6 +516,7 @@ export function LandingSearch({
                     <div className="flex items-center gap-1 pl-2 border-l border-amber-100">
                       <button
                         type="button"
+                        data-testid={`confirm-fact-${s.fact}`}
                         onClick={() => handleConfirmSuggestion(s)}
                         className="px-2 py-1 rounded bg-[var(--cw-done)] text-white text-[11px] font-semibold hover:bg-[var(--cw-done)]/90 transition-colors cursor-pointer"
                         title="Confirm this fact"
@@ -604,6 +611,7 @@ export function LandingSearch({
             <div className="pt-2 flex justify-end">
               <button
                 type="button"
+                data-testid="map-my-route-btn"
                 onClick={handleMapRoute}
                 className="min-h-[50px] px-8 rounded-xl bg-[var(--cw-brand)] text-white text-sm font-semibold hover:bg-[var(--cw-brand)]/90 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >

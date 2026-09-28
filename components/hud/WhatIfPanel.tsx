@@ -29,7 +29,7 @@ export function WhatIfPanel({
   const answered = template.questions.filter((q) => facts[q.fact] !== undefined);
 
   return (
-    <div className={`flex flex-col gap-5 ${className}`} data-testid="what-if">
+    <div className={`flex flex-col gap-5 ${className}`} data-testid="what-if-panel">
       <div className="flex items-center justify-between border-b border-[var(--cw-border)]/50 pb-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--cw-text)]">
           What if…

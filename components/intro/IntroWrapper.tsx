@@ -13,5 +13,9 @@ export function IntroWrapper() {
 
   if (!showIntro) return null;
 
-  return <IntroSequence onComplete={() => setShowIntro(false)} />;
+  return (
+    <React.Suspense fallback={null}>
+      <IntroSequence onComplete={() => setShowIntro(false)} />
+    </React.Suspense>
+  );
 }

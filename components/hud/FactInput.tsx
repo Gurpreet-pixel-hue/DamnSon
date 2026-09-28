@@ -45,6 +45,8 @@ export function FactInput({
             type="button"
             role="radio"
             aria-checked={value === v}
+            data-testid={value !== v ? `what-if-toggle-${fact}` : `what-if-current-${fact}`}
+            data-value={String(v)}
             className={`${chip} ${value === v ? chipOn : chipOff}`}
             onClick={() => onChange(v)}
           >

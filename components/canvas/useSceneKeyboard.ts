@@ -29,13 +29,13 @@ export function useSceneKeyboard(metro: MetroVM, journey?: ComposedJourney | nul
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // Ignore keys while focus is in inputs, textareas, selects, contentEditable, or drawer scrollable areas (§12.1)
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof Element ? e.target : null;
       if (
         target &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           target.tagName === "SELECT" ||
-          target.isContentEditable ||
+          (target as HTMLElement).isContentEditable ||
           target.closest('[data-drawer-scroll="true"]') ||
           target.closest('[data-testid="drawer-content"]'))
       ) {

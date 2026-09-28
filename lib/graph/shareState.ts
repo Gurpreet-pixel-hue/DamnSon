@@ -10,18 +10,21 @@ export interface ShareState {
 }
 
 function toBase64Url(str: string): string {
+  let b64: string;
   if (typeof Buffer !== "undefined") {
-    return Buffer.from(str, "utf8").toString("base64url");
+    b64 = Buffer.from(str, "utf8").toString("base64");
+  } else {
+    b64 = btoa(unescape(encodeURIComponent(str)));
   }
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function fromBase64Url(b64url: string): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(b64url, "base64url").toString("utf8");
-  }
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "==".slice(0, (4 - (b64url.length % 4)) % 4);
-  return atob(b64);
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(b64, "base64").toString("utf8");
+  }
+  return decodeURIComponent(escape(atob(b64)));
 }
 
 export function encodeShareState(s: ShareState): string {
