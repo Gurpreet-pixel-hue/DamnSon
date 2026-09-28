@@ -437,7 +437,7 @@ export function LandingSearch({
               className="p-3 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface-muted)] text-xs text-[var(--cw-text-muted)] flex items-center gap-2"
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-              <span>Smart reading is offline, so we matched your words by keywords.</span>
+              <span>Matched by the words you typed. Check the suggestions below.</span>
             </div>
           )}
 
