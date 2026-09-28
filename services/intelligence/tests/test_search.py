@@ -76,7 +76,7 @@ def test_golden_search(monkeypatch: pytest.MonkeyPatch) -> None:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
     token = f"Bearer {exp_str}.{sig}"
 
     golden_path = Path(__file__).parent / "golden_search.jsonl"
@@ -128,7 +128,7 @@ def test_search_timeout_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
     token = f"Bearer {exp_str}.{sig}"
 
     start = time.time()
@@ -139,6 +139,7 @@ def test_search_timeout_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     assert duration < 5.0, f"Search took {duration}s, should be < 5.0s"
     data = resp.json()
     assert "matches" in data
+
 
 def test_search_hallucinated_location(monkeypatch: pytest.MonkeyPatch) -> None:
     import hashlib
@@ -157,7 +158,7 @@ def test_search_hallucinated_location(monkeypatch: pytest.MonkeyPatch) -> None:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
     token = f"Bearer {exp_str}.{sig}"
     resp = client.post("/v1/search", json={"query": "Test query with no location", "locale": "en"}, headers={"Authorization": token})
     assert resp.status_code == 200

@@ -19,13 +19,15 @@ def search_chunks(
         return []
 
     # 1. Embed query
-    vectors = embed_texts([query_text])
-    if not vectors:
-        return []
-    vector = vectors[0]
-
-    # Convert python list to postgres array syntax for vector
-    vector_str = f"[{','.join(str(x) for x in vector)}]"
+    vector_str = None
+    try:
+        vectors = embed_texts([query_text], task_type="RETRIEVAL_QUERY")
+        if vectors and vectors[0]:
+            vector = vectors[0]
+            vector_str = f"[{','.join(str(x) for x in vector)}]"
+    except Exception as e:
+        print(f"Embedding generation failed: {e}")
+        # Continue with vector_str = None (lexical fallback)
 
     # 2. Call Postgres function
     results = []

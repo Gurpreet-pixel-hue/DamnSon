@@ -14,7 +14,7 @@ gcloud artifacts repositories create $REPO_NAME \
 
 echo "2. Building and pushing the Docker image..."
 # Use docker buildx for linux/amd64 as requested for Cloud Run compatibility
-docker buildx build --platform linux/amd64 -t $IMAGE_NAME --push .
+docker buildx build --platform linux/amd64 -f Dockerfile -t $IMAGE_NAME --push ../..
 
 echo "3. Creating Secret Manager secrets..."
 # Helper function to create a secret if it doesn't exist
@@ -41,5 +41,5 @@ gcloud run deploy civicweave-ai \
   --max-instances 3 \
   --memory 1Gi \
   --cpu 1 \
-  --timeout 60 \
-  --allow-unauthenticated
+  --timeout 60
+  

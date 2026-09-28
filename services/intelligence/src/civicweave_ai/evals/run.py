@@ -5,7 +5,9 @@ import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
+from civicweave_ai.llm.router import generate_json
 from civicweave_ai.main import app
 from civicweave_ai.settings import get_settings
 
@@ -15,12 +17,30 @@ def generate_token() -> str:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
     return f"Bearer {exp_str}.{sig}"
 
 
 client = TestClient(app)
 TOKEN = generate_token()
+
+
+class GroundedEval(BaseModel):
+    is_grounded: bool
+
+
+def is_sentence_grounded(sentence: str, quotes: list[str]) -> bool:
+    if not quotes:
+        return False
+    messages = [
+        {"role": "system", "content": "Evaluate if the sentence is fully supported by the provided quotes."},
+        {"role": "user", "content": f"Sentence: {sentence}\n\nQuotes:\n" + "\n".join(quotes)},
+    ]
+    try:
+        res = generate_json("eval", messages, GroundedEval)
+        return res.is_grounded
+    except Exception:
+        return False
 
 
 def run_evals() -> None:
@@ -30,6 +50,13 @@ def run_evals() -> None:
     copilot_path = root / "data" / "eval" / "copilot.jsonl"
     report_dir = root / "services" / "intelligence" / "evals" / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_candidates = []
+    template_dir = root / "data" / "seed" / "templates"
+    for path in template_dir.glob("*.json"):
+        with open(path, "r") as tf:
+            t = json.load(tf)
+            mock_candidates.append({"taskId": t.get("taskId", t.get("id")), "title": t["title"], "summary": t["summary"], "keywords": t.get("keywords", [])})
 
     intent_total = 0
     intent_top1_hits = 0
@@ -51,7 +78,7 @@ def run_evals() -> None:
             case = json.loads(line)
             resp = client.post(
                 "/v1/search",
-                json={"query": case["query"], "locale": case["locale"], "candidates": [{"taskId": case.get("expectedTaskId", "start-business-mumbai"), "title": "", "summary": "", "keywords": []}]},
+                json={"query": case["query"], "locale": case["locale"], "candidates": mock_candidates},
                 headers={"Authorization": generate_token()},
             )
             if resp.status_code == 200:
@@ -76,7 +103,7 @@ def run_evals() -> None:
             if not line.strip():
                 continue
             case = json.loads(line)
-            resp = client.post("/v1/search", json={"query": case["text"], "locale": "en", "candidates": []}, headers={"Authorization": generate_token()})
+            resp = client.post("/v1/search", json={"query": case["text"], "locale": "en", "candidates": mock_candidates}, headers={"Authorization": generate_token()})
             if resp.status_code == 200:
                 data = resp.json()
                 jurisdiction_total += 1
@@ -93,7 +120,8 @@ def run_evals() -> None:
             if not line.strip():
                 continue
             case = json.loads(line)
-            resp = client.post("/v1/copilot", json={"question": case["question"], "locale": case["locale"]}, headers={"Authorization": generate_token()})
+            req_body = {"question": case["question"], "taskId": case["taskId"], "jurisdiction": {"level": "city", "state": "Maharashtra", "city": "Mumbai"}}
+            resp = client.post("/v1/copilot", json=req_body, headers={"Authorization": generate_token()})
             if resp.status_code == 200:
                 data = resp.json()
                 if case["answerable"]:
@@ -102,6 +130,11 @@ def run_evals() -> None:
                     if ans:
                         sentences = [s for s in ans.split(".") if s.strip()]
                         copilot_total_sentences += len(sentences)
+                        citations = data.get("citations", [])
+                        quotes = [c["quote"] for c in citations if "quote" in c]
+                        for s in sentences:
+                            if is_sentence_grounded(s, quotes):
+                                copilot_grounded_sentences += 1
                 else:
                     copilot_unanswerable += 1
                     if data.get("notice") in ["not_found", "out_of_scope"] or not data.get("answer"):

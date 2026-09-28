@@ -72,8 +72,15 @@ def get_available_provider() -> str:
 
 
 def generate_json(task: str, messages: list[dict[str, str]], schema: Type[T]) -> T:
+    from civicweave_ai.guards.pii import redact
+
     settings = get_settings()
     policy = _load_policy()
+
+    # Redact PII from all messages
+    redacted_messages = []
+    for msg in messages:
+        redacted_messages.append({"role": msg["role"], "content": redact(msg["content"])})
 
     profile = settings.cw_model_profile
     order = cast(list[str], policy.get("profiles", {}).get(profile, ["gemini", "groq"]))
@@ -88,11 +95,11 @@ def generate_json(task: str, messages: list[dict[str, str]], schema: Type[T]) ->
         try:
             result_text = ""
             if provider_name == "gemini":
-                result_text = gemini.call(messages, schema, settings.gemini_fast_model, temperature, timeout)
+                result_text = gemini.call(redacted_messages, schema, settings.gemini_fast_model, temperature, timeout)
             elif provider_name == "groq":
-                result_text = groq.call(messages, schema, settings.groq_fast_model, temperature, timeout)
+                result_text = groq.call(redacted_messages, schema, settings.groq_fast_model, temperature, timeout)
             elif provider_name == "local":
-                result_text = local.call(messages, schema, settings.local_fast_model, temperature, timeout)
+                result_text = local.call(redacted_messages, schema, settings.local_fast_model, temperature, timeout)
 
             if result_text:
                 breaker.record_success()

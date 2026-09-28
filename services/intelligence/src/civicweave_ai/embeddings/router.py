@@ -3,7 +3,7 @@ from google import genai
 from civicweave_ai.settings import get_settings
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT") -> list[list[float]]:
     if not texts:
         return []
     settings = get_settings()
@@ -11,7 +11,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     result = client.models.embed_content(
         model=settings.gemini_embed_model,
         contents=texts,
-        config={"output_dimensionality": settings.embed_dim},
+        config={"output_dimensionality": settings.embed_dim, "task_type": task_type},
     )
     if not result.embeddings:
         return []

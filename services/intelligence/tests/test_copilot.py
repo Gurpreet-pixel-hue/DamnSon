@@ -18,7 +18,7 @@ def get_auth_headers() -> dict[str, str]:
     now = int(time.time())
     secret = settings.internal_service_secret
     exp_str = str(now + 60)
-    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
     return {"Authorization": f"Bearer {exp_str}.{sig}"}
 
 
@@ -31,17 +31,18 @@ def test_copilot_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [
             {
                 "chunk_id": "chunk-1",
                 "source_title": "Test Title",
                 "source_url": "https://test.gov.in/page",
                 "chunk_text": "This is a test chunk containing exact words.",
+                "is_official": True,
             }
         ]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="rewritten query")
 
@@ -67,10 +68,10 @@ def test_copilot_not_found_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import RewriteResponse
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return []
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         return RewriteResponse(rewritten_query="rewritten query")
 
     monkeypatch.setattr(civicweave_ai.api.copilot, "search_chunks", mock_search_chunks)
@@ -89,14 +90,14 @@ def test_copilot_retry_scope(monkeypatch: pytest.MonkeyPatch) -> None:
 
     search_calls: list[list[str] | None] = []
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         search_calls.append(scope)
         if scope is not None:
             return []  # First call with scope returns empty
         # Retry without scope returns items
         return [{"chunk_id": "chunk-1", "source_title": "Title", "source_url": "http://x", "chunk_text": "text"}]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         return CopilotLLMResponse(answer="x", citations=[LLMCitation(chunkId="chunk-1", quote="text")])
@@ -120,12 +121,12 @@ def test_copilot_validation_repair(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [{"chunk_id": "chunk-1", "source_title": "Title", "source_url": "http://x", "chunk_text": "Valid quote."}]
 
     call_count = [0]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         call_count[0] += 1
@@ -152,12 +153,12 @@ def test_copilot_validation_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import CopilotLLMResponse, LLMCitation, RewriteResponse
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [{"chunk_id": "chunk-1", "source_title": "Title", "source_url": "http://x", "chunk_text": "Valid quote."}]
 
     call_count = [0]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         call_count[0] += 1
@@ -178,10 +179,10 @@ def test_copilot_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
     from civicweave_ai.api.copilot import RewriteResponse
     from civicweave_ai.llm.exceptions import NoProviderAvailable
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [{"chunk_id": "chunk-1", "source_title": "Title", "source_url": "http://x", "chunk_text": "Valid text."}]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         raise NoProviderAvailable("Test fallback")
@@ -203,7 +204,7 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
     from civicweave_ai.api.copilot import CopilotLLMResponse, RewriteResponse
 
     # Provide 5 adversarial injected chunks
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [
             {
                 "chunk_id": "inj-1",
@@ -237,7 +238,7 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         ]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
 
@@ -254,7 +255,8 @@ def test_copilot_injection(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = client.post("/v1/copilot", json={"question": "Test?"}, headers=get_auth_headers())
     assert resp.status_code == 200
     data = resp.json()
-    assert "hacked" not in data["answer"].lower()
+    ans = data.get("answer", "") or ""
+    assert "hacked" not in ans.lower()
     assert len(data["citations"]) == 0
 
 
@@ -263,10 +265,10 @@ def test_copilot_deadline_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
     import civicweave_ai.api.copilot
     from civicweave_ai.api.copilot import RewriteResponse
 
-    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, str]]:
+    def mock_search_chunks(q: str, state: str | None, city: str | None, scope: list[str] | None, limit: int) -> list[dict[str, Any]]:
         return [{"chunk_id": "chunk-1", "source_title": "T", "source_url": "http://x", "chunk_text": "some text"}]
 
-    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Any:
+    def mock_generate_json(task: str, messages: list[dict[str, Any]], schema: type) -> Any:
         if schema == RewriteResponse:
             return RewriteResponse(rewritten_query="x")
         # Simulate slow LLM — this won't actually run because to_thread is mocked

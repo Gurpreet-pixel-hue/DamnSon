@@ -24,12 +24,12 @@ print(f"--- Curling {base_url}/v1/search ---")
 now = int(time.time())
 secret = settings.internal_service_secret
 exp_str = str(now + 60)
-sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest()
 token = f"Bearer {exp_str}.{sig}"
 
 payload = {
     "query": "I want to start a SaaS company in Mumbai",
-    "locale": "en-IN",
+    "locale": "en",
     "candidates": []
 }
 

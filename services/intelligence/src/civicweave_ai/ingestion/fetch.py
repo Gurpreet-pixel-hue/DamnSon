@@ -25,9 +25,20 @@ def _can_fetch(url: str, user_agent: str) -> bool:
                 resp = client.get(robots_url, timeout=5.0)
                 if resp.status_code == 200:
                     rp.parse(resp.text.splitlines())
-        except Exception:
-            pass
-        _robot_parsers[host] = rp
+                    _robot_parsers[host] = rp
+                elif resp.status_code == 404:
+                    # 404 means allowed (no robots.txt = crawl freely)
+                    _robot_parsers[host] = rp
+                elif resp.status_code in (401, 403):
+                    # 401/403 means disallowed
+                    rp.parse(["User-agent: *", "Disallow: /"])
+                    _robot_parsers[host] = rp
+                else:
+                    # Other status codes are temporary errors
+                    raise ValueError(f"Temporary error fetching robots.txt: {resp.status_code}")
+        except httpx.RequestError as e:
+            # Network error = retry later (temporary), do not cache
+            raise ValueError(f"Network error fetching robots.txt: {e}") from e
 
     # If the site doesn't have a robots.txt or didn't explicitly disallow, it returns True
     return _robot_parsers[host].can_fetch(user_agent, url)

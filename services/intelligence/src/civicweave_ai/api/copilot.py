@@ -105,7 +105,7 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     # 1. PII Redaction
     redacted_q = redact(req.question)
 
-    # 2. Query Rewrite (uses the extract task timeout from policy.yaml)
+    # 2. Query Rewrite (uses the search task timeout from policy.yaml)
     try:
         rewrite_messages = [
             {
@@ -120,9 +120,12 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
             },
             {"role": "user", "content": redacted_q},
         ]
-        rewrite_res = generate_json("search", rewrite_messages, RewriteResponse)
+        rewrite_res = await asyncio.wait_for(
+            asyncio.to_thread(generate_json, "search", rewrite_messages, RewriteResponse),
+            timeout=min(4.0, budget_remaining()),
+        )
         query_for_search = rewrite_res.rewritten_query
-    except NoProviderAvailable:
+    except (asyncio.TimeoutError, NoProviderAvailable):
         query_for_search = redacted_q
 
     # 3. Retrieval & Scope Retry — must finish within 3s
@@ -131,14 +134,16 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
     scope = req.scopeUrls if req.scopeUrls else None
 
     try:
+        ret_timeout = min(_RETRIEVAL_DEADLINE, budget_remaining())
         chunks = await asyncio.wait_for(
             asyncio.to_thread(search_chunks, query_for_search, state, city, scope, 20),
-            timeout=_RETRIEVAL_DEADLINE,
+            timeout=max(0.1, ret_timeout),
         )
         if len(chunks) < 3 and scope is not None and len(scope) > 0:
+            retry_timeout = min(_RETRIEVAL_DEADLINE, budget_remaining())
             chunks = await asyncio.wait_for(
                 asyncio.to_thread(search_chunks, query_for_search, state, city, None, 20),
-                timeout=max(0.1, _RETRIEVAL_DEADLINE - elapsed()),
+                timeout=max(0.1, retry_timeout),
             )
     except asyncio.TimeoutError:
         print(f"Retrieval timed out after {elapsed():.1f}s")
@@ -197,7 +202,20 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
         valid_citations = []
         errors = []
 
+        if len(llm_res.answer) > 4000:
+            llm_res.answer = llm_res.answer[:4000]
+
+        import re
+
+        answer_numbers = set(re.findall(r"\d+", llm_res.answer))
+
         for c in llm_res.citations:
+            if not c.quote.strip():
+                errors.append(f"Error: quote is empty for chunk '{c.chunkId}'.")
+                continue
+            if len(c.quote) > 500:
+                errors.append(f"Error: quote exceeds 500 characters for chunk '{c.chunkId}'.")
+                continue
             if c.chunkId not in chunk_map:
                 errors.append(f"Error: chunkId '{c.chunkId}' does not exist in context.")
                 continue
@@ -207,20 +225,34 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
                 continue
             valid_citations.append(c)
 
+        # Only check number support if there are no other errors yet
         if not errors:
-            # Success — hydrate and return
-            final_citations = [
-                Citation(
-                    n=idx + 1,
-                    url=str(chunk_map[c.chunkId]["source_url"]),
-                    title=str(chunk_map[c.chunkId]["source_title"]),
-                    quote=c.quote,
-                    chunkId=c.chunkId,
-                    official=is_official_url(str(chunk_map[c.chunkId]["source_url"])),
-                )
-                for idx, c in enumerate(valid_citations[:8])
-            ]
-            return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
+            cited_numbers = set()
+            for c in valid_citations:
+                cited_numbers.update(re.findall(r"\d+", c.quote))
+            unsupported = answer_numbers - cited_numbers
+            if unsupported:
+                errors.append(f"Error: numbers {unsupported} appear in answer but are not supported by any cited quote.")
+
+        if not errors:
+            if not valid_citations:
+                # If zero valid citations produced, and no errors (meaning they provided 0 citations),
+                # trigger an error to force repair, or fail if out of attempts.
+                errors.append("Error: you must provide at least one citation.")
+            else:
+                # Success — hydrate and return
+                final_citations = [
+                    Citation(
+                        n=idx + 1,
+                        url=str(chunk_map[c.chunkId]["source_url"]),
+                        title=str(chunk_map[c.chunkId]["source_title"]),
+                        quote=c.quote,
+                        chunkId=c.chunkId,
+                        official=bool(chunk_map[c.chunkId].get("is_official", False)),
+                    )
+                    for idx, c in enumerate(valid_citations[:8])
+                ]
+                return CopilotResponse(answer=llm_res.answer, language=req.locale, citations=final_citations)
 
         # Repair: append errors and loop (only once — attempt 1 exits the loop)
         messages.append({"role": "assistant", "content": llm_res.model_dump_json()})
@@ -231,5 +263,5 @@ async def copilot(req: CopilotRequest, _: str = Depends(require_service_token)) 
             }
         )
 
-    # Exhausted both attempts and still invalid citations
+    # Exhausted both attempts and still invalid citations (or zero valid citations)
     return _safe_passages(chunk_map, req.locale)

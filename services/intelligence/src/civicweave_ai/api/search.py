@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import re
 import string
 from pathlib import Path
 from typing import Any
@@ -45,19 +47,24 @@ class Jurisdiction(BaseModel):
 
 class Match(BaseModel):
     taskId: str
-    score: float
+    score: float = Field(ge=0.0, le=1.0)
+
+
+class ClarificationOption(BaseModel):
+    label: str
+    value: str
 
 
 class Clarification(BaseModel):
     kind: str
     text: str
-    options: list[str] | None = None
+    options: list[ClarificationOption] | None = Field(default=None, max_length=6)
 
 
 class SearchResponse(BaseModel):
     facts: list[Fact]
     jurisdiction: Jurisdiction | None = None
-    matches: list[Match]
+    matches: list[Match] = Field(max_length=8)
     clarifications: list[Clarification] = []
     notice: str | None = None
 
@@ -78,8 +85,11 @@ class Extraction(BaseModel):
 
 
 # --- Globals ---
-FACTS_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / "docs" / "contract" / "facts.json"
-GAZETTEER_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / "data" / "gazetteer" / "maharashtra.json"
+_local_root = Path(__file__).parent.parent.parent.parent.parent.parent
+_ROOT = Path(os.environ.get("CW_DATA_ROOT", str(_local_root)))
+
+FACTS_PATH = _ROOT / "docs" / "contract" / "facts.json"
+GAZETTEER_PATH = _ROOT / "data" / "gazetteer" / "maharashtra.json"
 
 
 def _load_json(path: Path) -> Any:
@@ -114,16 +124,13 @@ def _build_gazetteer() -> tuple[dict[str, dict[str, Any]], list[str]]:
     return lookup, cities
 
 
-def _alias_in_query(alias: str, query_norm: str) -> bool:
-    if alias in query_norm:
-        return True
-    if len(alias) >= 4:
-        if alias[:-1] in query_norm:
-            return True
-        if len(alias) >= 5:
-            if alias[:-2] in query_norm:
-                return True
-    return False
+def _find_alias_in_query(alias: str, raw_query: str) -> str | None:
+    # Use word boundary to avoid prefix matching
+    pattern = r"\b" + re.escape(alias) + r"\b"
+    match = re.search(pattern, raw_query, re.IGNORECASE)
+    if match:
+        return match.group(0)
+    return None
 
 
 _GAZETTEER_LOOKUP, _GAZETTEER_CITIES = _build_gazetteer()
@@ -174,12 +181,37 @@ async def search(req: SearchRequest) -> SearchResponse:
     if extracted:
         # Validate facts
         for ef in extracted.facts:
-            if ef.key in _FACTS_DEF and ef.evidence_substring in redacted_query:
-                # Basic validation passed
+            # Require non-empty, verbatim evidence
+            if not ef.evidence_substring.strip() or ef.evidence_substring not in redacted_query:
+                continue
+
+            if ef.key not in _FACTS_DEF:
+                continue
+
+            fdef = _FACTS_DEF[ef.key]
+            ftype = fdef.get("type")
+            valid = True
+
+            if ftype == "boolean" and not isinstance(ef.value, bool):
+                valid = False
+            elif ftype == "string":
+                if not isinstance(ef.value, str):
+                    valid = False
+                elif "enum" in fdef and ef.value not in fdef["enum"]:
+                    valid = False
+            elif ftype == "number":
+                if not isinstance(ef.value, (int, float)) or isinstance(ef.value, bool):
+                    valid = False
+                else:
+                    if "min" in fdef and ef.value < fdef["min"]:
+                        valid = False
+                    if "max" in fdef and ef.value > fdef["max"]:
+                        valid = False
+
+            if valid:
                 facts.append(Fact(fact=ef.key, value=ef.value, evidence=ef.evidence_substring))
 
         # Jurisdiction
-        query_norm = _normalize_text(redacted_query)
         for loc in extracted.locations:
             norm_loc = _normalize_text(loc)
 
@@ -195,15 +227,15 @@ async def search(req: SearchRequest) -> SearchResponse:
                         break
 
             if candidate_match:
-                # 2. Check if ANY stored alias is a substring of the raw query (with prefix matching for inflection)
-                is_valid = False
+                # 2. Check if ANY stored alias is a substring of the raw query (with word boundary)
+                matched_exact = None
                 for g_alias in candidate_match["aliases"]:
-                    if _alias_in_query(g_alias, query_norm):
-                        is_valid = True
+                    matched_exact = _find_alias_in_query(g_alias, redacted_query)
+                    if matched_exact:
                         break
 
-                if is_valid:
-                    jurisdiction = Jurisdiction(state=candidate_match["state"], city=candidate_match["city"], matchedText=loc)
+                if matched_exact:
+                    jurisdiction = Jurisdiction(state=candidate_match["state"], city=candidate_match["city"], matchedText=matched_exact)
                     break
 
         if not extracted.is_civic_procedure:
@@ -212,30 +244,41 @@ async def search(req: SearchRequest) -> SearchResponse:
         # Fallback empty values
         extracted = Extraction(intent="", is_civic_procedure=True, facts=[], locations=[], candidate_scores=[])
 
+    if jurisdiction is None:
+        # Fallback: scan the raw query for gazetteer aliases if LLM didn't find any or failed
+        for g_alias, g_match in _GAZETTEER_LOOKUP.items():
+            matched_exact = _find_alias_in_query(g_alias, redacted_query)
+            if matched_exact:
+                jurisdiction = Jurisdiction(state=g_match["state"], city=g_match["city"], matchedText=matched_exact)
+                break
+
     # If no jurisdiction matched and not provided in request
     if not jurisdiction and not req.location and notice != "out_of_scope":
         notice = "location_required"
         jurisdiction = None
+        cities = _GAZETTEER_CITIES[:6] if _GAZETTEER_CITIES else ["Mumbai", "Pune", "Nagpur"]
         clarifications.append(
             Clarification(
                 kind="location",
                 text="Please specify your location in Maharashtra",
-                options=_GAZETTEER_CITIES[:5] if _GAZETTEER_CITIES else ["Mumbai", "Pune", "Nagpur"],
+                options=[ClarificationOption(label=city, value=city) for city in cities],
             )
         )
 
     # Scores
     if extracted.candidate_scores:
         for c in req.candidates:
-            matches.append(Match(taskId=c.taskId, score=next((m.score for m in extracted.candidate_scores if m.taskId == c.taskId), 0.0)))
+            raw_score = next((m.score for m in extracted.candidate_scores if m.taskId == c.taskId), 0.0)
+            matches.append(Match(taskId=c.taskId, score=max(0.0, min(1.0, raw_score))))
     else:
         # Lexical fallback
         for c in req.candidates:
             doc = f"{c.title} {c.summary} {' '.join(c.keywords)}"
-            score = _jaccard(redacted_query, doc)
-            matches.append(Match(taskId=c.taskId, score=score))
+            raw_score = _jaccard(redacted_query, doc)
+            matches.append(Match(taskId=c.taskId, score=max(0.0, min(1.0, raw_score))))
 
     matches.sort(key=lambda x: x.score, reverse=True)
+    matches = matches[:8]
 
     if matches and matches[0].score < 0.3 and notice not in ["out_of_scope", "location_required"]:
         notice = "no_match"
@@ -247,7 +290,7 @@ async def search(req: SearchRequest) -> SearchResponse:
                     Clarification(
                         kind="task",
                         text="Which procedure do you mean?",
-                        options=[matches[0].taskId, matches[1].taskId],
+                        options=[ClarificationOption(label=matches[0].taskId, value=matches[0].taskId), ClarificationOption(label=matches[1].taskId, value=matches[1].taskId)],
                     )
                 )
 
