@@ -1,6 +1,6 @@
-// data/tools/check-links.mjs: checks every link in the seed data and the source registry (DA-7, PRD §15).
-// Collects sources[].url, applicationPortal.url, forms[].url and authority.officialUrl from
-// data/seed/**/*.json, plus every url in data/sources/registry.json. Requests each (HEAD, falling
+// data/tools/check-links.mjs: checks every link in the seed data, the office datasets and the source registry
+// (DA-7, PRD §15). Collects sources[].url, applicationPortal.url, forms[].url and authority.officialUrl from
+// data/seed/**/*.json, source.url from data/offices/**/*.json, plus every url in data/sources/registry.json. Requests each (HEAD, falling
 // back to GET; 15 s timeout; at most 1 request per second per host, PRD §9.2) and prints
 // url · status · final URL. A 403 on a URL that has a registry manualText capture is a warning
 // (the host blocks scripts; the copilot uses the capture). Exits 1 if any other link fails.
@@ -10,6 +10,7 @@ import { join, relative } from "node:path";
 
 const ROOT = process.cwd();
 const SEED_DIR = join(ROOT, "data", "seed");
+const OFFICES_DIR = join(ROOT, "data", "offices");
 const REGISTRY = join(ROOT, "data", "sources", "registry.json");
 const DEFAULT_USER_AGENT = "CivicWeaveBot/1.0 (link check; https://github.com/Gurpreet-pixel-hue/DamnSon)";
 const USER_AGENT = process.env.CRAWLER_USER_AGENT || DEFAULT_USER_AGENT;
@@ -38,7 +39,7 @@ function addLink(links, url, where) {
   links.get(url).add(where);
 }
 
-/** Adds the link fields the contract defines (sources, forms, applicationPortal, authority.officialUrl), wherever they appear. */
+/** Adds the link fields the contract and the office datasets define (sources, forms, applicationPortal, authority.officialUrl, source), wherever they appear. */
 function collectLinks(node, file, links) {
   if (Array.isArray(node)) {
     for (const item of node) collectLinks(item, file, links);
@@ -51,6 +52,7 @@ function collectLinks(node, file, links) {
     }
     if (key === "applicationPortal" && value && typeof value.url === "string") addLink(links, value.url, file);
     if (key === "authority" && value && typeof value.officialUrl === "string") addLink(links, value.officialUrl, file);
+    if (key === "source" && value && typeof value.url === "string") addLink(links, value.url, file);
     collectLinks(value, file, links);
   }
 }
@@ -92,7 +94,7 @@ async function check(url) {
 }
 
 const links = new Map();
-for (const file of jsonFiles(SEED_DIR)) {
+for (const file of [...jsonFiles(SEED_DIR), ...jsonFiles(OFFICES_DIR)]) {
   collectLinks(JSON.parse(readFileSync(file, "utf8")), relative(ROOT, file), links);
 }
 
@@ -107,7 +109,7 @@ if (existsSync(REGISTRY)) {
 }
 
 if (links.size === 0) {
-  console.log("No links found under data/seed or in data/sources/registry.json.");
+  console.log("No links found under data/seed, data/offices or in data/sources/registry.json.");
   process.exit(0);
 }
 
