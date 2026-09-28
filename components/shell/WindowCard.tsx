@@ -103,13 +103,23 @@ import { StageBar } from "@/components/canvas/StageBar";
 import { ParallelStageTray } from "@/components/canvas/ParallelStageTray";
 import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
 import { KeysHintModal } from "@/components/hud/KeysHintModal";
+import { MyJourneyPanel } from "@/components/hud/MyJourneyPanel";
+import { OfficeVisitsPanel } from "@/components/hud/OfficeVisitsPanel";
+import { DocumentsPanel } from "@/components/hud/DocumentsPanel";
 import type { ComposedJourney } from "@/lib/contract/compose";
+import type { JourneyTemplate } from "@/lib/contract/schema";
+import type { Facts } from "@/lib/contract/facts";
+import type { JourneySummaryValues } from "@/components/hud/SummaryBar";
 import { computeViewportInsets } from "@/lib/graph/viewportInsets";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface WindowCardProps {
   metro: MetroVM | null;
   journey?: ComposedJourney;
+  template?: JourneyTemplate;
+  facts?: Facts;
+  completed?: ReadonlySet<string>;
+  summary?: JourneySummaryValues;
   drawer?: React.ReactNode;
   className?: string;
 }
@@ -117,6 +127,10 @@ export interface WindowCardProps {
 export function WindowCard({
   metro,
   journey,
+  template,
+  facts,
+  completed,
+  summary,
   drawer,
   className = "",
 }: WindowCardProps) {
@@ -197,6 +211,23 @@ export function WindowCard({
     return () => ro.disconnect();
   }, [metro]);
 
+  // Esc key closes panel and returns focus to rail button (B0)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activePanel !== null && !isDrawerOpen) {
+        e.preventDefault();
+        const panelToClose = activePanel;
+        useViewStore.getState().setActivePanel(null);
+        const railBtn = document.getElementById(`rail-btn-${panelToClose}`);
+        if (railBtn) {
+          railBtn.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activePanel, isDrawerOpen]);
+
   const toggleFullscreen = () => {
     if (!cardRef.current) return;
     if (!document.fullscreenElement) {
@@ -211,6 +242,7 @@ export function WindowCard({
       ref={cardRef}
       data-testid="3d-window-card"
       data-view-mode={wholeRouteView ? "whole" : "stage"}
+      data-active-panel={activePanel ?? "none"}
       className={`relative flex-1 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-xs overflow-hidden flex flex-col h-full min-h-[480px] ${className}`}
     >
       {/* Stage-header band (56px inside top of card) */}
@@ -237,6 +269,50 @@ export function WindowCard({
 
         {/* Parallel Stage Tray overlay on the left (§12.3) */}
         {metro && <ParallelStageTray metro={metro} journey={journey} />}
+
+        {/* Left Overlay Panels (B0-B3) */}
+        {activePanel !== null && (
+          <aside
+            data-testid="overlay-panel-container"
+            data-active-panel={activePanel}
+            aria-label={`${activePanel} overlay panel`}
+            className="pointer-events-auto absolute top-0 bottom-0 left-0 z-35 w-[340px] bg-[var(--cw-surface)] border-r border-[var(--cw-border)] shadow-xl flex flex-col select-none overflow-hidden"
+          >
+            {activePanel === "journey" && journey && template && facts && completed && summary && (
+              <MyJourneyPanel
+                journey={journey}
+                template={template}
+                facts={facts}
+                completed={completed}
+                summary={summary}
+                onClose={() => {
+                  useViewStore.getState().setActivePanel(null);
+                  document.getElementById("rail-btn-journey")?.focus();
+                }}
+              />
+            )}
+            {activePanel === "visits" && journey && completed && (
+              <OfficeVisitsPanel
+                journey={journey}
+                completed={completed}
+                onClose={() => {
+                  useViewStore.getState().setActivePanel(null);
+                  document.getElementById("rail-btn-visits")?.focus();
+                }}
+              />
+            )}
+            {activePanel === "documents" && journey && completed && (
+              <DocumentsPanel
+                journey={journey}
+                completed={completed}
+                onClose={() => {
+                  useViewStore.getState().setActivePanel(null);
+                  document.getElementById("rail-btn-documents")?.focus();
+                }}
+              />
+            )}
+          </aside>
+        )}
 
         {/* Debug overlay inside card, top-left (A2) */}
         <CardDebugOverlay />

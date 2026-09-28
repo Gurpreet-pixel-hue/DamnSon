@@ -238,6 +238,10 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
         <WindowCard
           metro={metro}
           journey={journey}
+          template={template}
+          facts={facts}
+          completed={completed}
+          summary={summary}
           drawer={<RightDrawer journey={journey} />}
         />
       </div>

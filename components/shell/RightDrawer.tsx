@@ -7,6 +7,8 @@ import { useViewStore } from "@/lib/store/useViewStore";
 import { getStages, currentStage } from "@/lib/graph/stages";
 import { fromJourney } from "@/lib/graph/viewModel";
 import { buildStepDrawerModel } from "@/lib/graph/drawerModel";
+import { StepExplain } from "@/components/hud/StepExplain";
+import { CopilotPanel } from "@/components/hud/CopilotPanel";
 
 export interface RightDrawerProps {
   journey?: ComposedJourney;
@@ -437,39 +439,19 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                   )}
                 </div>
 
-                {/* Why is this locked? (§10.7 & Amendment 8) */}
-                {model.isLocked && model.overview.unfinishedPrerequisites.length > 0 && (
-                  <div
-                    data-testid="drawer-prereqs-notice"
-                    className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-xs flex flex-col gap-1.5 mt-1"
-                  >
-                    <span className="font-semibold text-amber-900 dark:text-amber-200 text-[11px] flex items-center gap-1.5">
-                      <svg
-                        className="w-3.5 h-3.5 text-amber-600 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                      Why is this locked? Finish these first:
-                    </span>
-                    <ul className="list-disc list-inside text-[var(--cw-text-muted)] space-y-1 mt-0.5">
-                      {model.overview.unfinishedPrerequisites.map((p) => (
-                        <li key={p.id} className="leading-snug">
-                          <span className="font-medium text-[var(--cw-text)]">{p.title}</span>
-                          {p.edgeNote && (
-                            <span className="text-[10px] text-[var(--cw-text-muted)] ml-1">
-                              ({p.edgeNote})
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                {/* Why this step explanation (B4) */}
+                {journey && selectedStepId && (
+                  <StepExplain journey={journey} stepId={selectedStepId} />
+                )}
+
+                {/* Copilot assistant (B5) */}
+                {journey && selectedStepId && (
+                  <div className="mt-2 pt-2 border-t border-[var(--cw-border)]/60">
+                    <CopilotPanel
+                      taskId={journey.taskId}
+                      stepId={selectedStepId}
+                      stepTitle={model.title}
+                    />
                   </div>
                 )}
               </div>

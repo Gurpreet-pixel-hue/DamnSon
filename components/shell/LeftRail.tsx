@@ -8,6 +8,7 @@ import type { ComposedJourney } from "@/lib/contract/compose";
 import type { JourneyDiff } from "@/lib/graph/journeyDiff";
 import type { TotalsChange } from "@/components/hud/totalsChange";
 import { YourSituationPanel } from "@/components/hud/YourSituationPanel";
+import { useViewStore } from "@/lib/store/useViewStore";
 
 export interface LeftRailProps {
   template?: JourneyTemplate;
@@ -29,6 +30,9 @@ export function LeftRail({
   const pathname = usePathname();
   const isJourney = pathname?.startsWith("/journey");
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const activePanel = useViewStore((s) => s.activePanel);
+  const setActivePanel = useViewStore((s) => s.setActivePanel);
 
   const hasSituation = Boolean(template && modules && journey);
 
@@ -67,31 +71,116 @@ export function LeftRail({
             <span className="hidden xl:inline truncate">Home</span>
           </Link>
 
-          <Link
-            href="#"
-            data-testid="rail-link-my-journey"
-            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-              isJourney
-                ? "bg-[var(--cw-brand)]/10 text-[var(--cw-brand)]"
-                : "text-[var(--cw-text-muted)] hover:bg-[var(--cw-border)]/20 hover:text-[var(--cw-text)]"
-            }`}
-            title="My Journey"
-          >
-            <svg
-              className="w-4 h-4 shrink-0 text-current"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-            </svg>
-            <span className="hidden xl:inline truncate">My Journey</span>
-          </Link>
+          {/* Panel Overlay Buttons (B0, #11) */}
+          {hasSituation && (
+            <>
+              {/* My journey */}
+              <button
+                type="button"
+                id="rail-btn-journey"
+                data-testid="rail-btn-journey"
+                aria-pressed={activePanel === "journey"}
+                onClick={() =>
+                  setActivePanel(activePanel === "journey" ? null : "journey")
+                }
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                  activePanel === "journey"
+                    ? "bg-[var(--cw-brand)]/15 text-[var(--cw-brand)]"
+                    : "text-[var(--cw-text-muted)] hover:bg-[var(--cw-border)]/20 hover:text-[var(--cw-text)]"
+                }`}
+                title="My journey overview"
+              >
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                </svg>
+                <span className="hidden xl:inline truncate">My journey</span>
+              </button>
+
+              {/* Office visits */}
+              <button
+                type="button"
+                id="rail-btn-visits"
+                data-testid="rail-btn-visits"
+                aria-pressed={activePanel === "visits"}
+                onClick={() =>
+                  setActivePanel(activePanel === "visits" ? null : "visits")
+                }
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                  activePanel === "visits"
+                    ? "bg-[var(--cw-brand)]/15 text-[var(--cw-brand)]"
+                    : "text-[var(--cw-text-muted)] hover:bg-[var(--cw-border)]/20 hover:text-[var(--cw-text)]"
+                }`}
+                title="Office visits"
+              >
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 21h18" />
+                  <path d="M19 21v-4" />
+                  <path d="M19 13V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16" />
+                  <path d="M9 7h1" />
+                  <path d="M9 11h1" />
+                  <path d="M9 15h1" />
+                  <path d="M14 7h1" />
+                  <path d="M14 11h1" />
+                  <path d="M14 15h1" />
+                </svg>
+                <span className="hidden xl:inline truncate">Office visits</span>
+              </button>
+
+              {/* Documents */}
+              <button
+                type="button"
+                id="rail-btn-documents"
+                data-testid="rail-btn-documents"
+                aria-pressed={activePanel === "documents"}
+                onClick={() =>
+                  setActivePanel(activePanel === "documents" ? null : "documents")
+                }
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                  activePanel === "documents"
+                    ? "bg-[var(--cw-brand)]/15 text-[var(--cw-brand)]"
+                    : "text-[var(--cw-text-muted)] hover:bg-[var(--cw-border)]/20 hover:text-[var(--cw-text)]"
+                }`}
+                title="Documents checklist"
+              >
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <line x1="10" y1="9" x2="8" y2="9" />
+                </svg>
+                <span className="hidden xl:inline truncate">Documents</span>
+              </button>
+            </>
+          )}
 
           {/* Compact Situation trigger for 1024-1279px */}
           {hasSituation && (
