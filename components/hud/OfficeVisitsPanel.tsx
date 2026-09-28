@@ -2,7 +2,6 @@
 
 import React, { useMemo } from "react";
 import type { ComposedJourney } from "@/lib/contract/compose";
-import { isOfficialUrl } from "@/lib/contract/officialSources";
 import { planOfficeTrips } from "@/lib/graph/trips";
 import { deriveStepStates } from "@/lib/graph/progress";
 import { useTaskStore } from "@/lib/store/useTaskStore";

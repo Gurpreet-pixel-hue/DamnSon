@@ -120,9 +120,7 @@ export function ParallelStageTray({
 
   const handleSelectStation = (item: TrayItem) => {
     setFocusedStepId(item.station.id);
-    if (selectedStepId) {
-      selectStep(item.station.id);
-    }
+    selectStep(item.station.id);
   };
 
   const filterButtons: Array<{ key: TrayFilter; label: string; count: number }> = [

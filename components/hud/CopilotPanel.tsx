@@ -12,23 +12,12 @@ export interface CopilotPanelProps {
 
 type CopilotData = ReturnType<typeof copilotResponseSchema.parse>;
 
-export function CopilotPanel({ taskId, stepId, stepTitle }: CopilotPanelProps) {
+function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CopilotData | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Clear state when step changes
-  useEffect(() => {
-    setQuestion("");
-    setError(null);
-    setResult(null);
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-  }, [stepId, taskId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -237,4 +226,8 @@ export function CopilotPanel({ taskId, stepId, stepTitle }: CopilotPanelProps) {
       )}
     </div>
   );
+}
+
+export function CopilotPanel(props: CopilotPanelProps) {
+  return <CopilotPanelInner key={`${props.taskId}-${props.stepId}`} {...props} />;
 }

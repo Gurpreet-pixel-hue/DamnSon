@@ -28,7 +28,6 @@ export function LeftRail({
   className = "",
 }: LeftRailProps) {
   const pathname = usePathname();
-  const isJourney = pathname?.startsWith("/journey");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const activePanel = useViewStore((s) => s.activePanel);

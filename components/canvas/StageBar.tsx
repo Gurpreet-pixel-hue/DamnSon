@@ -76,7 +76,7 @@ export function StageBar({ metro, className = "" }: StageBarProps) {
     <div
       data-testid="stage-bar"
       data-focus-stage={focusStage}
-      className={`pointer-events-auto flex items-center gap-2 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-1.5 shadow-md backdrop-blur-md select-none max-w-[85vw] ${className}`}
+      className={`pointer-events-auto flex items-center gap-2 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-1.5 shadow-md backdrop-blur-md select-none max-w-full ${className}`}
     >
       {/* Back to current step (if browsing away) */}
       {focusStage !== activeCurrentStage && (

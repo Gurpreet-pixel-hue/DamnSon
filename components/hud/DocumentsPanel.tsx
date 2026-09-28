@@ -22,6 +22,8 @@ interface DocumentGroup {
   entries: (DocumentChecklistEntry & { neededNow: boolean })[];
 }
 
+const EMPTY_CHECKLIST: Record<string, boolean> = {};
+
 /**
  * Documents Panel overlay (B3, #9):
  * Documents grouped by office, separated into needed now vs later, with output origin and on-device checklist.
@@ -32,9 +34,8 @@ export function DocumentsPanel({
   onClose,
 }: DocumentsPanelProps) {
   const taskId = journey.taskId;
-  const checklistState = useTaskStore(
-    (s) => s.documentChecklist[taskId] ?? {}
-  );
+  const documentChecklist = useTaskStore((s) => s.documentChecklist);
+  const checklistState = documentChecklist[taskId] ?? EMPTY_CHECKLIST;
   const toggleDocumentCheck = useTaskStore((s) => s.toggleDocumentCheck);
   const selectStep = useTaskStore((s) => s.selectStep);
   const setFocusedStepId = useViewStore((s) => s.setFocusedStepId);

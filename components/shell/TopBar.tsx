@@ -19,6 +19,9 @@ export interface TopBarProps {
   className?: string;
 }
 
+const EMPTY_FACTS: Record<string, unknown> = {};
+const EMPTY_COMPLETED: string[] = [];
+
 export function TopBar({
   template,
   metro,
@@ -30,8 +33,10 @@ export function TopBar({
   const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const facts = useTaskStore((s) => s.factsByTask[template.taskId] ?? {});
-  const completed = useTaskStore((s) => s.completedByTask[template.taskId] ?? []);
+  const factsByTask = useTaskStore((s) => s.factsByTask);
+  const completedByTask = useTaskStore((s) => s.completedByTask);
+  const facts = factsByTask[template.taskId] ?? EMPTY_FACTS;
+  const completed = completedByTask[template.taskId] ?? EMPTY_COMPLETED;
 
   const printUrl = useMemo(() => {
     const query = encodeShareState({

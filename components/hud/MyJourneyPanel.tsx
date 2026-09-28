@@ -8,8 +8,6 @@ import type { JourneySummaryValues } from "./SummaryBar";
 import { summarizeVerification } from "./VerificationBanner";
 import { formatFactValue } from "@/lib/graph/factDisplay";
 import { deriveStepStates } from "@/lib/graph/progress";
-import { useTaskStore } from "@/lib/store/useTaskStore";
-import { useViewStore } from "@/lib/store/useViewStore";
 
 export interface MyJourneyPanelProps {
   journey: ComposedJourney;
