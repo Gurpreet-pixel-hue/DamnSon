@@ -119,44 +119,79 @@ function NumberInput({
     typeof value === "number" ? String(value) : ""
   );
 
-  const commit = (n: number) => {
-    const clamped = Math.min(max, Math.max(min, Math.round(n)));
-    if (isValidFactValue(fact, clamped)) onChange(clamped);
+  const handleSave = () => {
+    if (draft.trim() === "") return;
+    const num = Number(draft);
+    if (isNaN(num)) return;
+    const clamped = Math.min(max, Math.max(min, Math.round(num)));
+    if (isValidFactValue(fact, clamped)) {
+      setDraft(String(clamped));
+      onChange(clamped);
+    }
   };
-  const current = typeof value === "number" ? value : min;
+
+  const handleStep = (delta: number) => {
+    const currentNum =
+      draft.trim() !== "" && !isNaN(Number(draft))
+        ? Number(draft)
+        : typeof value === "number"
+        ? value
+        : min;
+    const next = Math.min(max, Math.max(min, currentNum + delta));
+    setDraft(String(next));
+  };
+
+  const isDirty = draft.trim() !== "" && (value === undefined || Number(draft) !== value);
 
   return (
-    <div className="flex items-center gap-2" role="group" aria-label={label}>
-      <button
-        type="button"
-        className={`${chip} ${chipOff} w-9 h-9 flex items-center justify-center p-0`}
-        aria-label="Decrease"
-        onClick={() => commit(current - 1)}
-      >
-        −
-      </button>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={min}
-        max={max}
-        value={draft}
-        aria-label={label}
-        className="w-24 px-3 py-2 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] text-sm text-[var(--cw-text)] tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cw-available)]"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => draft.trim() !== "" && commit(Number(draft))}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && draft.trim() !== "") commit(Number(draft));
-        }}
-      />
-      <button
-        type="button"
-        className={`${chip} ${chipOff} w-9 h-9 flex items-center justify-center p-0`}
-        aria-label="Increase"
-        onClick={() => commit(current + 1)}
-      >
-        +
-      </button>
+    <div className="flex flex-col gap-1.5" role="group" aria-label={label}>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`${chip} ${chipOff} w-9 h-9 flex items-center justify-center p-0`}
+          aria-label="Decrease"
+          onClick={() => handleStep(-1)}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          value={draft}
+          placeholder={`e.g. ${min === 0 ? "2" : String(min)}`}
+          aria-label={label}
+          className="w-24 px-3 py-2 rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] text-sm text-[var(--cw-text)] tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cw-available)]"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className={`${chip} ${chipOff} w-9 h-9 flex items-center justify-center p-0`}
+          aria-label="Increase"
+          onClick={() => handleStep(1)}
+        >
+          +
+        </button>
+        {isDirty && (
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-3 py-1.5 rounded-xl bg-[var(--cw-brand)] text-white text-xs font-semibold hover:opacity-95 transition-opacity"
+          >
+            Save
+          </button>
+        )}
+      </div>
+      <span className="text-[11px] text-[var(--cw-text-muted)] font-mono">
+        Range: {min}–{max.toLocaleString("en-IN")}
+      </span>
     </div>
   );
 }

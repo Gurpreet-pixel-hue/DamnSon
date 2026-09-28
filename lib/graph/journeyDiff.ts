@@ -18,27 +18,48 @@ export interface JourneyDiff {
   confirmed: StationChange[];
 }
 
+function baseStepId(step: ComposedStep): string {
+  return `${step.moduleId}.${step.localId}`;
+}
+
+function stripRepeatSuffix(title: string): string {
+  return title.replace(/\s*\([^)]*\d+\)$/, "");
+}
+
 function group(
   steps: ComposedStep[],
   reasonFor?: (step: ComposedStep) => string | undefined
 ): StationChange[] {
-  const byTitle = new Map<string, StationChange>();
+  const byBaseId = new Map<
+    string,
+    { change: StationChange; rawTitle: string; isRepeated: boolean }
+  >();
   for (const step of steps) {
-    const existing = byTitle.get(step.title);
+    const baseId = baseStepId(step);
+    const isRepeated =
+      "repeatIndex" in step && (step as { repeatIndex?: number }).repeatIndex !== undefined;
+    const existing = byBaseId.get(baseId);
     if (existing) {
-      existing.count += 1;
-      existing.stepIds.push(step.id);
+      existing.change.count += 1;
+      existing.change.stepIds.push(step.id);
+      if (existing.isRepeated) {
+        existing.change.title = stripRepeatSuffix(existing.rawTitle);
+      }
       continue;
     }
     const reason = reasonFor?.(step);
-    byTitle.set(step.title, {
-      title: step.title,
-      count: 1,
-      stepIds: [step.id],
-      ...(reason ? { reason } : {}),
+    byBaseId.set(baseId, {
+      rawTitle: step.title,
+      isRepeated,
+      change: {
+        title: step.title,
+        count: 1,
+        stepIds: [step.id],
+        ...(reason ? { reason } : {}),
+      },
     });
   }
-  return [...byTitle.values()];
+  return [...byBaseId.values()].map((v) => v.change);
 }
 
 /**

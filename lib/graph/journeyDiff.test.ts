@@ -55,6 +55,21 @@ describe("diffJourneys", () => {
     expect(diff.removed).toEqual([]);
   });
 
+  it("groups repeated stations with count > 1 into a single entry without repeat suffix (founders 1 -> 3)", () => {
+    const from1 = compose({ ...A, "company.founders_count": 1 });
+    const to3 = compose({ ...A, "company.founders_count": 3 });
+    const diff = diffJourneys(from1, to3);
+    expect(diff.added).toEqual([
+      {
+        title: "Complete director KYC",
+        count: 2,
+        stepIds: ["ex-directors.kyc.2", "ex-directors.kyc.3"],
+      },
+    ]);
+    expect(diff.removed).toEqual([]);
+    expect(formatDiff(diff)).toBe("+2 stations");
+  });
+
   it("gives the module's reason when a whole module is switched off", () => {
     const withFood = compose(A);
     const noFood = compose({ ...A, "business.serves_food": false });

@@ -24,21 +24,21 @@ interface KeywordRule {
 const RULES: KeywordRule[] = [
   // Entity type
   {
-    pattern: /\b(?:private\s+limited|pvt\.?\s*ltd\.?)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:private\s+limited|pvt\.?\s*ltd\.?)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.entity_type", value: "private_limited" }],
   },
   {
-    pattern: /\b(?:one\s+person\s+company|opc)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:one\s+person\s+company|opc)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.entity_type", value: "opc" }],
   },
   {
-    pattern: /\bllp\b/i,
+    pattern: /(?<![\p{L}\p{N}])llp(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.entity_type", value: "llp" }],
   },
 
   // Food service & sector
   {
-    pattern: /\b(?:restaurant|cloud\s+kitchen|caf[eé]|food|bakery|catering|dhaba|tiffin)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:restaurant|cloud\s+kitchen|caf[eé]|food|bakery|catering|dhaba|tiffin)(?![\p{L}\p{N}])/iu,
     extract: () => [
       { fact: "business.serves_food", value: true },
       { fact: "business.sector", value: "food_service" },
@@ -47,47 +47,47 @@ const RULES: KeywordRule[] = [
 
   // Other sectors
   {
-    pattern: /\b(?:saas|software|app|it\s+company|tech\s+startup)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:saas|software|app|it\s+company|tech\s+startup)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.sector", value: "it_saas" }],
   },
   {
-    pattern: /\b(?:shop|store|retail)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:shop|store|retail)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.sector", value: "retail" }],
   },
   {
-    pattern: /\b(?:factory|manufactur\w*)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:factory|manufactur\w*)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.sector", value: "manufacturing" }],
   },
 
   // Numerical counts
   {
-    pattern: /\b(\d+)\s*(?:employees|staff|people|workers)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(\d+)\s*(?:employees|staff|people|workers)(?![\p{L}\p{N}])/iu,
     extract: (m) => [{ fact: "employees.count", value: parseInt(m[1]!, 10) }],
   },
   {
-    pattern: /\b(\d+)\s*(?:founders|directors|partners|co-founders)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(\d+)\s*(?:founders|directors|partners|co-founders)(?![\p{L}\p{N}])/iu,
     extract: (m) => [{ fact: "company.founders_count", value: parseInt(m[1]!, 10) }],
   },
 
   // Intents
   {
-    pattern: /\b(?:trademark|brand\s+name)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:trademark|brand\s+name)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "intent.trademark", value: true }],
   },
   {
-    pattern: /\bgst\b/i,
+    pattern: /(?<![\p{L}\p{N}])gst(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "intent.gst_now", value: true }],
   },
   {
-    pattern: /\b(?:udyam|msme)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:udyam|msme)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "intent.udyam", value: true }],
   },
   {
-    pattern: /\b(?:dpiit|startup\s+india|startup\s+recognition)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:dpiit|startup\s+india|startup\s+recognition)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "intent.dpiit", value: true }],
   },
   {
-    pattern: /\b(?:export|import)\b/i,
+    pattern: /(?<![\p{L}\p{N}])(?:export|import)(?![\p{L}\p{N}])/iu,
     extract: () => [{ fact: "business.imports_or_exports", value: true }],
   },
 ];

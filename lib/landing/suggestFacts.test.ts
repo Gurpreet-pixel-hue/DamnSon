@@ -58,4 +58,13 @@ describe("suggestFacts (C2)", () => {
     expect(suggestFacts("")).toEqual([]);
     expect(suggestFacts("   ")).toEqual([]);
   });
+
+  it("matches unicode variants café, cafe, and Café correctly", () => {
+    for (const word of ["café", "cafe", "Café", "open a café in Bandra", "a new Café"]) {
+      const suggestions = suggestFacts(word);
+      const factMap = new Map(suggestions.map((s) => [s.fact, s.value]));
+      expect(factMap.get("business.serves_food"), `failed on ${word}`).toBe(true);
+      expect(factMap.get("business.sector"), `failed on ${word}`).toBe("food_service");
+    }
+  });
 });
