@@ -64,7 +64,7 @@ function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
           setError("Too many questions. Please try again in a moment.");
         } else {
           setError(
-            "Couldn't reach the assistant right now. Please verify requirements directly with the official sources."
+            "Couldn't get an answer right now. Check the official source below."
           );
         }
         return;
@@ -76,16 +76,16 @@ function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
         setResult(parsed.data);
       } else {
         setError(
-          "Received an unrecognised response format from the assistant."
+          "Couldn't get an answer right now. Check the official source below."
         );
       }
     } catch (err: unknown) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") {
-        setError("The assistant took too long to respond (25s timeout).");
+        setError("This is taking too long. Check the official source below.");
       } else {
         setError(
-          "The assistant is currently offline or unreachable. Please consult the official sources."
+          "Couldn't get an answer right now. Check the official source below."
         );
       }
     } finally {
@@ -104,7 +104,7 @@ function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
           Ask about this step
         </h4>
         <span className="text-[10px] text-[var(--cw-text-muted)]">
-          Official sources only
+          Answers come only from official sources.
         </span>
       </div>
 
@@ -131,7 +131,7 @@ function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
             disabled={loading || !question.trim()}
             className="rounded-lg bg-[var(--cw-accent)] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cw-focus)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {loading ? "Searching sources..." : "Ask assistant"}
+            {loading ? "Searching sources..." : "Ask"}
           </button>
         </div>
       </form>
@@ -164,7 +164,8 @@ function CopilotPanelInner({ taskId, stepId, stepTitle }: CopilotPanelProps) {
               </span>
               <ul className="flex flex-col gap-1.5">
                 {result.citations.map((citation) => {
-                  const isOfficial = citation.official || isOfficialUrl(citation.url);
+                  // Official is decided here, never taken from the service (§13.1).
+                  const isOfficial = isOfficialUrl(citation.url);
                   return (
                     <li key={citation.chunkId} className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">

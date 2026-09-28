@@ -13,6 +13,8 @@ import { CopilotPanel } from "@/components/hud/CopilotPanel";
 export interface RightDrawerProps {
   journey?: ComposedJourney;
   className?: string;
+  /** Render the "Ask about this step" box. Off unless the intelligence service is configured. */
+  copilotEnabled?: boolean;
 }
 
 type DrawerTab = "overview" | "documents" | "fees" | "sources";
@@ -26,7 +28,7 @@ export function cancelAutoAdvance() {
   }
 }
 
-export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
+export function RightDrawer({ journey, className = "", copilotEnabled = false }: RightDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
   const [prevSelectedId, setPrevSelectedId] = useState<string | null>(null);
 
@@ -444,8 +446,8 @@ export function RightDrawer({ journey, className = "" }: RightDrawerProps) {
                   <StepExplain journey={journey} stepId={selectedStepId} />
                 )}
 
-                {/* Copilot assistant (B5) */}
-                {journey && selectedStepId && (
+                {/* Ask about this step (B5): only when the intelligence service is configured */}
+                {copilotEnabled && journey && selectedStepId && (
                   <div className="mt-2 pt-2 border-t border-[var(--cw-border)]/60">
                     <CopilotPanel
                       taskId={journey.taskId}

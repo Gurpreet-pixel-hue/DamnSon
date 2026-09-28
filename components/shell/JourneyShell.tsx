@@ -26,11 +26,13 @@ export interface JourneyShellProps {
     template: JourneyTemplate;
     modules: ApprovalModule[];
   };
+  /** True only when the intelligence service is configured on the server. */
+  copilotEnabled?: boolean;
 }
 
 const EMPTY_COMPLETED: string[] = [];
 
-export function JourneyShell({ initialBundle }: JourneyShellProps) {
+export function JourneyShell({ initialBundle, copilotEnabled = false }: JourneyShellProps) {
   const { template, modules } = initialBundle;
   const taskId = template.taskId;
 
@@ -242,7 +244,7 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
           facts={facts}
           completed={completed}
           summary={summary}
-          drawer={<RightDrawer journey={journey} />}
+          drawer={<RightDrawer journey={journey} copilotEnabled={copilotEnabled} />}
         />
       </div>
 
