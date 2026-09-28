@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { deriveStepCounts } from "@/lib/graph/stepCounts";
 import type { ComposedJourney } from "@/lib/contract/compose";
 import type { JourneyTemplate } from "@/lib/contract/schema";
 import { FACTS, type Facts } from "@/lib/contract/facts";
@@ -51,14 +52,15 @@ export function MyJourneyPanel({
     () => journey.steps.filter((s) => s.kind !== "milestone"),
     [journey.steps]
   );
+  const stepCounts = useMemo(() => deriveStepCounts(journey), [journey]);
   const verification = useMemo(
     () => summarizeVerification(journey),
     [journey]
   );
-  const verified =
-    actionSteps.length -
-    verification.unverifiedCount -
-    verification.flaggedCount;
+  const verified = Math.max(
+    0,
+    stepCounts.total - verification.unverifiedCount - verification.flaggedCount
+  );
   const hasQuestions = template.questions.length > 0;
   const answered = template.questions.filter(
     (q) => facts[q.fact] !== undefined
@@ -144,7 +146,7 @@ export function MyJourneyPanel({
             {hasQuestions
               ? "Personalised from your answers"
               : "Standard route: no questions change this journey"}{" "}
-            · {actionSteps.length} steps · {verified} of {actionSteps.length}{" "}
+            · {stepCounts.total} steps · {verified} of {stepCounts.total}{" "}
             verified against official sources
             {verification.flaggedCount > 0
               ? ` · ${verification.flaggedCount} flagged`

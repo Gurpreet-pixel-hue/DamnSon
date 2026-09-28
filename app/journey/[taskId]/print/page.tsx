@@ -13,6 +13,7 @@ import { buildStepDrawerModel } from "@/lib/graph/drawerModel";
 import { isOfficialUrl } from "@/lib/contract/officialSources";
 import { PrintButton } from "@/components/hud/PrintButton";
 import type { ComposedStep } from "@/lib/contract/compose";
+import { deriveStepCounts } from "@/lib/graph/stepCounts";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -109,6 +110,7 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
     : template.jurisdiction.state;
 
   // Derive date range from step sources / lastVerified if present (A6)
+  const stepCounts = deriveStepCounts(journey);
   const verifiedDates = orderedSteps
     .flatMap((s) => (s.kind !== "milestone" ? s.sources : []))
     .map((src) => src.retrievedOn)
@@ -188,7 +190,7 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                 Total Steps
               </span>
               <span className="text-base font-bold text-zinc-900 mt-0.5">
-                {orderedSteps.length} steps
+                {stepCounts.total} steps
               </span>
             </div>
             <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex flex-col">
