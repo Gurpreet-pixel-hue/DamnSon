@@ -52,6 +52,13 @@ selling point, not a gap to paper over.
 | 17 | Who it helps | Pruthviraj + Gurpreet | Citizens: fewer wasted visits, no missed prerequisite, a path they can verify themselves. Staff: one correction reaches every citizen at once. Cities: a new city is new data, not new code. End with the honest limits — coverage is two procedures today, and CivicWeave never submits or pays on anyone's behalf. Screenshot `05-summary-bar.png` |
 | 18 | Research and references | — | **Last slide, and the only references slide.** Every official source grouped by authority (MCA, GSTN, MH Labour, MAHAGST, EPFO, ESIC, MSME/Udyam, DPIIT, IP India, FSSAI, MCGM), then standards and tools. Close with one line: every civic claim in this deck traces to one of these |
 
+**Speaking order.** Slides are grouped into speaker blocks so the deck runs with five handoffs rather
+than eight. Run them in this sequence: Pruthviraj sets up the problem (2 to 3), Gurpreet shows the
+product (4, 6, 7, 8 and 14 on the stack), Divvye explains how it is computed and served (5, 10, 11, 15),
+Jai covers what AI adds (13), Pruthviraj proves the data is real (9, 12), all four take a quadrant on 16,
+and 17 closes. If you renumber the slides to match that sequence, keep the speaker tags with their
+content, not with the numbers.
+
 ## Diagrams
 
 Render each cleanly and place it on its slide. Export to `docs/ppt-assets/diagrams/`.
