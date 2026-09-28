@@ -139,3 +139,27 @@ def test_search_timeout_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     assert duration < 5.0, f"Search took {duration}s, should be < 5.0s"
     data = resp.json()
     assert "matches" in data
+
+def test_search_hallucinated_location(monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+    import hmac
+    import time
+
+    import civicweave_ai.api.search
+    from civicweave_ai.api.search import Extraction
+    from civicweave_ai.settings import get_settings
+
+    def mock_generate_json(task: str, messages: list[dict[str, str]], schema: type) -> Extraction:
+        return Extraction(intent="Test", is_civic_procedure=True, facts=[], locations=["Nagpur"], candidate_scores=[])
+
+    monkeypatch.setattr(civicweave_ai.api.search, "generate_json", mock_generate_json)
+    settings = get_settings()
+    now = int(time.time())
+    secret = settings.internal_service_secret
+    exp_str = str(now + 60)
+    sig = hmac.new(secret.encode("utf-8"), exp_str.encode("ascii"), hashlib.sha256).hexdigest().lower()
+    token = f"Bearer {exp_str}.{sig}"
+    resp = client.post("/v1/search", json={"query": "Test query with no location", "locale": "en"}, headers={"Authorization": token})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("jurisdiction") is None

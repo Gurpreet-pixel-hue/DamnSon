@@ -29,3 +29,10 @@ def test_redact_overlap() -> None:
     assert redact("Number 129876543210") == "Number [redacted]"
     # Ensure a 13-digit number isn't partially matched by Aadhaar or Mobile
     assert redact("Number 1234567890123") == "Number 1234567890123"
+
+def test_redact_regression_cases() -> None:
+    assert redact("+91 9876543210") == "[redacted]"
+    assert redact("+919876543210") == "[redacted]"
+    assert redact("919876543210") == "[redacted]"
+    assert redact("123456789012") == "[redacted]"
+    assert redact("987654321012") == "[redacted]"

@@ -171,7 +171,7 @@ Extract intent, check if civic, extract facts (use exact substring for evidence)
         # Jurisdiction
         for loc in extracted.locations:
             norm = _normalize_text(loc)
-            if norm in _GAZETTEER_LOOKUP:
+            if norm in _GAZETTEER_LOOKUP and norm in _normalize_text(redacted_query):
                 match = _GAZETTEER_LOOKUP[norm]
                 jurisdiction = Jurisdiction(state=match["state"], city=match["city"], matchedText=loc)
                 break

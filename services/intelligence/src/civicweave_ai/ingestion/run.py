@@ -60,9 +60,7 @@ async def main() -> None:
             texts_to_embed = [c.text for c in chunks]
             embeddings = embed_texts(texts_to_embed)
 
-            updated, chunk_count = await upsert_source_and_chunks(
-                source, content_hash, mime, chunks, embeddings
-            )
+            updated, chunk_count = await upsert_source_and_chunks(source, content_hash, mime, chunks, embeddings)
 
             status = "updated" if updated else "unchanged"
             results.append({"url": source["url"], "status": status, "chunks": chunk_count})
