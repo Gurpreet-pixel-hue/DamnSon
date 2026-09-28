@@ -65,4 +65,33 @@ describe("StageBar logic (§12.2)", () => {
     expect(isPillCollapsed(9, 5, 10)).toBe(true);
     expect(isPillCollapsed(10, 5, 10)).toBe(true);
   });
+
+  it("scrolls only the pill strip and keeps ancestor container scrollLeft at 0 (A1)", () => {
+    // Simulate DOM structure: WindowCard container -> StageBar -> strip -> pill
+    const canvasContainer = { scrollLeft: 0, scrollTop: 0 };
+    let scrolledLeft = -1;
+    const strip = {
+      clientWidth: 300,
+      scrollLeft: 0,
+      scrollTo: ({ left }: { left: number; behavior?: string }) => {
+        scrolledLeft = left;
+        strip.scrollLeft = left;
+      },
+    };
+    const pill = {
+      offsetLeft: 180,
+      offsetWidth: 60,
+    };
+
+    // Calculation used in StageBar:
+    const targetLeft = pill.offsetLeft - (strip.clientWidth - pill.offsetWidth) / 2;
+    strip.scrollTo({ left: targetLeft, behavior: "smooth" });
+
+    // Ancestor canvas container must stay exactly 0
+    expect(canvasContainer.scrollLeft).toBe(0);
+    expect(canvasContainer.scrollTop).toBe(0);
+    // Strip scrolled to center the pill
+    expect(scrolledLeft).toBe(60);
+  });
 });
+

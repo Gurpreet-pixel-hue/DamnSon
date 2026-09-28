@@ -55,13 +55,17 @@ export function StageBar({ metro, className = "" }: StageBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const focusedPillRef = useRef<HTMLButtonElement>(null);
 
-  // Auto-scroll focused pill into view inside the bar
+  // Auto-scroll focused pill into view inside the bar without scrolling ancestors (A1)
   useEffect(() => {
     if (focusedPillRef.current && barRef.current) {
-      focusedPillRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
+      const pill = focusedPillRef.current;
+      const strip = barRef.current;
+      const reducedMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      strip.scrollTo({
+        left: pill.offsetLeft - (strip.clientWidth - pill.offsetWidth) / 2,
+        behavior: reducedMotion ? "auto" : "smooth",
       });
     }
   }, [focusStage]);
@@ -71,6 +75,7 @@ export function StageBar({ metro, className = "" }: StageBarProps) {
   return (
     <div
       data-testid="stage-bar"
+      data-focus-stage={focusStage}
       className={`pointer-events-auto flex items-center gap-2 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-1.5 shadow-md backdrop-blur-md select-none max-w-[85vw] ${className}`}
     >
       {/* Back to current step (if browsing away) */}
