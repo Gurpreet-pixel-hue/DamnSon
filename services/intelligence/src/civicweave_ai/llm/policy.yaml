@@ -1,0 +1,34 @@
+providers:
+  gemini:
+    env_model: GEMINI_FAST_MODEL
+    env_api_key: GEMINI_API_KEY
+  groq:
+    env_model: GROQ_FAST_MODEL
+    env_api_key: GROQ_API_KEY
+  local:
+    env_model: LOCAL_FAST_MODEL
+    env_base_url: LOCAL_LLM_BASE_URL
+
+profiles:
+  production: [gemini, groq]
+  groq:   [groq, gemini]
+  local:  [local]
+
+circuit_breaker:
+  max_failures: 5
+  window_seconds: 60
+  open_seconds: 30
+
+# PRD §1.3 hard timeout budgets
+timeouts:
+  extract: 4    # search intent extraction — 4s
+  search:  4    # query rewrite for copilot — 4s
+  answer:  12   # first copilot LLM call — 12s
+  repair:  8    # citation repair call — 8s
+  deadline: 22  # overall copilot request hard deadline — 22s
+
+temperatures:
+  extract: 0.0
+  answer:  0.2
+  copilot: 0.2
+  search:  0.0
