@@ -1,6 +1,4 @@
 import type { ComposedStep } from "@/lib/contract/compose";
-import type { MetroVM } from "./viewModel";
-import { getStages, currentStage } from "./stages";
 
 export interface RecomposeDiffResult {
   added: ComposedStep[];
@@ -48,22 +46,4 @@ export function computeRecomposeDiff(
   };
 }
 
-/**
- * Clamps or restores focusStage if the focused stage is gone or empty after a recompose (Amendment 4).
- */
-export function clampFocusStage(currentFocus: number, nextMetro: MetroVM): number {
-  const stages = getStages(nextMetro);
-  const totalStages = stages.length;
-
-  if (totalStages === 0) return 1;
-  if (currentFocus < 1 || currentFocus > totalStages) {
-    return currentStage(nextMetro);
-  }
-
-  const stageInfo = stages.find((s) => s.number === currentFocus);
-  if (!stageInfo || stageInfo.stations.length === 0) {
-    return currentStage(nextMetro);
-  }
-
-  return currentFocus;
-}
+export { clampFocusStage } from "./journeyDiff";

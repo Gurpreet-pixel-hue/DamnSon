@@ -48,7 +48,9 @@ export function getStages(metro: MetroVM): Stage[] {
     }
 
     const applicableActionStations = stations.filter(
-      (s) => s.kind !== "milestone" && s.applicability === "applies"
+      (s) =>
+        s.kind !== "milestone" &&
+        (s.applicability === "applies" || s.applicability === "may_apply")
     );
 
     const isDone =
@@ -57,7 +59,9 @@ export function getStages(metro: MetroVM): Stage[] {
         : stations.length > 0 && stations.every((s) => s.state === "done");
 
     const hasAvailable = stations.some(
-      (s) => s.state === "available" && s.applicability === "applies"
+      (s) =>
+        s.state === "available" &&
+        (s.applicability === "applies" || s.applicability === "may_apply")
     );
 
     return {
@@ -75,7 +79,8 @@ export function getStages(metro: MetroVM): Stage[] {
 
 /**
  * currentStage(metro): pure function per §11.1
- * Returns the lowest layer (1-based stage number) that still has an `available` step that `applies`.
+ * Returns the lowest layer (1-based stage number) that still has an `available` step
+ * whose applicability is `applies` or `may_apply` (never optional-only).
  * When every step is done, it returns the last stage.
  */
 export function currentStage(metro: MetroVM): number {
@@ -90,7 +95,7 @@ export function currentStage(metro: MetroVM): number {
     }
   }
 
-  // When every step is done (or no stage has available steps that apply), return the last stage
+  // When every step is done (or no stage has available steps that apply or may apply), return the last stage
   return stages[stages.length - 1]!.number;
 }
 

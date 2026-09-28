@@ -5,12 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
 import type { ComposedJourney } from "@/lib/contract/compose";
+import type { JourneyDiff } from "@/lib/graph/journeyDiff";
+import type { TotalsChange } from "@/components/hud/totalsChange";
 import { YourSituationPanel } from "@/components/hud/YourSituationPanel";
 
 export interface LeftRailProps {
   template?: JourneyTemplate;
   modules?: ApprovalModule[];
   journey?: ComposedJourney;
+  lastChange?: JourneyDiff | null;
+  lastTotals?: TotalsChange[];
   className?: string;
 }
 
@@ -18,6 +22,8 @@ export function LeftRail({
   template,
   modules,
   journey,
+  lastChange,
+  lastTotals,
   className = "",
 }: LeftRailProps) {
   const pathname = usePathname();
@@ -123,6 +129,8 @@ export function LeftRail({
               template={template!}
               modules={modules!}
               journey={journey}
+              lastChange={lastChange}
+              lastTotals={lastTotals}
               className="min-h-0 flex-1 pr-0.5"
             />
           </div>
@@ -169,6 +177,8 @@ export function LeftRail({
               template={template!}
               modules={modules!}
               journey={journey}
+              lastChange={lastChange}
+              lastTotals={lastTotals}
               className="min-h-0 flex-1"
             />
           </div>

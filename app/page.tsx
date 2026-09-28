@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { getJourneyRepository } from "@/lib/server/journeys";
+import { LandingSearch } from "@/components/landing/LandingSearch";
+import { ContinueCard } from "@/components/landing/ContinueCard";
+import { IntroWrapper } from "@/components/intro/IntroWrapper";
+import type { Question } from "@/lib/contract/schema";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "CivicWeave · Your city. In order.",
+  title: {
+    absolute: "CivicWeave · Your city. In order.",
+  },
   description: "Municipal bureaucracy and civic procedure path visualizer.",
 };
 
@@ -14,41 +20,40 @@ export default async function HomePage() {
   const repo = getJourneyRepository();
   const templates = await repo.listTemplates();
 
+  const questionsByTaskId: Record<string, Question[]> = {};
+  for (const t of templates) {
+    try {
+      const published = await repo.getPublishedJourney(t.taskId);
+      if (published) {
+        questionsByTaskId[t.taskId] = published.template.questions;
+      }
+    } catch {
+      // Ignore if not loaded
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[var(--cw-background)] text-[var(--cw-text)] p-6 md:p-12 flex flex-col items-center">
-      <div className="w-full max-w-4xl flex flex-col gap-8">
-        {/* Brand header */}
-        <header className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <svg
-              className="w-8 h-8 shrink-0"
-              viewBox="0 0 32 32"
-              fill="none"
-              aria-label="CivicWeave Mark"
-            >
-              <path
-                d="M4 8h24M8 16h20M4 24h24"
-                stroke="var(--cw-brand)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M12 4v24M20 4v24"
-                stroke="var(--cw-available)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--cw-text)]">
-                CivicWeave
-              </h1>
-              <p className="text-xs uppercase tracking-widest text-[var(--cw-text-muted)] font-medium">
-                Your city. In order.
-              </p>
-            </div>
+      {/* First-visit kinetic intro (§9.2) */}
+      <IntroWrapper />
+
+      <div className="w-full max-w-4xl flex flex-col gap-10">
+        {/* Continue Card (if saved progress exists) */}
+        <ContinueCard templates={templates} />
+
+        {/* Landing Natural-Language Search (§9.3) */}
+        <LandingSearch templates={templates} questionsByTaskId={questionsByTaskId} />
+
+        {/* Below the fold: Published journeys */}
+        <section className="flex flex-col gap-4 pt-6 border-t border-[var(--cw-border)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--cw-text-muted)]">
+              Published Civic Journeys
+            </h2>
+            <span className="text-[11px] text-[var(--cw-text-muted)] font-medium">
+              {templates.length} available
+            </span>
           </div>
-        </header>
 
         {templates.length === 0 ? (
           <div
@@ -92,7 +97,7 @@ export default async function HomePage() {
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--cw-border)]/50 text-[11px] text-[var(--cw-text-muted)]">
-                  <span>{template.verifiedStepCount} verified steps</span>
+                  <span>{template.verifiedStepCount} of {template.stepCount} verified</span>
                   <span className="font-medium text-[var(--cw-brand)] group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
                     Open journey &rarr;
                   </span>
@@ -101,6 +106,7 @@ export default async function HomePage() {
             ))}
           </div>
         )}
+        </section>
       </div>
     </main>
   );

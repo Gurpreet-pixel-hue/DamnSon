@@ -124,7 +124,7 @@ export function Pedestrians({ plan, stations, stopped = false }: PedestriansProp
     }
 
     return list;
-  }, [stations]);
+  }, [stations, focusStage, wholeRouteView]);
 
   // 3. Compute Walkers (60–100 walking along pavements per §10.4)
   const walkers = useMemo<WalkerState[]>(() => {

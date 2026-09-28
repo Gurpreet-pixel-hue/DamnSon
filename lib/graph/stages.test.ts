@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { readTemplateFixture, readModuleFixture } from "@/data/fixtures/v3/loadFixture";
 import {
@@ -95,5 +97,18 @@ describe("stages derivations (§11.1, §11.7)", () => {
     expect(getStages(emptyMetro)).toEqual([]);
     expect(currentStage(emptyMetro)).toBe(1);
     expect(getStageForStation(emptyMetro, "any")).toBeNull();
+  });
+
+  it("gives stage 1 on start-business-mumbai with {} facts (A2 §11.1)", () => {
+    const templatePath = join(process.cwd(), "data/seed/templates/start-business-mumbai.json");
+    const template = journeyTemplateSchema.parse(JSON.parse(readFileSync(templatePath, "utf8")));
+    const modules = template.modules.map((m) => {
+      const modPath = join(process.cwd(), "data/seed/modules", `${m.moduleId}.json`);
+      return approvalModuleSchema.parse(JSON.parse(readFileSync(modPath, "utf8")));
+    });
+    const journey = composeJourney(template, modules, {});
+    const metro = fromJourney(journey, new Set());
+
+    expect(currentStage(metro)).toBe(1);
   });
 });

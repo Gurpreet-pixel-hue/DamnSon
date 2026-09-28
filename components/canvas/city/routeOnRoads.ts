@@ -223,7 +223,10 @@ export function computeRoutesOnRoads(
 
       // Keep-left offset: left normal is (uz, -ux)
       // Base left lane offset = 0.18; multi-route offset = 0.12 * routeIdx
-      const totalOffset = 0.18 + (routeIdx > 0 ? (routeIdx % 2 === 1 ? 0.12 * Math.ceil(routeIdx / 2) : -0.12 * (routeIdx / 2)) : 0);
+      // When more than 3 routes share a cell on a trunk (fan-out bundling per §12.4),
+      // keep them bundled on the trunk (offset = 0.18) so they share one unified lane.
+      const isTrunk = (cellRouteCount.get(key) || 0) > 3;
+      const totalOffset = 0.18 + (!isTrunk && routeIdx > 0 ? (routeIdx % 2 === 1 ? 0.12 * Math.ceil(routeIdx / 2) : -0.12 * (routeIdx / 2)) : 0);
       const nx = uz * totalOffset;
       const nz = -ux * totalOffset;
 

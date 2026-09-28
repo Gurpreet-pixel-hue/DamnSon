@@ -23,8 +23,15 @@ export function UndoToast() {
     dismissUndoToast();
   };
 
+  const stageBarTopOffset = useViewStore((s) => s.stageBarTopOffset);
+  const toastBottom = (stageBarTopOffset > 0 ? stageBarTopOffset : 133) + 12;
+
   return (
-    <aside aria-label="Notifications and alerts" className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+    <aside
+      aria-label="Notifications and alerts"
+      style={{ bottom: `${toastBottom}px` }}
+      className="fixed left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none transition-[bottom] duration-150"
+    >
       {/* Undo Toast */}
       <AnimatePresence>
         {undoToast && (

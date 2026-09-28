@@ -8,7 +8,6 @@ import {
   formatTime,
   formatNextUp,
   formatOfficeVisits,
-  formatINR,
   deriveFeeTile,
   deriveTimeTile,
 } from "@/lib/graph/summary";

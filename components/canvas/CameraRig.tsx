@@ -15,6 +15,9 @@ import {
   DEFAULT_STAGE_INSETS,
   DRAWER_STAGE_INSETS,
 } from "./camera/frameView";
+import { computeViewportInsets } from "@/lib/graph/viewportInsets";
+
+import { getEntranceSession } from "./entrance/entranceState";
 
 interface CameraRigProps {
   metro: MetroVM;
@@ -161,15 +164,18 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         ? wholeRouteBoundingBox
         : stageBoundingBox;
       const isDrawerOpen = Boolean(useTaskStore.getState().selectedStepId);
+      const activePanel = useViewStore.getState().activePanel;
+      const targetLayer = focusStage - 1;
+      const isBigStage = metro.stations.filter((s) => s.layer === targetLayer).length > 4;
 
-      const baseInsets = isDrawerOpen
-        ? DRAWER_STAGE_INSETS
-        : DEFAULT_STAGE_INSETS;
-
-      const insets = {
-        ...baseInsets,
-        bottom: stepperBottomInset,
-      };
+      const { insets } = computeViewportInsets({
+        viewportWidth: size.width,
+        viewportHeight: size.height,
+        isTrayOpen: isBigStage && !activePanel,
+        activePanel,
+        isDrawerOpen,
+        stepperBottomInset,
+      });
 
       const camera = controls.camera as THREE.PerspectiveCamera;
       const fov = camera?.fov ?? 45;
@@ -205,16 +211,87 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     ]
   );
 
-  // Initial fit: load-time fit before canvas is revealed (§10.6, §11.3, §11.8)
+  // Initial fit: load-time fit before canvas is revealed (§10.6, §11.3, §11.8, §9.4)
   useEffect(() => {
     if (metro.stations.length > 0 && !initialFittedRef.current) {
       initialFittedRef.current = true;
+
+      const session = getEntranceSession();
+      if (session.active) {
+        const controls = controlsRef.current;
+        if (controls) {
+          const targetBox = wholeRouteView
+            ? wholeRouteBoundingBox
+            : stageBoundingBox;
+          const camera = controls.camera as THREE.PerspectiveCamera;
+          const fov = camera?.fov ?? 45;
+
+          const { position, target } = frameView({
+            box: targetBox,
+            viewport: { width: size.width, height: size.height },
+            insets: DEFAULT_STAGE_INSETS,
+            fov,
+            isWholeRoute: wholeRouteView,
+          });
+
+          const fitDistance = Math.hypot(
+            position[0] - target[0],
+            position[1] - target[1],
+            position[2] - target[2]
+          );
+
+          // §9.4: Camera starts at polar 12°, azimuth −40°, 2.6 × the fit distance
+          const startDist = 2.6 * fitDistance;
+          const polar = (12 * Math.PI) / 180;
+          const azimuth = (-40 * Math.PI) / 180;
+          const yOff = startDist * Math.cos(polar);
+          const hDist = startDist * Math.sin(polar);
+          const xOff = hDist * Math.sin(azimuth);
+          const zOff = hDist * Math.cos(azimuth);
+
+          // Start pose without transition
+          void controls.setLookAt(
+            target[0] + xOff,
+            target[1] + yOff,
+            target[2] + zOff,
+            target[0],
+            target[1],
+            target[2],
+            false
+          );
+
+          // Transition to safe-fit pose over 1.6 s with smoothTime 0.35 (§9.4)
+          controls.smoothTime = 0.35;
+          const animTimer = setTimeout(() => {
+            void controls.setLookAt(
+              position[0],
+              position[1],
+              position[2],
+              target[0],
+              target[1],
+              target[2],
+              true
+            );
+          }, 50);
+
+          return () => clearTimeout(animTimer);
+        }
+      }
+
       const t = setTimeout(() => {
         frameCurrentStageOrRoute(true);
       }, 50);
       return () => clearTimeout(t);
     }
-  }, [metro.stations, frameCurrentStageOrRoute]);
+  }, [
+    metro.stations,
+    wholeRouteView,
+    wholeRouteBoundingBox,
+    stageBoundingBox,
+    size.width,
+    size.height,
+    frameCurrentStageOrRoute,
+  ]);
 
   const prevFocusStageRef = useRef(focusStage);
   const prevWholeRouteViewRef = useRef(wholeRouteView);
@@ -283,6 +360,83 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     metro.stations,
     size.width,
     size.height,
+    prefersReducedMotion,
+    frameCurrentStageOrRoute,
+  ]);
+
+  const focusedStepId = useViewStore((s) => s.focusedStepId);
+  const prevFocusedStepIdRef = useRef<string | null>(null);
+
+  // When focusedStepId changes in a big stage, glide camera to frame that station + plaza (§12.3)
+  useEffect(() => {
+    if (!initialFittedRef.current || wholeRouteView) return;
+    if (prevFocusedStepIdRef.current === focusedStepId) return;
+    prevFocusedStepIdRef.current = focusedStepId;
+
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    if (!focusedStepId) {
+      // Returned to stage overview (e.g. Esc)
+      frameCurrentStageOrRoute(false);
+      return;
+    }
+
+    const station = metro.stations.find((s) => s.id === focusedStepId);
+    if (!station || station.layer !== focusStage - 1) return;
+
+    const stageStationsCount = metro.stations.filter(
+      (s) => s.layer === focusStage - 1
+    ).length;
+    if (stageStationsCount > 4) {
+      const [sx, sy, sz] = station.position3D;
+      const stationBox = new THREE.Box3(
+        new THREE.Vector3(sx - 2, sy - 0.2, sz - 2),
+        new THREE.Vector3(sx + 2, sy + 3.2, sz + 2)
+      );
+
+      const isDrawerOpen = Boolean(selectedStepId);
+      const baseInsets = isDrawerOpen
+        ? DRAWER_STAGE_INSETS
+        : DEFAULT_STAGE_INSETS;
+      const insets = {
+        ...baseInsets,
+        left: !isDrawerOpen ? 320 : baseInsets.left,
+        bottom: stepperBottomInset,
+      };
+
+      const camera = controls.camera as THREE.PerspectiveCamera;
+      const fov = camera?.fov ?? 45;
+
+      const { position, target } = frameView({
+        box: stationBox,
+        viewport: { width: size.width, height: size.height },
+        insets,
+        fov,
+        isWholeRoute: false,
+      });
+
+      const enableTransition = !prefersReducedMotion;
+      controls.smoothTime = enableTransition ? 0.6 : 0;
+      void controls.setLookAt(
+        position[0],
+        position[1],
+        position[2],
+        target[0],
+        target[1],
+        target[2],
+        enableTransition
+      );
+    }
+  }, [
+    focusedStepId,
+    focusStage,
+    wholeRouteView,
+    metro.stations,
+    selectedStepId,
+    size.width,
+    size.height,
+    stepperBottomInset,
     prefersReducedMotion,
     frameCurrentStageOrRoute,
   ]);

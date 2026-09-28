@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useSyncExternalStore } from "react";
+import React, { useRef, useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
@@ -69,7 +69,7 @@ function CardDebugOverlay() {
   return (
     <div
       data-testid="debug-overlay"
-      className="pointer-events-auto absolute bottom-[60px] left-4 z-30 flex items-center gap-3 rounded-lg border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-2 font-mono text-xs text-[var(--cw-text)] shadow-lg backdrop-blur-md"
+      className="pointer-events-auto absolute top-4 left-4 z-30 flex items-center gap-3 rounded-lg border border-[var(--cw-border)] bg-[var(--cw-surface)]/95 px-3 py-2 font-mono text-xs text-[var(--cw-text)] shadow-lg backdrop-blur-md"
     >
       <div>
         <span className="text-[var(--cw-text-muted)]">scene draws:</span>{" "}
@@ -99,15 +99,27 @@ function CardDebugOverlay() {
   );
 }
 
-import { StageStepper } from "@/components/canvas/StageStepper";
+import { StageBar } from "@/components/canvas/StageBar";
+import { ParallelStageTray } from "@/components/canvas/ParallelStageTray";
+import { PersonaliseNudge } from "@/components/hud/PersonaliseNudge";
+import { KeysHintModal } from "@/components/hud/KeysHintModal";
+import type { ComposedJourney } from "@/lib/contract/compose";
+import { computeViewportInsets } from "@/lib/graph/viewportInsets";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 
 export interface WindowCardProps {
   metro: MetroVM | null;
+  journey?: ComposedJourney;
   drawer?: React.ReactNode;
   className?: string;
 }
 
-export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
+export function WindowCard({
+  metro,
+  journey,
+  drawer,
+  className = "",
+}: WindowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -119,6 +131,33 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
   const wholeRouteView = useViewStore((s) => s.wholeRouteView);
   const toggleWholeRouteView = useViewStore((s) => s.toggleWholeRouteView);
 
+  const focusStage = useViewStore((s) => s.focusStage);
+  const activePanel = useViewStore((s) => s.activePanel);
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
+  const selectedStepId = useTaskStore((s) => s.selectedStepId);
+  const isDrawerOpen = Boolean(selectedStepId);
+
+  const [cardDimensions, setCardDimensions] = useState({ width: 1440, height: 900 });
+
+  // Parallel Stage Tray exists for big parallel stages with > 4 stations (§12.3)
+  const isBigStage = useMemo(() => {
+    if (!metro) return false;
+    const targetLayer = focusStage - 1;
+    const stageStations = metro.stations.filter((s) => s.layer === targetLayer);
+    return stageStations.length > 4;
+  }, [metro, focusStage]);
+
+  const { freeArea } = useMemo(() => {
+    return computeViewportInsets({
+      viewportWidth: cardDimensions.width,
+      viewportHeight: cardDimensions.height,
+      isTrayOpen: isBigStage && !activePanel,
+      activePanel,
+      isDrawerOpen,
+      stepperBottomInset,
+    });
+  }, [cardDimensions, isBigStage, activePanel, isDrawerOpen, stepperBottomInset]);
+
   // Monitor fullscreen change
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -128,7 +167,7 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  // Measure stepper rect relative to canvas container (§11.8):
+  // Measure stepper rect relative to canvas container (§11.8, A2):
   // bottom inset = canvasBottom − stepperTop + 16
   useEffect(() => {
     const measureStepper = () => {
@@ -142,6 +181,12 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
           Math.round(canvasRect.bottom - stepperRect.top + 16)
         );
         useViewStore.getState().setStepperBottomInset(bottomInset);
+        const bottomToTop = Math.max(100, Math.round(window.innerHeight - stepperRect.top));
+        useViewStore.getState().setStageBarTopOffset(bottomToTop);
+      }
+      const cr = cardRef.current.getBoundingClientRect();
+      if (cr.width > 0 && cr.height > 0) {
+        setCardDimensions({ width: Math.round(cr.width), height: Math.round(cr.height) });
       }
     };
 
@@ -165,6 +210,7 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
     <div
       ref={cardRef}
       data-testid="3d-window-card"
+      data-view-mode={wholeRouteView ? "whole" : "stage"}
       className={`relative flex-1 rounded-2xl border border-[var(--cw-border)] bg-[var(--cw-surface)] shadow-xs overflow-hidden flex flex-col h-full min-h-[480px] ${className}`}
     >
       {/* Stage-header band (56px inside top of card) */}
@@ -173,24 +219,40 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
         className="pointer-events-none absolute top-0 inset-x-0 h-14 z-10"
       />
 
+      {/* Screen-reader navigation announcer (§12.1) */}
+      <div
+        id="cw-navigation-live-region"
+        role="status"
+        aria-live="polite"
+        className="sr-only"
+      />
+
       {/* Main viewport canvas / flowchart area */}
       <div className="relative flex-1 w-full overflow-hidden bg-[var(--cw-background)]">
         {viewMode === "3d" ? (
-          metro && <SceneContainer metro={metro} />
+          metro && <SceneContainer metro={metro} journey={journey} />
         ) : (
           metro && <FlowchartView metro={metro} />
         )}
 
-        {/* Debug overlay inside card, bottom-left */}
+        {/* Parallel Stage Tray overlay on the left (§12.3) */}
+        {metro && <ParallelStageTray metro={metro} journey={journey} />}
+
+        {/* Debug overlay inside card, top-left (A2) */}
         <CardDebugOverlay />
 
-        {/* Stage Stepper, bottom center (§11.1) */}
+        {/* Stage Bar & Personalise Nudge, centered in free area (§12.2, A2) */}
         {metro && (
           <div
             ref={stepperContainerRef}
-            className="pointer-events-none absolute bottom-[60px] left-1/2 -translate-x-1/2 z-30"
+            style={{
+              left: `${freeArea.centerX}px`,
+              maxWidth: `${freeArea.maxBarWidth}px`,
+            }}
+            className="pointer-events-none absolute bottom-[60px] -translate-x-1/2 z-30 flex flex-col items-center gap-2"
           >
-            <StageStepper metro={metro} />
+            <PersonaliseNudge journey={journey} metro={metro} />
+            <StageBar metro={metro} />
           </div>
         )}
 
@@ -274,6 +336,9 @@ export function WindowCard({ metro, drawer, className = "" }: WindowCardProps) {
               2D
             </button>
           </div>
+
+          {/* Keys Shortcut Hint (? / Keys) (§12.1) */}
+          <KeysHintModal />
 
           {/* Fullscreen Button */}
           <button

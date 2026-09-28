@@ -6,7 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { deriveStageHeaders, MAX_HEADER_SLOTS } from "./StageHeaders";
 import { useViewStore } from "@/lib/store/useViewStore";
-import { currentStage, getStages } from "@/lib/graph/stages";
+import { currentStage } from "@/lib/graph/stages";
 
 export interface StageHeaderProjectorProps {
   metro: MetroVM;
@@ -25,6 +25,7 @@ interface ProjectedChip {
   screenY: number;
   rect: { minX: number; maxX: number; minY: number; maxY: number };
   priority: number;
+  pinnedDirection: "left" | "right" | "top" | "bottom" | "";
 }
 
 function chipsOverlap(
@@ -46,10 +47,10 @@ export function StageHeaderProjector({
 }: StageHeaderProjectorProps) {
   const { camera, size } = useThree();
   const headers = useMemo(() => deriveStageHeaders(metro), [metro]);
-  const stages = useMemo(() => getStages(metro), [metro]);
 
   const focusStage = useViewStore((s) => s.focusStage);
   const wholeRouteView = useViewStore((s) => s.wholeRouteView);
+  const stepperBottomInset = useViewStore((s) => s.stepperBottomInset);
   const currStageNum = useMemo(() => currentStage(metro), [metro]);
 
   const cachedWorldMatrix = useRef(new Float64Array(16));
@@ -93,10 +94,9 @@ export function StageHeaderProjector({
     const halfH = size.height / 2;
     const count = headers.length;
 
-    // In stage view: show only focused chip and next stage chip (§11.8)
+    // In stage view: show ONLY focused chip (§12.2)
     // In whole-route view: show all chips with screen-space collision culling (§11.8)
     const focusedLayer = focusStage - 1;
-    const nextLayer = focusStage < stages.length ? focusStage : -1;
     const currentLayer = currStageNum - 1;
 
     const projectedChips: ProjectedChip[] = [];
@@ -106,41 +106,49 @@ export function StageHeaderProjector({
       if (!h) continue;
 
       if (!wholeRouteView) {
-        // Stage view filter: only focused and next chip
-        if (h.layer !== focusedLayer && h.layer !== nextLayer) {
+        // Only the focused stage keeps an in-world chip (§12.2)
+        if (h.layer !== focusedLayer) {
           continue;
         }
       }
 
-      scratchVec.set(h.x, 0.57, h.z);
+      scratchVec.set(h.x, h.y ?? 0.57, h.z);
 
       scratchCamToHeader.subVectors(scratchVec, scratchCamPos);
-      if (scratchCamToHeader.dot(scratchCamForward) <= 0) {
-        continue;
+      const isBehind = scratchCamToHeader.dot(scratchCamForward) <= 0;
+
+      let rawScreenX: number;
+      let rawScreenY: number;
+
+      if (isBehind) {
+        if (!wholeRouteView) {
+          // If focused chip is behind camera, pin to bottom window edge
+          rawScreenX = halfW;
+          rawScreenY = size.height + 100;
+        } else {
+          continue;
+        }
+      } else {
+        scratchVec.project(camera);
+        rawScreenX = scratchVec.x * halfW + halfW;
+        rawScreenY = -scratchVec.y * halfH + halfH - 24;
       }
 
-      scratchVec.project(camera);
+      // Safe area bounds (§12.2)
+      const safeMinX = 24 + 70;
+      const safeMaxX = size.width - 24 - 70;
+      const safeMinY = 56 + 16;
+      const bottomInset = stepperBottomInset > 0 ? stepperBottomInset : 68;
+      const safeMaxY = size.height - bottomInset - 16;
 
-      const screenX = scratchVec.x * halfW + halfW;
-      const screenY = -scratchVec.y * halfH + halfH;
+      let pinnedDirection: "left" | "right" | "top" | "bottom" | "" = "";
+      if (rawScreenX < safeMinX) pinnedDirection = "left";
+      else if (rawScreenX > safeMaxX) pinnedDirection = "right";
+      else if (rawScreenY < safeMinY) pinnedDirection = "top";
+      else if (rawScreenY > safeMaxY) pinnedDirection = "bottom";
 
-      if (
-        screenX < -100 ||
-        screenX > size.width + 100 ||
-        screenY < -100 ||
-        screenY > size.height + 100
-      ) {
-        continue;
-      }
-
-      // Safe area bounds
-      const safeMinX = 24;
-      const safeMaxX = size.width - 24;
-      const safeMinY = 56;
-      const safeMaxY = size.height - 68;
-
-      const clampedX = Math.max(safeMinX + 70, Math.min(safeMaxX - 70, screenX));
-      const clampedY = Math.max(safeMinY + 16, Math.min(safeMaxY - 16, screenY));
+      const clampedX = Math.max(safeMinX, Math.min(safeMaxX, rawScreenX));
+      const clampedY = Math.max(safeMinY, Math.min(safeMaxY, rawScreenY));
 
       const chipWidth = 140;
       const chipHeight = 32;
@@ -162,6 +170,7 @@ export function StageHeaderProjector({
           maxY: clampedY + chipHeight / 2,
         },
         priority,
+        pinnedDirection,
       });
     }
 
@@ -187,6 +196,7 @@ export function StageHeaderProjector({
 
       const el = slots[chip.index];
       if (el) {
+        el.dataset.pinned = chip.pinnedDirection;
         el.style.transform = `translate3d(${Math.round(chip.screenX)}px, ${Math.round(chip.screenY)}px, 0) translate(-50%, -50%)`;
         el.style.visibility = "visible";
       }

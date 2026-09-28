@@ -24,6 +24,9 @@ interface ViewState {
   undoToast: UndoToastState | null;
   recomposeToast: string | null;
   stepperBottomInset: number;
+  stageBarTopOffset: number;
+  activePanel: "journey" | "visits" | "documents" | null;
+  trayFilter: "all" | "available" | "online" | "in_person" | "may_apply";
   setViewMode: (mode: ViewMode) => void;
   setFocusedStepId: (id: string | null) => void;
   setHoveredStepId: (id: string | null) => void;
@@ -36,6 +39,9 @@ interface ViewState {
   setWholeRouteView: (wholeRoute: boolean) => void;
   toggleWholeRouteView: () => void;
   setStepperBottomInset: (inset: number) => void;
+  setStageBarTopOffset: (offset: number) => void;
+  setActivePanel: (panel: "journey" | "visits" | "documents" | null) => void;
+  setTrayFilter: (filter: "all" | "available" | "online" | "in_person" | "may_apply") => void;
   showUndoToast: (toast: UndoToastState) => void;
   dismissUndoToast: () => void;
   showRecomposeToast: (message: string) => void;
@@ -58,6 +64,9 @@ export const useViewStore = create<ViewState>((set) => ({
   undoToast: null,
   recomposeToast: null,
   stepperBottomInset: 133,
+  stageBarTopOffset: 133,
+  activePanel: null,
+  trayFilter: "all",
   setViewMode: (viewMode) => set({ viewMode }),
   setFocusedStepId: (focusedStepId) => set({ focusedStepId }),
   setHoveredStepId: (hoveredStepId) => set({ hoveredStepId }),
@@ -80,6 +89,9 @@ export const useViewStore = create<ViewState>((set) => ({
   toggleWholeRouteView: () =>
     set((state) => ({ wholeRouteView: !state.wholeRouteView })),
   setStepperBottomInset: (stepperBottomInset) => set({ stepperBottomInset }),
+  setStageBarTopOffset: (stageBarTopOffset) => set({ stageBarTopOffset }),
+  setActivePanel: (activePanel) => set({ activePanel }),
+  setTrayFilter: (trayFilter) => set({ trayFilter }),
   showUndoToast: (toast) => {
     if (toastTimeout) {
       clearTimeout(toastTimeout);

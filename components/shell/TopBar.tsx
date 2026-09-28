@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { JourneyTemplate } from "@/lib/contract/schema";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeProgressCount } from "@/lib/graph/progress";
+import { encodeShareState } from "@/lib/graph/shareState";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 import type { JourneySummaryValues } from "@/components/hud/SummaryBar";
 import { SummaryTile } from "@/components/hud/SummaryBar";
 
@@ -27,6 +29,18 @@ export function TopBar({
 }: TopBarProps) {
   const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const facts = useTaskStore((s) => s.factsByTask[template.taskId] ?? {});
+  const completed = useTaskStore((s) => s.completedByTask[template.taskId] ?? []);
+
+  const printUrl = useMemo(() => {
+    const query = encodeShareState({
+      taskId: template.taskId,
+      facts,
+      completed,
+    });
+    return `/journey/${template.taskId}/print?${query}`;
+  }, [template.taskId, facts, completed]);
 
   const locationText = template.jurisdiction.city
     ? `${template.jurisdiction.city}, ${template.jurisdiction.state}`
@@ -177,8 +191,34 @@ export function TopBar({
         />
       </div>
 
-      {/* Share Journey button */}
-      <div className="shrink-0 flex items-center">
+      {/* Actions: Print & Share */}
+      <div className="shrink-0 flex items-center gap-2">
+        <Link
+          href={printUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="print-checklist-button"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide border border-[var(--cw-border)] bg-[var(--cw-background)] text-[var(--cw-text)] hover:border-[var(--cw-brand)] hover:text-[var(--cw-brand)] transition-all shadow-xs"
+          title="Print official procedure checklist"
+          aria-label="Print checklist"
+        >
+          <svg
+            className="w-3.5 h-3.5 text-current"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          <span>Print checklist</span>
+        </Link>
+
         <button
           type="button"
           data-testid="share-journey-button"

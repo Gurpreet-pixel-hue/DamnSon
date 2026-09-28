@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { JourneyTemplate, ApprovalModule } from "@/lib/contract/schema";
-import type { ComposedStep } from "@/lib/contract/compose";
+import type { ComposedJourney } from "@/lib/contract/compose";
 import { safeCompose, type SafeComposeResult } from "@/lib/graph/safeCompose";
 import { fromJourney, type MetroVM } from "@/lib/graph/viewModel";
 import { currentStage } from "@/lib/graph/stages";
-import { computeRecomposeDiff, clampFocusStage } from "@/lib/graph/recomposeDiff";
+import { diffJourneys, formatDiff, clampFocusStage, type JourneyDiff } from "@/lib/graph/journeyDiff";
+import { compareTotals, type TotalsChange } from "@/components/hud/totalsChange";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore } from "@/lib/store/useViewStore";
-import { deriveSummaryValues } from "@/components/hud/SummaryBar";
+import { deriveSummaryValues, type JourneySummaryValues } from "@/components/hud/SummaryBar";
 import { VerificationBanner } from "@/components/hud/VerificationBanner";
 import { ConflictBanner } from "./ConflictBanner";
 import { TopBar } from "./TopBar";
@@ -18,6 +19,7 @@ import { WindowCard } from "./WindowCard";
 import { RightDrawer } from "./RightDrawer";
 import { UndoToast } from "./UndoToast";
 import { useShareJourney } from "./useShareJourney";
+import { startEntranceSession } from "@/components/canvas/entrance/entranceState";
 
 export interface JourneyShellProps {
   initialBundle: {
@@ -32,10 +34,11 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   const { template, modules } = initialBundle;
   const taskId = template.taskId;
 
-  // Rehydrate store on mount (P3 & C3)
+  // Rehydrate store and initialize entrance session on mount (P3, C3, A13)
   useEffect(() => {
     void useTaskStore.persist.rehydrate();
     useTaskStore.getState().setActiveTask(taskId);
+    startEntranceSession();
   }, [taskId]);
 
   const factsByTask = useTaskStore((s) => s.factsByTask);
@@ -52,17 +55,22 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
 
   const journey = composeResult.ok ? composeResult.journey : undefined;
 
-  // Recompose diff detection & toast (PRD §8.6 & Amendment 4)
-  const prevStepsRef = useRef<ComposedStep[] | null>(null);
+  // Recompose diff detection & toast (PRD §8.6 & Amendment 4 & C4)
+  const prevJourneyRef = useRef<ComposedJourney | null>(null);
+  const [lastDiff, setLastDiff] = useState<JourneyDiff | null>(null);
+  const [lastTotals, setLastTotals] = useState<TotalsChange[]>([]);
+
   useEffect(() => {
     if (journey) {
-      if (prevStepsRef.current !== null) {
-        const diff = computeRecomposeDiff(prevStepsRef.current, journey.steps);
-        if (diff.toastMessage) {
-          useViewStore.getState().showRecomposeToast(diff.toastMessage);
+      if (prevJourneyRef.current !== null) {
+        const diff = diffJourneys(prevJourneyRef.current, journey);
+        const toastMsg = formatDiff(diff);
+        if (toastMsg) {
+          useViewStore.getState().showRecomposeToast(toastMsg);
         }
+        setLastDiff(diff);
       }
-      prevStepsRef.current = journey.steps;
+      prevJourneyRef.current = journey;
     }
   }, [journey]);
 
@@ -119,6 +127,19 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
     }
     return deriveSummaryValues(journey, completed);
   }, [journey, completed]);
+
+  const prevSummaryRef = useRef<JourneySummaryValues | null>(null);
+  useEffect(() => {
+    if (summary) {
+      if (prevSummaryRef.current !== null) {
+        const totalsDiff = compareTotals(prevSummaryRef.current, summary);
+        if (totalsDiff.length > 0) {
+          setLastTotals(totalsDiff);
+        }
+      }
+      prevSummaryRef.current = summary;
+    }
+  }, [summary]);
 
   // Share and conflict handling (P3 & P4)
   const {
@@ -209,11 +230,14 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
           template={template}
           modules={modules}
           journey={journey}
+          lastChange={lastDiff}
+          lastTotals={lastTotals}
         />
 
         {/* Framed 3D / 2D Window Card with internal Overlay Drawer */}
         <WindowCard
           metro={metro}
+          journey={journey}
           drawer={<RightDrawer journey={journey} />}
         />
       </div>

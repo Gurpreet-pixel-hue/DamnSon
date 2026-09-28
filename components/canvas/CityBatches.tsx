@@ -2,11 +2,13 @@
 
 import { useMemo, useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import type { CityPlan } from "./city/planCity";
 import type { StationVM } from "@/lib/graph/viewModel";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { PALETTE } from "./palette";
+import { useEntrance, easeBackOut } from "./entrance/useEntrance";
 
 interface CityBatchesProps {
   plan: CityPlan;
@@ -299,6 +301,66 @@ export function CityBatches({ plan, stations = [], visibleProps = true }: CityBa
       }
     }
   }, [cityBatchedMesh, propsBatchedMesh, focusStage, wholeRouteView, stations, plan]);
+
+  // City rise animation on entrance (§9.4)
+  const { isEntering, getElapsed } = useEntrance();
+  const prevSettledRef = useRef(false);
+
+  const buildingDistances = useMemo(() => {
+    const firstPos = stations[0]?.position3D ?? [0, 0, 0];
+    let max = 1;
+    const dists: number[] = [];
+    for (const b of plan.buildings) {
+      const d = Math.hypot(b.position[0] - firstPos[0], b.position[2] - firstPos[2]);
+      if (d > max) max = d;
+      dists.push(d);
+    }
+    return { dists, maxDist: max };
+  }, [plan.buildings, stations]);
+
+  useFrame(() => {
+    if (!cityBatchedMesh) return;
+    const entering = isEntering();
+    const elapsed = getElapsed();
+    const settled = elapsed >= 1.4;
+
+    if (entering && !settled) {
+      prevSettledRef.current = false;
+      const { dists, maxDist } = buildingDistances;
+      for (let i = 0; i < plan.buildings.length; i++) {
+        const b = plan.buildings[i];
+        if (!b) continue;
+        const d = dists[i] ?? 0;
+        const delay = (d / maxDist) * 0.9;
+        const progress = Math.max(0, Math.min(1, (elapsed - delay) / 0.35));
+        const scaleY =
+          progress === 0
+            ? 0.01
+            : progress === 1
+              ? b.scale[1]
+              : Math.max(0.01, b.scale[1] * easeBackOut(progress));
+
+        _tempPos.set(b.position[0], b.position[1], b.position[2]);
+        _tempEuler.set(0, b.rotationY, 0);
+        _tempQuat.setFromEuler(_tempEuler);
+        _tempScale.set(b.scale[0], scaleY, b.scale[2]);
+        _tempMatrix.compose(_tempPos, _tempQuat, _tempScale);
+        cityBatchedMesh.setMatrixAt(i, _tempMatrix);
+      }
+    } else if (!prevSettledRef.current) {
+      prevSettledRef.current = true;
+      for (let i = 0; i < plan.buildings.length; i++) {
+        const b = plan.buildings[i];
+        if (!b) continue;
+        _tempPos.set(b.position[0], b.position[1], b.position[2]);
+        _tempEuler.set(0, b.rotationY, 0);
+        _tempQuat.setFromEuler(_tempEuler);
+        _tempScale.set(b.scale[0], b.scale[1], b.scale[2]);
+        _tempMatrix.compose(_tempPos, _tempQuat, _tempScale);
+        cityBatchedMesh.setMatrixAt(i, _tempMatrix);
+      }
+    }
+  });
 
   return (
     <group>

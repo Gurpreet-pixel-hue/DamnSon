@@ -9,30 +9,40 @@ export interface StageHeaderItem {
   layer: number;
   text: string;
   x: number;
+  y: number;
   z: number;
 }
 
 export function deriveStageHeaders(metro: MetroVM): StageHeaderItem[] {
   if (metro.stations.length === 0) return [];
 
-  let minZ = Infinity;
-  const layerMap = new Map<number, number[]>();
-
+  const layerStationsMap = new Map<number, (typeof metro.stations)>();
   for (const s of metro.stations) {
-    minZ = Math.min(minZ, s.position3D[2]);
-    const xs = layerMap.get(s.layer) ?? [];
-    xs.push(s.position3D[0]);
-    layerMap.set(s.layer, xs);
+    const list = layerStationsMap.get(s.layer) ?? [];
+    list.push(s);
+    layerStationsMap.set(s.layer, list);
   }
 
-  const backZ = minZ - 2.0;
-
-  const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
+  const sortedLayers = Array.from(layerStationsMap.keys()).sort((a, b) => a - b);
 
   return sortedLayers.slice(0, MAX_HEADER_SLOTS).map((layer) => {
-    const xs = layerMap.get(layer)!;
-    const avgX = xs.reduce((sum, val) => sum + val, 0) / xs.length;
-    const count = xs.length;
+    const stList = layerStationsMap.get(layer)!;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let maxY = -Infinity;
+
+    for (const s of stList) {
+      minX = Math.min(minX, s.position3D[0]);
+      maxX = Math.max(maxX, s.position3D[0]);
+      minZ = Math.min(minZ, s.position3D[2]);
+      maxZ = Math.max(maxZ, s.position3D[2]);
+      maxY = Math.max(maxY, s.position3D[1]);
+    }
+
+    const midX = (minX + maxX) / 2;
+    const count = stList.length;
 
     let text: string;
     if (layer === 0) {
@@ -46,8 +56,9 @@ export function deriveStageHeaders(metro: MetroVM): StageHeaderItem[] {
     return {
       layer,
       text,
-      x: avgX,
-      z: backZ,
+      x: midX,
+      y: (maxY > -Infinity ? maxY : 0) + 1.2,
+      z: minZ - 0.4,
     };
   });
 }
@@ -122,6 +133,8 @@ export function StageHeaders({ metro, slotsRef }: StageHeadersProps) {
                 : "border-[var(--cw-border)] bg-[var(--cw-surface)]/95 text-[var(--cw-text-muted)] font-medium shadow-xs hover:border-[var(--cw-text-muted)]"
             }`}
           >
+            <span className="hidden [[data-pinned='left']>&]:inline font-bold text-xs mr-0.5">‹</span>
+            <span className="hidden [[data-pinned='top']>&]:inline font-bold text-xs mr-0.5">▲</span>
             {isDone && !isFocused && (
               <svg
                 className="h-3 w-3 text-[#1E7F3B]"
@@ -137,6 +150,8 @@ export function StageHeaders({ metro, slotsRef }: StageHeadersProps) {
               </svg>
             )}
             <span>{item.text}</span>
+            <span className="hidden [[data-pinned='right']>&]:inline font-bold text-xs ml-0.5">›</span>
+            <span className="hidden [[data-pinned='bottom']>&]:inline font-bold text-xs ml-0.5">▼</span>
           </div>
         );
       })}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import type { MetroVM } from "@/lib/graph/viewModel";
+import type { ComposedJourney } from "@/lib/contract/compose";
 import { useTaskStore } from "@/lib/store/useTaskStore";
 import { planCity, type StationLocation, type TrackLocation } from "./city/planCity";
 import { Board } from "./Board";
@@ -154,20 +155,24 @@ function DebugCollector() {
 
 interface MetroSceneProps {
   metro: MetroVM;
+  journey?: ComposedJourney | null;
   cardSlotsRef?: React.RefObject<Map<string, HTMLDivElement>>;
   tetherRefs?: React.RefObject<Map<string, SVGSVGElement>>;
   tooltipRef?: React.RefObject<HTMLDivElement | null>;
   headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
   onDprChange?: (dpr: number) => void;
+  onSceneReady?: () => void;
 }
 
 export function MetroScene({
   metro,
+  journey,
   cardSlotsRef,
   tetherRefs,
   tooltipRef,
   headerSlotsRef,
   onDprChange,
+  onSceneReady,
 }: MetroSceneProps) {
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
 
@@ -180,7 +185,34 @@ export function MetroScene({
   const [perfLevel, setPerfLevel] = useState(0);
 
   // Hook keyboard navigation
-  useSceneKeyboard(metro);
+  useSceneKeyboard(metro, journey);
+
+  // Shader warm-up before first visible frame with narrow useThree selectors (§9.2, A14)
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const warmUpRef = useRef(false);
+
+  useEffect(() => {
+    if (!warmUpRef.current && gl) {
+      warmUpRef.current = true;
+      if (
+        typeof (gl as unknown as { compileAsync?: unknown }).compileAsync ===
+        "function"
+      ) {
+        (gl as THREE.WebGLRenderer)
+          .compileAsync(scene, camera)
+          .then(() => {
+            onSceneReady?.();
+          })
+          .catch(() => {
+            onSceneReady?.();
+          });
+      } else {
+        onSceneReady?.();
+      }
+    }
+  }, [gl, scene, camera, onSceneReady]);
 
   // Compute deterministic city plan
   const plan = useMemo(() => {
@@ -246,7 +278,7 @@ export function MetroScene({
       <Pedestrians plan={plan} stations={metro.stations} stopped={perfLevel >= 2} />
 
       {/* 3. Stations with plaza rings, beacons, dimmed locked, and outline */}
-      <Stations stations={metro.stations} />
+      <Stations stations={metro.stations} journey={journey} />
 
       {/* 4. Routes batches (flat 0.35 ribbons following streets, §11.5) */}
       <Tracks metro={metro} plan={plan} />

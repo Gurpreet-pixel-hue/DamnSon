@@ -134,4 +134,36 @@ describe("routeOnRoads: Routes follow the streets (§11.5)", () => {
     }
     expect(maxDiff).toBeGreaterThan(0.05);
   });
+
+  it("bundles fan-out routes on shared road trunks (>3 routes) per §12.4", () => {
+    // 5 shared tracks
+    const bundleTracks = [
+      { id: "b1", from: "s1", to: "s2" },
+      { id: "b2", from: "s1", to: "s2" },
+      { id: "b3", from: "s1", to: "s2" },
+      { id: "b4", from: "s1", to: "s2" },
+      { id: "b5", from: "s1", to: "s2" },
+    ];
+    const bundledRoutes = computeRoutesOnRoads({
+      tracks: bundleTracks,
+      stations: demoStations,
+      roadGraph,
+      cellSize: plan.cellGrid.cellSize,
+    });
+
+    const r1 = bundledRoutes.get("b1")!;
+    const r5 = bundledRoutes.get("b5")!;
+    expect(r1).toBeDefined();
+    expect(r5).toBeDefined();
+
+    // On the trunk, all routes share the same lane (offset = 0.18), so polylines match exactly
+    const minLen = Math.min(r1.polyline.length, r5.polyline.length);
+    for (let i = 1; i < minLen - 1; i++) {
+      const p1 = r1.polyline[i]!;
+      const p5 = r5.polyline[i]!;
+      expect(p1[0]).toBeCloseTo(p5[0], 4);
+      expect(p1[2]).toBeCloseTo(p5[2], 4);
+    }
+  });
 });
+

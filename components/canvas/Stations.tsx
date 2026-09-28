@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -14,10 +14,14 @@ import {
 import { PALETTE } from "./palette";
 import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
-import { useViewStore, requestHover } from "@/lib/store/useViewStore";
+import { useViewStore } from "@/lib/store/useViewStore";
+import { buildStageTrayModel } from "@/lib/graph/stageTray";
+import type { ComposedJourney } from "@/lib/contract/compose";
+import { useEntrance, easeBackOut } from "./entrance/useEntrance";
 
 interface StationsProps {
   stations: StationVM[];
+  journey?: ComposedJourney | null;
 }
 
 const _tempObj = new THREE.Object3D();
@@ -68,7 +72,7 @@ void main() {
 }
 `;
 
-export function Stations({ stations }: StationsProps) {
+export function Stations({ stations, journey }: StationsProps) {
   // Load stations.glb with procedural fallback
   const gltf = useGLTF("/models/stations.glb");
   const fallbackGeometries = useMemo(() => getStationGeometries(), []);
@@ -137,10 +141,113 @@ export function Stations({ stations }: StationsProps) {
   const padMeshRef = useRef<THREE.InstancedMesh>(null);
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
-  const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
   const checkDiscMeshRef = useRef<THREE.InstancedMesh>(null);
+  const numberedMarkerMeshRef = useRef<THREE.InstancedMesh>(null);
+
+  const { isEntering, getStationProgress } = useEntrance();
 
   const focusStage = useViewStore((s) => s.focusStage);
+
+  // Big parallel stage stations with numbered markers matching tray order (§12.3, A4)
+  const bigStageStations = useMemo(() => {
+    if (stations.length === 0) return [];
+    const targetLayer = focusStage - 1;
+    const stageList = stations.filter((s) => s.layer === targetLayer);
+    if (stageList.length <= 4) return [];
+    const trayModel = buildStageTrayModel({
+      metro: { stations, tracks: [] },
+      stageNumber: focusStage,
+      journey,
+    });
+    return trayModel.allOrderedItems;
+  }, [stations, focusStage, journey]);
+
+  // Generate CanvasTexture and instanced plane geometry with aUvOffset for numbered plaza markers (§12.3, A4)
+  const { markerTexture, markerGeometry, markerMaterial } = useMemo(() => {
+    const count = bigStageStations.length;
+    if (count === 0 || typeof document === "undefined") {
+      return { markerTexture: null, markerGeometry: null, markerMaterial: null };
+    }
+
+    const gridDim = count > 16 ? 8 : 4;
+    const cellUvSize = 1.0 / gridDim;
+    const canvasSize = gridDim * 128;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { markerTexture: null, markerGeometry: null, markerMaterial: null };
+
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+    const uvOffsets = new Float32Array(count * 2);
+
+    for (let i = 0; i < count && i < gridDim * gridDim; i++) {
+      const col = i % gridDim;
+      const row = Math.floor(i / gridDim);
+      const cx = col * 128 + 64;
+      const cy = row * 128 + 64;
+
+      uvOffsets[i * 2] = col * cellUvSize;
+      uvOffsets[i * 2 + 1] = (gridDim - 1 - row) * cellUvSize;
+
+      // Disc background
+      ctx.beginPath();
+      ctx.arc(cx, cy, 52, 0, Math.PI * 2);
+      ctx.fillStyle = "#0F172A"; // Slate 900
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.stroke();
+
+      // Disc text (e.g. 4.1 or item.numberLabel)
+      const label = bigStageStations[i]?.numberLabel ?? `${focusStage}.${i + 1}`;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 30px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, cx, cy);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+
+    const geom = new THREE.PlaneGeometry(0.7, 0.7);
+    geom.rotateX(-Math.PI / 2);
+    geom.setAttribute("aUvOffset", new THREE.InstancedBufferAttribute(uvOffsets, 2));
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      polygonOffset: true,
+      polygonOffsetFactor: POLYGON_OFFSETS.ringsAndDecals.factor,
+      polygonOffsetUnits: POLYGON_OFFSETS.ringsAndDecals.units,
+    });
+
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = `
+        attribute vec2 aUvOffset;
+        ${shader.vertexShader}
+      `.replace(
+        `#include <uv_vertex>`,
+        `#include <uv_vertex>
+        #ifdef USE_MAP
+          vMapUv = vMapUv * ${cellUvSize.toFixed(6)} + aUvOffset;
+        #endif`
+      );
+    };
+
+    return { markerTexture: tex, markerGeometry: geom, markerMaterial: mat };
+  }, [bigStageStations, focusStage]);
+
+  useEffect(() => {
+    return () => {
+      markerTexture?.dispose();
+      markerGeometry?.dispose();
+      markerMaterial?.dispose();
+    };
+  }, [markerTexture, markerGeometry, markerMaterial]);
 
   // Available non-optional stations in focused stage for next-up beacons (§11.2)
   const nextUpStations = useMemo(() => {
@@ -155,11 +262,6 @@ export function Stations({ stations }: StationsProps) {
   // Done stations for 3D green check discs on the plaza (§11.2)
   const doneStations = useMemo(() => {
     return stations.filter((s) => s.state === "done");
-  }, [stations]);
-
-  // Hybrid stations for floating roof screen (§10.5)
-  const hybridStations = useMemo(() => {
-    return stations.filter((s) => s.mode === "hybrid");
   }, [stations]);
 
   // Geometries for Plaza Pads, Plaza Rings, Beacons, and Check Discs
@@ -239,19 +341,6 @@ export function Stations({ stations }: StationsProps) {
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         toneMapped: false,
-      }),
-    []
-  );
-
-  // Floating screen for hybrid stations (§10.5)
-  const hybridScreenGeometry = useMemo(() => new THREE.BoxGeometry(0.8, 0.5, 0.08), []);
-  const hybridScreenMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: PALETTE.available,
-        emissive: PALETTE.available,
-        emissiveIntensity: 0.5,
-        roughness: 0.5,
       }),
     []
   );
@@ -409,9 +498,20 @@ export function Stations({ stations }: StationsProps) {
           key === "online_portal" && !prefersReducedMotion
             ? Math.sin((time * Math.PI * 2) / 3.0) * 0.08
             : 0;
+
+        const maxLayer = Math.max(...stations.map((s) => s.layer), 1);
+        const delay = (station.layer / maxLayer) * 0.45;
+        const entranceScale = isEntering()
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, 0.21 + bob, z);
-        // G3: Stations render at 1.25x scale + unlock pop (§10.7)
-        _tempObj.scale.set(1.25 * popScale, 1.25 * scaleY * popScale, 1.25 * popScale);
+        // G3: Stations render at 1.25x scale + unlock pop (§10.7) + entrance pop (§9.4)
+        _tempObj.scale.set(
+          1.25 * popScale * entranceScale,
+          1.25 * scaleY * popScale * entranceScale,
+          1.25 * popScale * entranceScale
+        );
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -421,6 +521,9 @@ export function Stations({ stations }: StationsProps) {
       mesh.instanceMatrix.needsUpdate = true;
     }
 
+    const maxLayerAll = Math.max(...stations.map((s) => s.layer), 1);
+    const entering = isEntering();
+
     // 1b. Update plaza pads (E9: plaza colour, radius 1.6, 0.04 high)
     const padMesh = padMeshRef.current;
     if (padMesh && stations.length > 0) {
@@ -429,8 +532,13 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, PLAZA_PAD_CENTER_Y, z); // Pad center at 0.190 -> top is 0.210 (§11.5)
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -447,8 +555,13 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -466,8 +579,13 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -477,26 +595,7 @@ export function Stations({ stations }: StationsProps) {
       beaconMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 4. Update hybrid floating roof screens (§10.5)
-    const hybridMesh = hybridMeshRef.current;
-    if (hybridMesh && hybridStations.length > 0) {
-      for (let i = 0; i < hybridStations.length; i++) {
-        const station = hybridStations[i];
-        if (!station) continue;
-
-        const [x, , z] = station.position3D;
-        const bob = !prefersReducedMotion ? Math.sin((time * Math.PI * 2) / 3.0) * 0.05 : 0;
-        _tempObj.position.set(x, 2.75 + bob, z);
-        _tempObj.scale.set(1, 1, 1);
-        _tempObj.rotation.set(0, 0, 0);
-        _tempObj.updateMatrix();
-
-        hybridMesh.setMatrixAt(i, _tempObj.matrix);
-      }
-      hybridMesh.instanceMatrix.needsUpdate = true;
-    }
-
-    // 5. Update done station check discs on the plaza (§11.2)
+    // 4. Update done station check discs on the plaza (§11.2)
     const checkMesh = checkDiscMeshRef.current;
     if (checkMesh && doneStations.length > 0) {
       for (let i = 0; i < doneStations.length; i++) {
@@ -504,8 +603,13 @@ export function Stations({ stations }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z + 0.8);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -514,13 +618,55 @@ export function Stations({ stations }: StationsProps) {
       checkMesh.instanceMatrix.needsUpdate = true;
     }
 
-    if (allFinished) {
+    // 5. Update numbered plaza markers for big parallel stages (§12.3)
+    const markerMesh = numberedMarkerMeshRef.current;
+    if (markerMesh && bigStageStations.length > 0) {
+      for (let i = 0; i < bigStageStations.length; i++) {
+        const item = bigStageStations[i];
+        if (!item) continue;
+
+        const [x, , z] = item.station.position3D;
+        const delay = (item.station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
+        _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z - 0.7);
+        _tempObj.scale.set(eScale, eScale, eScale);
+        _tempObj.rotation.set(0, 0, 0);
+        _tempObj.updateMatrix();
+
+        markerMesh.setMatrixAt(i, _tempObj.matrix);
+      }
+      markerMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    if (allFinished && !entering) {
       animDoneRef.current = true;
     }
   });
 
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
+  const focusedStepId = useViewStore((s) => s.focusedStepId);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
+
+  const requestHover = useCallback(
+    (id: string | null) => useViewStore.getState().setHoveredStepId(id),
+    []
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
+    if (!isDebug) return;
+    const win = window as unknown as { __cwDebug?: Record<string, unknown> };
+    if (!win.__cwDebug) {
+      win.__cwDebug = {};
+    }
+    const currentId = focusedStepId || selectedStepId;
+    const item = bigStageStations.find((it) => it.station.id === currentId);
+    win.__cwDebug.selectedMarker = item ? item.numberLabel : null;
+  }, [focusedStepId, selectedStepId, bigStageStations]);
 
   useEffect(() => {
     document.body.style.cursor = hoveredStepId ? "pointer" : "auto";
@@ -646,19 +792,19 @@ export function Stations({ stations }: StationsProps) {
         />
       )}
 
+      {/* 3D Numbered Plaza Decal Markers for Big Parallel Stages (§12.3) */}
+      {bigStageStations.length > 0 && markerGeometry && markerMaterial && (
+        <instancedMesh
+          ref={numberedMarkerMeshRef}
+          args={[markerGeometry, markerMaterial, bigStageStations.length]}
+        />
+      )}
+
       {/* Instanced Next-Up Beacons */}
       {nextUpStations.length > 0 && (
         <instancedMesh
           ref={beaconMeshRef}
           args={[beaconGeometry, beaconMaterial, nextUpStations.length]}
-        />
-      )}
-
-      {/* Instanced Hybrid Roof Screens (§10.5) */}
-      {hybridStations.length > 0 && (
-        <instancedMesh
-          ref={hybridMeshRef}
-          args={[hybridScreenGeometry, hybridScreenMaterial, hybridStations.length]}
         />
       )}
 
