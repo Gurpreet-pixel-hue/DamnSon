@@ -25,22 +25,97 @@ function announceNavigation(params: AnnouncementParams) {
   }
 }
 
+export interface SceneEventCheckOptions {
+  key: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  defaultPrevented?: boolean;
+  isComposing?: boolean;
+  targetTagName?: string;
+  targetIsContentEditable?: boolean;
+  targetRole?: string;
+  targetInDrawer?: boolean;
+  isModalOpen?: boolean;
+}
+
+/**
+ * Pure check deciding whether a keyboard event should be ignored by the scene hook (A3, §12.1).
+ */
+export function shouldIgnoreSceneEvent(options: SceneEventCheckOptions): boolean {
+  // 1. Modifiers, defaultPrevented, or IME composing
+  if (
+    options.ctrlKey ||
+    options.metaKey ||
+    options.altKey ||
+    options.defaultPrevented ||
+    options.isComposing
+  ) {
+    return true;
+  }
+
+  // 2. Modal open
+  if (options.isModalOpen) {
+    return true;
+  }
+
+  // 3. Form input / contenteditable / drawer text
+  const tag = options.targetTagName?.toUpperCase();
+  if (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    options.targetIsContentEditable ||
+    options.targetInDrawer
+  ) {
+    return true;
+  }
+
+  // 4. Enter / Space on interactive controls
+  if (options.key === "Enter" || options.key === " " || options.key === "Spacebar") {
+    if (
+      tag === "BUTTON" ||
+      tag === "A" ||
+      tag === "SUMMARY" ||
+      options.targetRole === "button" ||
+      options.targetRole === "radio" ||
+      options.targetRole === "checkbox" ||
+      options.targetRole === "switch" ||
+      options.targetRole === "tab"
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function useSceneKeyboard(metro: MetroVM, journey?: ComposedJourney | null) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Ignore keys while focus is in inputs, textareas, selects, contentEditable, or drawer scrollable areas (§12.1)
       const target = e.target instanceof Element ? e.target : null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          (target as HTMLElement).isContentEditable ||
-          target.closest('[data-drawer-scroll="true"]') ||
-          target.closest('[data-testid="drawer-content"]'))
-      ) {
-        return;
-      }
+      const isModalOpen =
+        typeof document !== "undefined" &&
+        Boolean(document.querySelector('[aria-modal="true"]'));
+
+      const shouldIgnore = shouldIgnoreSceneEvent({
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        altKey: e.altKey,
+        defaultPrevented: e.defaultPrevented,
+        isComposing: e.isComposing,
+        targetTagName: target?.tagName,
+        targetIsContentEditable: (target as HTMLElement | null)?.isContentEditable,
+        targetRole: target?.getAttribute("role") || undefined,
+        targetInDrawer: Boolean(
+          target?.closest('[data-drawer-scroll="true"]') ||
+            target?.closest('[data-testid="drawer-content"]')
+        ),
+        isModalOpen,
+      });
+
+      if (shouldIgnore) return;
 
       if (metro.stations.length === 0) return;
 
@@ -48,18 +123,22 @@ export function useSceneKeyboard(metro: MetroVM, journey?: ComposedJourney | nul
       const totalStages = Math.max(1, stages.length);
       const currStageNum = currentStage(metro);
 
-      const { focusStage, setFocusStage, focusedStepId, setFocusedStepId } =
+      const { focusStage, setFocusStage, focusedStepId, setFocusedStepId, trayFilter } =
         useViewStore.getState();
       const { activeTaskId, selectedStepId, selectStep, toggleStepDone } =
         useTaskStore.getState();
 
-      // Get stations for the focused stage in tray order (§12.3)
+      // Get stations for the focused stage in tray order with active filter (§12.3, A4)
       const stageModel = buildStageTrayModel({
         metro,
         stageNumber: focusStage,
         journey,
+        filter: trayFilter,
       });
-      const stageStationIds = stageModel.allOrderedItems.map((i) => i.station.id);
+      // Extract visible items in active filter
+      const stageStationIds = stageModel.groups
+        .flatMap((g) => g.items)
+        .map((i) => i.station.id);
 
       const navState: NavigationState = {
         totalStages,

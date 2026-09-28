@@ -1,13 +1,60 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 export function KeysHintModal() {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    // Focus into dialog on open (A3)
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable && focusable.length > 0) {
+      focusable[0]?.focus();
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (!dialogRef.current || !focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  const handleClose = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         data-testid="footer-keys-hint-button"
         onClick={() => setOpen((prev) => !prev)}
@@ -24,17 +71,24 @@ export function KeysHintModal() {
         <div
           data-testid="keys-hint-popover"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
-          onClick={() => setOpen(false)}
+          onClick={handleClose}
         >
           <div
-            className="w-full max-w-sm rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-4 shadow-xl text-xs text-[var(--cw-text)] flex flex-col gap-3 select-none"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keys-hint-title"
+            tabIndex={-1}
+            className="w-full max-w-sm rounded-xl border border-[var(--cw-border)] bg-[var(--cw-surface)] p-4 shadow-xl text-xs text-[var(--cw-text)] flex flex-col gap-3 select-none outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[var(--cw-border)] pb-2">
-              <span className="font-semibold text-sm">Keyboard Shortcuts</span>
+              <span id="keys-hint-title" className="font-semibold text-sm">
+                Keyboard Shortcuts
+              </span>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
                 className="text-[var(--cw-text-muted)] hover:text-[var(--cw-text)] p-1 rounded hover:bg-black/5 cursor-pointer leading-none text-base"
                 aria-label="Close shortcuts"
               >
