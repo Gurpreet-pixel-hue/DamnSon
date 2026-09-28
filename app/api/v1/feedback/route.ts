@@ -1,19 +1,16 @@
 import type { NextRequest } from "next/server";
 import { feedbackRequestSchema } from "@/lib/contract/api";
 import { getPrisma } from "@/lib/server/db/client";
-import { jsonError, jsonOk, requestId } from "@/lib/server/http";
+import { jsonError, jsonOk, readJsonBody, requestId } from "@/lib/server/http";
 import { clientIp, consume, ipHash } from "@/lib/server/rateLimit";
 
 /** POST /api/v1/feedback — report a problem or request a procedure (§5 F13, §10.1). */
 export async function POST(request: NextRequest): Promise<Response> {
   const id = requestId(request);
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return jsonError("invalid_json", "The request body is not valid JSON.", 400, { requestId: id });
-  }
+  const incoming = await readJsonBody(request, { requestId: id });
+  if (!incoming.ok) return incoming.response;
+  const raw = incoming.value;
 
   const parsed = feedbackRequestSchema.safeParse(raw);
   if (!parsed.success) {

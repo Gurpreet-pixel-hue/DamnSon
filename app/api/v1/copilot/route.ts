@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { copilotRequestSchema, copilotResponseSchema } from "@/lib/contract/api";
 import { composeJourney, type ComposedStep } from "@/lib/contract/compose";
 import { isOfficialUrl } from "@/lib/contract/officialSources";
-import { jsonError, jsonOk, requestId } from "@/lib/server/http";
+import { jsonError, jsonOk, readJsonBody, requestId } from "@/lib/server/http";
 import { copilotViaIntelligence, type IntelligenceCopilotReply } from "@/lib/server/intelligence";
 import { getJourneyRepository } from "@/lib/server/journeys";
 import { clientIp, consume, ipHash } from "@/lib/server/rateLimit";
@@ -63,12 +63,9 @@ function officialCitations(reply: IntelligenceCopilotReply): CopilotResponse["ci
 export async function POST(request: NextRequest): Promise<Response> {
   const id = requestId(request);
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return jsonError("invalid_json", "The request body is not valid JSON.", 400, { requestId: id });
-  }
+  const incoming = await readJsonBody(request, { requestId: id });
+  if (!incoming.ok) return incoming.response;
+  const raw = incoming.value;
 
   const parsed = copilotRequestSchema.safeParse(raw);
   if (!parsed.success) {
