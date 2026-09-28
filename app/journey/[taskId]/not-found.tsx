@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getJourneyRepository } from "@/lib/server/journeys";
+import type { TemplateSummary } from "@/lib/contract/api";
 
 export const metadata = {
   title: "Journey Not Found",
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default async function JourneyNotFound() {
   const repo = getJourneyRepository();
-  let templates = [];
+  let templates: TemplateSummary[] = [];
   try {
     templates = await repo.listTemplates();
   } catch {

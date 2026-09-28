@@ -108,7 +108,9 @@ export default async function Image({
 
   const summary = templates.find((t) => t.taskId === taskId);
   const title = res.data.published.template.title;
-  const stepCount = summary?.stepCount ?? res.data.published.journey.steps.length;
+  const stepCount =
+    summary?.stepCount ??
+    res.data.published.modules.reduce((acc, m) => acc + m.steps.length, 0);
   const verifiedCount = summary?.verifiedStepCount ?? 0;
   const jurisdiction = res.data.published.template.jurisdiction.city
     ? `${res.data.published.template.jurisdiction.city}, ${res.data.published.template.jurisdiction.state}`

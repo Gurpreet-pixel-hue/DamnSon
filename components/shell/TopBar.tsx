@@ -30,8 +30,8 @@ export function TopBar({
   const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const facts = useTaskStore((s) => s.facts[template.taskId] ?? {});
-  const completed = useTaskStore((s) => s.completed[template.taskId] ?? []);
+  const facts = useTaskStore((s) => s.factsByTask[template.taskId] ?? {});
+  const completed = useTaskStore((s) => s.completedByTask[template.taskId] ?? []);
 
   const printUrl = useMemo(() => {
     const query = encodeShareState({

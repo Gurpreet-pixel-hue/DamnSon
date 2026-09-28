@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import gsap from "gsap";
-import { useGLTF } from "@react-three/drei";
 import { STRAIGHT_LINE_PATH, TANGLED_PATH, STATION_DOTS } from "./paths";
 
 export interface IntroSequenceProps {
@@ -11,6 +16,9 @@ export interface IntroSequenceProps {
 
 const STORAGE_KEY = "cw-intro-seen";
 const WORDS = ["FORMS.", "FEES.", "OFFICES.", "QUEUES."];
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export function IntroSequence({ onComplete }: IntroSequenceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,12 +33,23 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
   const progressLineRef = useRef<HTMLDivElement>(null);
 
   const [isPreloading, setIsPreloading] = useState(false);
+  const [reducedMotion] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const isDoneRef = useRef(false);
+  const preloadRef = useRef<Promise<unknown> | null>(null);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const finish = useCallback(() => {
     if (isDoneRef.current) return;
     isDoneRef.current = true;
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
     try {
       sessionStorage.setItem(STORAGE_KEY, "1");
     } catch {
@@ -42,16 +61,54 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
     if (containerRef.current) {
       gsap.to(containerRef.current, {
         opacity: 0,
-        duration: 0.25,
+        duration: 0.2,
         ease: "power2.out",
-        onComplete,
+        onComplete: () => {
+          onComplete();
+          // Move focus to search input (§9.2)
+          setTimeout(() => {
+            const input = document.querySelector<HTMLInputElement>(
+              'input[name="query"], input[type="text"], [data-testid="landing-search-input"]'
+            );
+            input?.focus();
+          }, 50);
+        },
       });
     } else {
       onComplete();
+      setTimeout(() => {
+        const input = document.querySelector<HTMLInputElement>(
+          'input[name="query"], input[type="text"], [data-testid="landing-search-input"]'
+        );
+        input?.focus();
+      }, 50);
     }
   }, [onComplete]);
 
+  // Preload GLB assets via fetch without importing three/drei into the intro chunk (§9.2)
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      preloadRef.current = Promise.all([
+        fetch("/models/stations.glb").catch(() => {}),
+        fetch("/models/city.glb").catch(() => {}),
+        fetch("/models/props.glb").catch(() => {}),
+      ]);
+    }
+  }, []);
+
+  // Reduced motion: 600ms static hold with 200ms fade (§9.2)
+  useEffect(() => {
+    if (!reducedMotion) return;
+    const timer = setTimeout(() => {
+      finish();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [reducedMotion, finish]);
+
+  // Full 120 BPM GSAP Timeline for standard motion
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion) return;
+
     // Check session storage or skipIntro query param
     try {
       if (
@@ -62,39 +119,9 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
         return;
       }
     } catch {
-      // Storage unavailable, proceed with playing
+      // Storage unavailable, proceed
     }
 
-    // Trigger Drei GLB preloads asynchronously
-    try {
-      useGLTF.preload("/models/stations.glb");
-      useGLTF.preload("/models/city.glb");
-      useGLTF.preload("/models/props.glb");
-    } catch {
-      // Continue even if WebGL is unavailable
-    }
-
-    // Reduced motion handling (§9.2)
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (prefersReducedMotion) {
-      if (containerRef.current) {
-        gsap.set(containerRef.current, { opacity: 1 });
-        if (brandRef.current) {
-          gsap.set(brandRef.current, { opacity: 1 });
-        }
-        const timer = setTimeout(() => {
-          finish();
-        }, 800);
-        return () => clearTimeout(timer);
-      }
-      onComplete();
-      return;
-    }
-
-    // Full 120 BPM GSAP Timeline (Beat = 0.5s)
     const ctx = gsap.context(() => {
       const line = lineRef.current;
       const tangle = tangleRef.current;
@@ -113,67 +140,79 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
       gsap.set(line, {
         strokeDasharray: lineLength,
         strokeDashoffset: lineLength,
-        opacity: 1,
+        opacity: 0,
       });
       gsap.set(tangle, {
         strokeDasharray: tangleLength,
         strokeDashoffset: tangleLength,
         opacity: 0,
       });
-      gsap.set(dots, { scale: 0, transformOrigin: "center center" });
+      gsap.set(dots, { scale: 0, opacity: 0, transformOrigin: "center center" });
       gsap.set(words, { opacity: 0, yPercent: 110 });
       if (scramble) gsap.set(scramble, { opacity: 0 });
       if (brand) gsap.set(brand, { opacity: 0 });
 
       const tl = gsap.timeline({
         onComplete: () => {
-          // Slow load check at beat 9 (4.5s)
-          setIsPreloading(true);
-          // Auto advance after at most 3s if holding
+          // Slow load check at beat 9 (~4.2s): hold only while preload is still pending, capped at 1.5s (§9.2)
+          let resolved = false;
+          preloadRef.current
+            ?.then(() => {
+              resolved = true;
+              finish();
+            })
+            .catch(() => {
+              resolved = true;
+              finish();
+            });
+
+          // If not resolved immediately, show progress bar and set cap
           setTimeout(() => {
-            finish();
-          }, 2000);
+            if (!resolved && !isDoneRef.current) {
+              setIsPreloading(true);
+              holdTimerRef.current = setTimeout(() => {
+                finish();
+              }, 1500);
+            }
+          }, 50);
         },
       });
       tlRef.current = tl;
 
-      // 1. b0–b1: Line draws left to right, 3 dots pop
+      // 1. b0–b1 (0.0s - 0.5s): Transit line draws left to right, 3 dots pop
+      tl.set(line, { opacity: 1 }, 0.05);
       tl.to(
         line,
         {
           strokeDashoffset: 0,
-          duration: 0.5,
+          duration: 0.45,
           ease: "power2.inOut",
         },
-        0.1
+        0.05
       );
 
       tl.to(
         dots,
         {
           scale: 1,
-          duration: 0.35,
+          opacity: 1,
+          duration: 0.3,
           ease: "back.out(3)",
-          stagger: 0.08,
+          stagger: 0.07,
         },
-        0.35
+        0.25
       );
 
-      // 2. b1–b5: Four words hit, one per beat (beat = 0.5s)
+      // 2. b1–b5 (0.5s - 2.5s): Four words hit, one per beat (beat = 0.5s)
       WORDS.forEach((_, idx) => {
         const wordEl = words[idx];
         if (!wordEl) return;
         const startTime = 0.5 + idx * 0.5;
 
-        // In: Characters move up with stagger
         const chars = wordEl.querySelectorAll(".intro-char");
-        tl.fromTo(
-          wordEl,
-          { opacity: 0 },
-          { opacity: 1, duration: 0.05 },
-          startTime
-        );
+        tl.set(wordEl, { opacity: 1 }, startTime);
 
+        // In: Characters move up with stagger
         tl.fromTo(
           chars,
           { yPercent: 110, rotationX: -80 },
@@ -185,6 +224,22 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
             stagger: 0.02,
           },
           startTime
+        );
+
+        // 2-frame RGB split hit accent (-4px brand / +4px available per §9.2), then cleared
+        tl.set(
+          wordEl,
+          {
+            textShadow: "-4px 0 var(--cw-brand), 4px 0 var(--cw-available)",
+          },
+          startTime
+        );
+        tl.set(
+          wordEl,
+          {
+            textShadow: "none",
+          },
+          startTime + 0.04
         );
 
         // Transit line jolts 8px
@@ -208,7 +263,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
               skewX: 12,
               filter: "blur(8px)",
               opacity: 0,
-              duration: 0.15,
+              duration: 0.12,
               ease: "power2.in",
             },
             startTime + 0.38
@@ -228,7 +283,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
             rotation: () => (Math.random() - 0.5) * 180,
             opacity: 0,
             filter: "blur(6px)",
-            duration: 0.4,
+            duration: 0.35,
             ease: "power3.out",
           },
           2.5
@@ -251,31 +306,31 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
 
       // 4. b6–b7 (3.0s - 3.5s): Scramble text resolves to "IN ORDER." and maze straightens
       if (scramble) {
-        tl.set(scramble, { opacity: 1 }, 3.0);
+        tl.to(scramble, { opacity: 1, duration: 0.1 }, 3.0);
         // Crossfade tangle to straight line
         tl.to(
           tangle,
           {
             strokeDashoffset: tangleLength,
             opacity: 0,
-            duration: 0.5,
+            duration: 0.45,
             ease: "power2.inOut",
           },
-          3.0
+          3.05
         );
-        tl.set(line, { y: 0, opacity: 1 }, 3.0);
+        tl.set(line, { y: 0, opacity: 1 }, 3.05);
         tl.fromTo(
           line,
           { strokeDashoffset: -lineLength },
-          { strokeDashoffset: 0, duration: 0.5, ease: "power2.out" },
-          3.0
+          { strokeDashoffset: 0, duration: 0.45, ease: "power2.out" },
+          3.05
         );
       }
 
-      // 5. b7–b9 (3.5s - 4.5s): Wordmark rises, tagline fades up
+      // 5. b7–b8.5 (3.5s - 4.2s): Wordmark rises, tagline fades up
       if (brand && brandWordmark && brandTagline) {
         if (scramble) {
-          tl.to(scramble, { opacity: 0, duration: 0.2 }, 3.5);
+          tl.to(scramble, { opacity: 0, duration: 0.15 }, 3.5);
         }
         tl.set(brand, { opacity: 1 }, 3.5);
         const brandChars = brandWordmark.querySelectorAll(".brand-char");
@@ -285,8 +340,8 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
           {
             yPercent: 0,
             opacity: 1,
-            duration: 0.45,
-            stagger: 0.03,
+            duration: 0.4,
+            stagger: 0.025,
             ease: "expo.out",
           },
           3.5
@@ -294,8 +349,8 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
         tl.fromTo(
           brandTagline,
           { opacity: 0, y: 8 },
-          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
-          3.8
+          { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" },
+          3.75
         );
       }
     }, containerRef);
@@ -309,16 +364,57 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
 
     return () => {
       ctx.revert();
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+      }
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("click", handleClick);
     };
-  }, [finish, onComplete]);
+  }, [reducedMotion, finish, onComplete]);
+
+  // If reduced motion is preferred, render dedicated static frame (brand + tagline only, §9.2)
+  if (reducedMotion) {
+    return (
+      <div
+        ref={containerRef}
+        data-testid="intro-sequence"
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--cw-background)] text-[var(--cw-text)] select-none overflow-hidden"
+      >
+        <h1 className="sr-only">CivicWeave: your city, in order</h1>
+        <button
+          type="button"
+          data-testid="skip-intro-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            finish();
+          }}
+          className="absolute top-6 right-6 z-10 px-3.5 py-1.5 rounded-full border border-[var(--cw-border)] bg-[var(--cw-surface)] text-xs font-semibold text-[var(--cw-text-muted)] hover:text-[var(--cw-text)] hover:border-[var(--cw-text)] transition-colors cursor-pointer"
+        >
+          Skip intro
+        </button>
+        <div className="flex flex-col items-center justify-center text-center gap-2">
+          <h2
+            className="text-6xl sm:text-8xl md:text-9xl font-extrabold tracking-tighter text-[var(--cw-text)]"
+            style={{
+              fontFamily: "var(--font-geist-sans), sans-serif",
+              letterSpacing: "-0.05em",
+            }}
+          >
+            CivicWeave
+          </h2>
+          <p className="text-base sm:text-lg md:text-xl font-medium uppercase tracking-widest text-[var(--cw-text-muted)]">
+            Your city. In order.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={containerRef}
       data-testid="intro-sequence"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--cw-background)] text-[var(--cw-text)] select-none overflow-hidden"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--cw-background)] text-[var(--cw-text)] select-none overflow-hidden opacity-100"
     >
       <h1 className="sr-only">CivicWeave: your city, in order</h1>
 
@@ -336,8 +432,14 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
       </button>
 
       {/* SVG Transit Line Canvas */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
-        <svg viewBox="0 0 1000 500" className="w-full max-w-4xl h-auto overflow-visible">
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 1000 500"
+          className="w-full max-w-4xl h-auto overflow-visible"
+        >
           {/* Tangled Maze Path */}
           <path
             ref={tangleRef}
@@ -347,6 +449,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
             strokeWidth="5"
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={{ opacity: 0 }}
           />
 
           {/* Straight Transit Line */}
@@ -357,6 +460,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
             stroke="var(--cw-available)"
             strokeWidth="6"
             strokeLinecap="round"
+            style={{ opacity: 0 }}
           />
 
           {/* Station Dots */}
@@ -372,13 +476,17 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
               fill="var(--cw-available)"
               stroke="var(--cw-background)"
               strokeWidth="3"
+              style={{ opacity: 0 }}
             />
           ))}
         </svg>
       </div>
 
       {/* Hit Words Container */}
-      <div className="relative z-10 flex items-center justify-center pointer-events-none" aria-hidden="true">
+      <div
+        className="relative z-10 flex items-center justify-center pointer-events-none"
+        aria-hidden="true"
+      >
         {WORDS.map((word, idx) => (
           <div
             key={word}
@@ -389,8 +497,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
             style={{
               fontFamily: "var(--font-geist-sans), sans-serif",
               letterSpacing: "-0.04em",
-              textShadow:
-                "-3px 0 var(--cw-brand), 3px 0 var(--cw-available)",
+              opacity: 0,
             }}
           >
             {word.split("").map((c, cIdx) => (
@@ -408,6 +515,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
           style={{
             fontFamily: "var(--font-geist-sans), sans-serif",
             letterSpacing: "-0.04em",
+            opacity: 0,
           }}
         >
           IN ORDER.
@@ -417,6 +525,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
         <div
           ref={brandRef}
           className="flex flex-col items-center justify-center text-center gap-2"
+          style={{ opacity: 0 }}
         >
           <h2
             ref={brandWordmarkRef}
@@ -435,6 +544,7 @@ export function IntroSequence({ onComplete }: IntroSequenceProps) {
           <p
             ref={brandTaglineRef}
             className="text-base sm:text-lg md:text-xl font-medium uppercase tracking-widest text-[var(--cw-text-muted)]"
+            style={{ opacity: 0 }}
           >
             Your city. In order.
           </p>

@@ -110,7 +110,7 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
 
   // Derive date range from step sources / lastVerified if present (A6)
   const verifiedDates = orderedSteps
-    .flatMap((s) => s.sources)
+    .flatMap((s) => (s.kind !== "milestone" ? s.sources : []))
     .map((src) => src.retrievedOn)
     .filter(Boolean)
     .sort();

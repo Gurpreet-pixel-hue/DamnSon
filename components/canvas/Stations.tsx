@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -14,6 +14,7 @@ import {
 import { PALETTE } from "./palette";
 import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
+import { useViewStore } from "@/lib/store/useViewStore";
 import { buildStageTrayModel } from "@/lib/graph/stageTray";
 import type { ComposedJourney } from "@/lib/contract/compose";
 
@@ -645,16 +646,22 @@ export function Stations({ stations, journey }: StationsProps) {
   const focusedStepId = useViewStore((s) => s.focusedStepId);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
 
+  const requestHover = useCallback(
+    (id: string | null) => useViewStore.getState().setHoveredStepId(id),
+    []
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
     if (!isDebug) return;
-    if (!window.__cwDebug) {
-      window.__cwDebug = {};
+    const win = window as unknown as { __cwDebug?: Record<string, unknown> };
+    if (!win.__cwDebug) {
+      win.__cwDebug = {};
     }
     const currentId = focusedStepId || selectedStepId;
     const item = bigStageStations.find((it) => it.station.id === currentId);
-    window.__cwDebug.selectedMarker = item ? item.numberLabel : null;
+    win.__cwDebug.selectedMarker = item ? item.numberLabel : null;
   }, [focusedStepId, selectedStepId, bigStageStations]);
 
   useEffect(() => {

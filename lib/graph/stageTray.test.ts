@@ -198,7 +198,7 @@ describe("buildStageTrayModel (§12.3)", () => {
       id: "unknown.step",
       title: "Unknown Step",
       kind: "government",
-      officeType: "tax_office",
+      officeType: "revenue_office",
       mode: "online",
       state: "available",
       applicability: "applies",
