@@ -129,11 +129,16 @@ describe("buildStageTrayModel (§12.3)", () => {
     ],
   };
 
-  it("groups rows by module in template order with stable 4.1...4.N numbers", () => {
+  it("groups rows by module in template order with stable 4.1...4.N numbers and honest fees", () => {
     const model = buildStageTrayModel({
       metro: mockMetro,
       stageNumber: 4,
       journey: mockJourney as ComposedJourney,
+      moduleTitles: {
+        "mca-spice-plus": "MCA SPICe+",
+        "mh-professional-tax": "Professional Tax",
+        fssai: "FSSAI",
+      },
     });
 
     expect(model.stageNumber).toBe(4);
@@ -148,13 +153,13 @@ describe("buildStageTrayModel (§12.3)", () => {
     expect(model.groups[1]?.moduleTitle).toBe("Professional Tax");
     expect(model.groups[1]?.items.length).toBe(2);
     expect(model.groups[1]?.items[0]?.numberLabel).toBe("4.2");
-    expect(model.groups[1]?.items[0]?.feeHint).toBe("₹2,500");
+    expect(model.groups[1]?.items[0]?.feeHint).toBe("₹2,500 / year");
     expect(model.groups[1]?.items[1]?.numberLabel).toBe("4.3");
 
     expect(model.groups[2]?.moduleTitle).toBe("FSSAI");
     expect(model.groups[2]?.items.length).toBe(1);
     expect(model.groups[2]?.items[0]?.numberLabel).toBe("4.4");
-    expect(model.groups[2]?.items[0]?.feeHint).toBe("₹100–₹7,500");
+    expect(model.groups[2]?.items[0]?.feeHint).toBe("₹100–₹7,500 / year");
   });
 
   it("calculates filter counts accurately and filters without altering base numbering", () => {
@@ -186,5 +191,26 @@ describe("buildStageTrayModel (§12.3)", () => {
     expect(modelInPerson.groups[0]?.items.length).toBe(1);
     // Numbering remains stable: it's still 4.3!
     expect(modelInPerson.groups[0]?.items[0]?.numberLabel).toBe("4.3");
+  });
+
+  it("returns 'Fee: not verified' when step or fee is missing", () => {
+    const stationWithoutStep: StationVM = {
+      id: "unknown.step",
+      title: "Unknown Step",
+      kind: "government",
+      officeType: "tax_office",
+      mode: "online",
+      state: "available",
+      applicability: "applies",
+      layer: 3,
+      lane: 0,
+      position3D: [0, 0, 0],
+      position2D: { x: 0, y: 0 },
+    };
+    const model = buildStageTrayModel({
+      metro: { stations: [stationWithoutStep], tracks: [] },
+      stageNumber: 4,
+    });
+    expect(model.allOrderedItems[0]?.feeHint).toBe("Fee: not verified");
   });
 });

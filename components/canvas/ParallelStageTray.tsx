@@ -26,11 +26,12 @@ export function ParallelStageTray({
   const focusedStepId = useViewStore((s) => s.focusedStepId);
   const setFocusedStepId = useViewStore((s) => s.setFocusedStepId);
   const setHoveredStepId = useViewStore((s) => s.setHoveredStepId);
+  const trayFilter = useViewStore((s) => s.trayFilter);
+  const setTrayFilter = useViewStore((s) => s.setTrayFilter);
 
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const selectStep = useTaskStore((s) => s.selectStep);
 
-  const [activeFilter, setActiveFilter] = useState<TrayFilter>("all");
   const [manuallyClosedStage, setManuallyClosedStage] = useState<number | null>(null);
   const [forceExpanded, setForceExpanded] = useState(false);
   const [prevFocusStage, setPrevFocusStage] = useState(focusStage);
@@ -40,7 +41,7 @@ export function ParallelStageTray({
     setPrevFocusStage(focusStage);
     setManuallyClosedStage(null);
     setForceExpanded(false);
-    setActiveFilter("all");
+    setTrayFilter("all");
   }
 
   const model = useMemo(() => {
@@ -49,9 +50,9 @@ export function ParallelStageTray({
       metro,
       stageNumber: focusStage,
       journey,
-      filter: activeFilter,
+      filter: trayFilter,
     });
-  }, [metro, focusStage, journey, activeFilter]);
+  }, [metro, focusStage, journey, trayFilter]);
 
   // Current station index in stage (1-based), computed before any early return
   const currentStationIndex = useMemo(() => {
@@ -127,6 +128,7 @@ export function ParallelStageTray({
   return (
     <aside
       data-testid="parallel-stage-tray"
+      data-selected-row={focusedStepId || selectedStepId || ""}
       aria-label="Parallel stage navigation tray"
       className={`pointer-events-auto absolute top-0 bottom-0 left-0 z-30 w-[300px] bg-[var(--cw-surface)]/95 backdrop-blur-md border-r border-[var(--cw-border)] shadow-xl flex flex-col select-none overflow-hidden ${className}`}
     >
@@ -184,13 +186,13 @@ export function ParallelStageTray({
         {/* Filter chips with counts */}
         <div className="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar">
           {filterButtons.map((btn) => {
-            const isActive = activeFilter === btn.key;
+            const isActive = trayFilter === btn.key;
             return (
               <button
                 key={btn.key}
                 type="button"
                 data-testid={`stage-tray-filter-${btn.key}`}
-                onClick={() => setActiveFilter(btn.key)}
+                onClick={() => setTrayFilter(btn.key)}
                 className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors cursor-pointer ${
                   isActive
                     ? "border-[var(--cw-brand)] bg-[var(--cw-brand)] text-white font-semibold shadow-2xs"
@@ -225,6 +227,13 @@ export function ParallelStageTray({
                 {group.moduleTitle}
               </div>
 
+              {/* Optional subHeader for alternative choices (§12.3, A5) */}
+              {group.subHeader && (
+                <div className="px-2 text-[9px] italic text-[var(--cw-text-muted)]">
+                  {group.subHeader}
+                </div>
+              )}
+
               {/* Step Rows */}
               <div className="flex flex-col gap-1">
                 {group.items.map((item) => {
@@ -235,6 +244,7 @@ export function ParallelStageTray({
                     <div
                       key={item.station.id}
                       data-testid={`stage-tray-row-${item.station.id}`}
+                      data-is-selected={isSelected || isFocused}
                       onClick={() => handleSelectStation(item)}
                       onMouseEnter={() => setHoveredStepId(item.station.id)}
                       onMouseLeave={() => setHoveredStepId(null)}
@@ -264,6 +274,13 @@ export function ParallelStageTray({
                           </span>
                         )}
                       </div>
+
+                      {/* Condition text for conditional / may_apply steps (A5) */}
+                      {item.conditionText && (
+                        <div className="text-[10px] text-[var(--cw-text-muted)] pl-7 italic line-clamp-1">
+                          {item.conditionText}
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-[10px] text-[var(--cw-text-muted)] pl-7">
                         {/* Mode badge */}

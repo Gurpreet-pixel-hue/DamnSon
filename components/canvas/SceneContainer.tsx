@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import type { MetroVM } from "@/lib/graph/viewModel";
+import type { ComposedJourney } from "@/lib/contract/compose";
 import { MetroScene } from "./MetroScene";
 import { LabelLayer } from "./labels/LabelLayer";
 import { StageHeaders } from "./StageHeaders";
@@ -12,6 +13,7 @@ import { PALETTE } from "./palette";
 
 interface SceneContainerProps {
   metro: MetroVM;
+  journey?: ComposedJourney | null;
 }
 
 function checkWebGLSupport(): boolean {
@@ -36,7 +38,7 @@ function checkWebGLSupport(): boolean {
   }
 }
 
-export default function SceneContainer({ metro }: SceneContainerProps) {
+export default function SceneContainer({ metro, journey }: SceneContainerProps) {
   const [dpr, setDpr] = useState<number | [number, number]>([1, 2]);
   const supported = useMemo(() => checkWebGLSupport(), []);
   const setViewMode = useViewStore((s) => s.setViewMode);
@@ -104,6 +106,7 @@ export default function SceneContainer({ metro }: SceneContainerProps) {
       >
         <MetroScene
           metro={metro}
+          journey={journey}
           cardSlotsRef={cardSlotsRef}
           tetherRefs={tetherRefs}
           tooltipRef={tooltipRef}

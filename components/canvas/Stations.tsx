@@ -14,11 +14,12 @@ import {
 import { PALETTE } from "./palette";
 import { HEIGHTS, PLAZA_PAD_CENTER_Y, POLYGON_OFFSETS } from "./heights";
 import { useTaskStore } from "@/lib/store/useTaskStore";
-import { useViewStore, requestHover } from "@/lib/store/useViewStore";
 import { buildStageTrayModel } from "@/lib/graph/stageTray";
+import type { ComposedJourney } from "@/lib/contract/compose";
 
 interface StationsProps {
   stations: StationVM[];
+  journey?: ComposedJourney | null;
 }
 
 const _tempObj = new THREE.Object3D();
@@ -69,7 +70,7 @@ void main() {
 }
 `;
 
-export function Stations({ stations }: StationsProps) {
+export function Stations({ stations, journey }: StationsProps) {
   // Load stations.glb with procedural fallback
   const gltf = useGLTF("/models/stations.glb");
   const fallbackGeometries = useMemo(() => getStationGeometries(), []);
@@ -144,7 +145,7 @@ export function Stations({ stations }: StationsProps) {
 
   const focusStage = useViewStore((s) => s.focusStage);
 
-  // Big parallel stage stations with numbered markers matching tray order (§12.3)
+  // Big parallel stage stations with numbered markers matching tray order (§12.3, A4)
   const bigStageStations = useMemo(() => {
     if (stations.length === 0) return [];
     const targetLayer = focusStage - 1;
@@ -153,35 +154,40 @@ export function Stations({ stations }: StationsProps) {
     const trayModel = buildStageTrayModel({
       metro: { stations, tracks: [] },
       stageNumber: focusStage,
+      journey,
     });
     return trayModel.allOrderedItems;
-  }, [stations, focusStage]);
+  }, [stations, focusStage, journey]);
 
-  // Generate CanvasTexture and instanced plane geometry with aUvOffset for numbered plaza markers (§12.3)
+  // Generate CanvasTexture and instanced plane geometry with aUvOffset for numbered plaza markers (§12.3, A4)
   const { markerTexture, markerGeometry, markerMaterial } = useMemo(() => {
     const count = bigStageStations.length;
     if (count === 0 || typeof document === "undefined") {
       return { markerTexture: null, markerGeometry: null, markerMaterial: null };
     }
 
+    const gridDim = count > 16 ? 8 : 4;
+    const cellUvSize = 1.0 / gridDim;
+    const canvasSize = gridDim * 128;
+
     const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
     const ctx = canvas.getContext("2d");
     if (!ctx) return { markerTexture: null, markerGeometry: null, markerMaterial: null };
 
-    ctx.clearRect(0, 0, 512, 512);
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
 
     const uvOffsets = new Float32Array(count * 2);
 
-    for (let i = 0; i < count && i < 16; i++) {
-      const col = i % 4;
-      const row = Math.floor(i / 4);
+    for (let i = 0; i < count && i < gridDim * gridDim; i++) {
+      const col = i % gridDim;
+      const row = Math.floor(i / gridDim);
       const cx = col * 128 + 64;
       const cy = row * 128 + 64;
 
-      uvOffsets[i * 2] = col * 0.25;
-      uvOffsets[i * 2 + 1] = (3 - row) * 0.25;
+      uvOffsets[i * 2] = col * cellUvSize;
+      uvOffsets[i * 2 + 1] = (gridDim - 1 - row) * cellUvSize;
 
       // Disc background
       ctx.beginPath();
@@ -192,12 +198,13 @@ export function Stations({ stations }: StationsProps) {
       ctx.strokeStyle = "#FFFFFF";
       ctx.stroke();
 
-      // Disc text (e.g. 4.1)
+      // Disc text (e.g. 4.1 or item.numberLabel)
+      const label = bigStageStations[i]?.numberLabel ?? `${focusStage}.${i + 1}`;
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 30px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`${focusStage}.${i + 1}`, cx, cy);
+      ctx.fillText(label, cx, cy);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -223,13 +230,13 @@ export function Stations({ stations }: StationsProps) {
         `#include <uv_vertex>`,
         `#include <uv_vertex>
         #ifdef USE_MAP
-          vMapUv = vMapUv * 0.25 + aUvOffset;
+          vMapUv = vMapUv * ${cellUvSize.toFixed(6)} + aUvOffset;
         #endif`
       );
     };
 
     return { markerTexture: tex, markerGeometry: geom, markerMaterial: mat };
-  }, [bigStageStations.length, focusStage]);
+  }, [bigStageStations, focusStage]);
 
   useEffect(() => {
     return () => {
@@ -635,7 +642,20 @@ export function Stations({ stations }: StationsProps) {
   });
 
   const hoveredStepId = useViewStore((s) => s.hoveredStepId);
+  const focusedStepId = useViewStore((s) => s.focusedStepId);
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
+    if (!isDebug) return;
+    if (!window.__cwDebug) {
+      window.__cwDebug = {};
+    }
+    const currentId = focusedStepId || selectedStepId;
+    const item = bigStageStations.find((it) => it.station.id === currentId);
+    window.__cwDebug.selectedMarker = item ? item.numberLabel : null;
+  }, [focusedStepId, selectedStepId, bigStageStations]);
 
   useEffect(() => {
     document.body.style.cursor = hoveredStepId ? "pointer" : "auto";

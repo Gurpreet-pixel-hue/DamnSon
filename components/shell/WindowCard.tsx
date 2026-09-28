@@ -230,7 +230,7 @@ export function WindowCard({
       {/* Main viewport canvas / flowchart area */}
       <div className="relative flex-1 w-full overflow-hidden bg-[var(--cw-background)]">
         {viewMode === "3d" ? (
-          metro && <SceneContainer metro={metro} />
+          metro && <SceneContainer metro={metro} journey={journey} />
         ) : (
           metro && <FlowchartView metro={metro} />
         )}

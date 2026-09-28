@@ -15,12 +15,14 @@ export interface TrayItem {
   isAvailable: boolean;
   isDone: boolean;
   isMayApply: boolean;
+  conditionText?: string;
 }
 
 export interface TrayGroup {
   moduleId: string;
   moduleTitle: string;
   items: TrayItem[];
+  subHeader?: string;
 }
 
 export interface FilterCounts {
@@ -42,29 +44,9 @@ export interface StageTrayModel {
   activeFilter: TrayFilter;
 }
 
-const KNOWN_MODULE_TITLES: Record<string, string> = {
-  "bank-account": "Bank Current Account",
-  "dpiit-recognition": "DPIIT Startup Recognition",
-  "dsc": "Digital Signature Certificate",
-  "epfo": "EPFO",
-  "esic": "ESIC",
-  "founder-kyc": "Founder KYC",
-  "fssai": "FSSAI",
-  "gst-registration": "GST Registration",
-  "ip-trademark": "Trademark",
-  "mca-spice-plus": "MCA SPICe+",
-  "mcgm-new-water-connection": "MCGM Water Connection",
-  "mh-professional-tax": "Professional Tax",
-  "mh-shops-establishments": "Shops & Establishments",
-  "udyam": "Udyam",
-};
-
 export function getModuleTitle(moduleId: string, moduleTitles?: Record<string, string>): string {
   if (moduleTitles && moduleTitles[moduleId]) {
     return moduleTitles[moduleId]!;
-  }
-  if (KNOWN_MODULE_TITLES[moduleId]) {
-    return KNOWN_MODULE_TITLES[moduleId]!;
   }
   // Fallback: title-case the slug
   return moduleId
@@ -74,11 +56,11 @@ export function getModuleTitle(moduleId: string, moduleTitles?: Record<string, s
 }
 
 /**
- * Derives the fee hint text for a station (§12.3 & honest-tile rules).
+ * Derives the fee hint text for a station (§12.3, A5 & PRD §8.8 honest-tile rules).
  */
 export function deriveFeeHint(station: StationVM, step?: ComposedStep): string {
   if (station.kind === "milestone") return "Free";
-  if (!step || step.kind === "milestone") return "Free";
+  if (!step || step.kind === "milestone") return "Fee: not verified";
 
   const fee = step.fee;
   if (!fee) return "Fee: not verified";
@@ -87,9 +69,13 @@ export function deriveFeeHint(station: StationVM, step?: ComposedStep): string {
     case "free":
       return "Free";
     case "fixed":
-      return formatINR(fee.amountINR);
+      return fee.recurrence === "annual"
+        ? `${formatINR(fee.amountINR)} / year`
+        : formatINR(fee.amountINR);
     case "range":
-      return `${formatINR(fee.minINR)}–${formatINR(fee.maxINR)}`;
+      return fee.recurrence === "annual"
+        ? `${formatINR(fee.minINR)}–${formatINR(fee.maxINR)} / year`
+        : `${formatINR(fee.minINR)}–${formatINR(fee.maxINR)}`;
     case "variable":
       return fee.note ? `Variable: ${fee.note}` : "Variable";
     case "unknown":
@@ -185,6 +171,11 @@ export function buildStageTrayModel(options: BuildStageTrayOptions): StageTrayMo
 
     for (const station of list) {
       const step = stepMap.get(station.id);
+      let conditionText: string | undefined;
+      if (step && step.kind !== "milestone" && step.requirement.kind === "conditional") {
+        conditionText = `Applies if: ${step.requirement.condition}`;
+      }
+
       const item: TrayItem = {
         station,
         numberLabel: `${stageNumber}.${currentIndex}`,
@@ -196,6 +187,7 @@ export function buildStageTrayModel(options: BuildStageTrayOptions): StageTrayMo
         isAvailable: station.state === "available",
         isDone: station.state === "done",
         isMayApply: station.applicability === "may_apply",
+        conditionText,
       };
       allOrderedItems.push(item);
       currentIndex++;
@@ -242,10 +234,12 @@ export function buildStageTrayModel(options: BuildStageTrayOptions): StageTrayMo
   for (const modId of sortedModuleIds) {
     const items = groupMap.get(modId);
     if (items && items.length > 0) {
+      const allMayApply = items.length > 1 && items.every((i) => i.isMayApply);
       groups.push({
         moduleId: modId,
         moduleTitle: getModuleTitle(modId, moduleTitles),
         items,
+        subHeader: allMayApply ? "One of these, depending on your situation" : undefined,
       });
     }
   }
