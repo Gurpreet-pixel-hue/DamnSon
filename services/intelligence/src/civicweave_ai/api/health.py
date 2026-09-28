@@ -21,9 +21,7 @@ async def health_check() -> HealthResponse:
 
     if settings.knowledge_database_url:
         try:
-            async with await psycopg.AsyncConnection.connect(
-                settings.knowledge_database_url, timeout=1
-            ) as conn:
+            async with await psycopg.AsyncConnection.connect(settings.knowledge_database_url, timeout=1) as conn:
                 async with conn.cursor() as cur:
                     await cur.execute("SELECT 1")
                     db_status = "up"
