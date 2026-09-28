@@ -6,12 +6,19 @@ import { loadJourneyPage } from "../loadJourneyPage";
 import { safeCompose } from "@/lib/graph/safeCompose";
 import { analyzeJourney } from "@/lib/contract/analyze";
 import { decodeShareState } from "@/lib/graph/shareState";
-import { formatFees, formatTime, formatOfficeVisits } from "@/lib/graph/summary";
+import { formatOfficeVisits, deriveFeeTile, deriveTimeTile } from "@/lib/graph/summary";
 import { summarizeFees, summarizeTime } from "@/lib/graph/totals";
 import { planOfficeTrips } from "@/lib/graph/trips";
 import { buildStepDrawerModel } from "@/lib/graph/drawerModel";
+import { isOfficialUrl } from "@/lib/contract/officialSources";
 import { PrintButton } from "@/components/hud/PrintButton";
 import type { ComposedStep } from "@/lib/contract/compose";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 
 interface PrintPageProps {
   params: Promise<{ taskId: string }>;
@@ -29,12 +36,12 @@ export async function generateMetadata({
 
   if (result.kind !== "ok") {
     return {
-      title: "Checklist Not Found | CivicWeave",
+      title: "Checklist Not Found",
     };
   }
 
   return {
-    title: `${result.data.published.template.title} — Checklist | CivicWeave`,
+    title: `${result.data.published.template.title} — Checklist`,
     description: `Official procedure checklist for ${result.data.published.template.title}`,
   };
 }
@@ -89,17 +96,28 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
     ? (analysis.order.map((id) => stepMap.get(id)).filter(Boolean) as ComposedStep[])
     : journey.steps;
 
-  // Totals
+  // Totals & Honest Tiles (A7, PRD §8.8)
   const feeSummary = summarizeFees(journey, completedIds);
   const timeSummary = summarizeTime(journey, completedIds);
   const trips = planOfficeTrips(journey);
-  const feesText = formatFees(feeSummary);
-  const timeText = formatTime(timeSummary);
+  const feeTile = deriveFeeTile(feeSummary);
+  const timeTile = deriveTimeTile(timeSummary);
   const officeVisitsText = formatOfficeVisits(trips);
 
   const locationText = template.jurisdiction.city
     ? `${template.jurisdiction.city}, ${template.jurisdiction.state}`
     : template.jurisdiction.state;
+
+  // Derive date range from step sources / lastVerified if present (A6)
+  const verifiedDates = orderedSteps
+    .flatMap((s) => s.sources)
+    .map((src) => src.retrievedOn)
+    .filter(Boolean)
+    .sort();
+  const dateCheckedText =
+    verifiedDates.length > 0
+      ? `Data checked: ${verifiedDates[0]}${verifiedDates[verifiedDates.length - 1] !== verifiedDates[0] ? ` – ${verifiedDates[verifiedDates.length - 1]}` : ""}`
+      : null;
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200">
@@ -140,7 +158,7 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
-                  CivicWeave · Official Municipal Checklist
+                  CivicWeave checklist · not an official document
                 </span>
                 <span className="text-zinc-300">|</span>
                 <span className="text-xs font-semibold text-zinc-600">{locationText}</span>
@@ -150,14 +168,13 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
               </h1>
             </div>
 
-            <div className="shrink-0 text-right print:block">
-              <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
-                Official Procedure
+            {dateCheckedText && (
+              <div className="shrink-0 text-right print:block">
+                <div className="text-[11px] font-mono font-medium text-zinc-600">
+                  {dateCheckedText}
+                </div>
               </div>
-              <div className="text-xs font-mono font-semibold text-zinc-700">
-                Rev {template.revision}
-              </div>
-            </div>
+            )}
           </div>
 
           <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed max-w-3xl">
@@ -179,16 +196,26 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                 Estimated Fee
               </span>
               <span className="text-base font-bold text-zinc-900 mt-0.5">
-                {feesText}
+                {feeTile.value}
               </span>
+              {feeTile.subtext && (
+                <span className="text-[11px] text-zinc-500 mt-0.5">
+                  {feeTile.subtext}
+                </span>
+              )}
             </div>
             <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                 Official Timeline
               </span>
               <span className="text-base font-bold text-zinc-900 mt-0.5">
-                {timeText}
+                {timeTile.value}
               </span>
+              {timeTile.subtext && (
+                <span className="text-[11px] text-zinc-500 mt-0.5">
+                  {timeTile.subtext}
+                </span>
+              )}
             </div>
             <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
@@ -387,11 +414,11 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                     </div>
                   )}
 
-                  {/* Official Forms */}
+                  {/* Forms */}
                   {model.overview.forms.length > 0 && (
                     <div className="flex flex-col gap-2 pt-1">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-700">
-                        Official Forms ({model.overview.forms.length})
+                        Forms ({model.overview.forms.length})
                       </span>
                       <div className="flex flex-col gap-2 text-xs">
                         {model.overview.forms.map((form, fi) => (
@@ -410,8 +437,13 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                               )}
                             </div>
                             {form.url ? (
-                              <div className="text-[11px] font-mono text-zinc-600 break-all select-all">
-                                {form.url}
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-mono text-zinc-600 break-all select-all">
+                                  {form.url}
+                                </span>
+                                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-200/60 text-zinc-700 shrink-0">
+                                  {isOfficialUrl(form.url) ? "Official source" : "Other source"}
+                                </span>
                               </div>
                             ) : (
                               <span className="text-[10px] text-zinc-400 italic">
@@ -424,19 +456,24 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                     </div>
                   )}
 
-                  {/* Official URLs & Sources (Printed in full) */}
+                  {/* Online Portals & References */}
                   {(model.overview.portal?.url || model.sources.sources.length > 0) && (
                     <div className="flex flex-col gap-2 pt-2 border-t border-zinc-200/80">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-700">
-                        Official Online Portals & References
+                        Online Portals & References
                       </span>
 
                       {/* Application Portal */}
                       {model.overview.portal?.url && (
                         <div className="p-2.5 rounded-lg border border-zinc-200 bg-zinc-50/50 flex flex-col gap-0.5 text-xs">
-                          <span className="font-semibold text-zinc-800">
-                            {model.overview.portal.name || "Application Portal"}
-                          </span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-zinc-800">
+                              {model.overview.portal.name || "Application Portal"}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-200/60 text-zinc-700 shrink-0">
+                              {isOfficialUrl(model.overview.portal.url) ? "Official source" : "Other source"}
+                            </span>
+                          </div>
                           <span className="text-[11px] font-mono text-zinc-700 break-all select-all">
                             {model.overview.portal.url}
                           </span>
@@ -453,9 +490,14 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
                             <span className="font-semibold text-zinc-800">
                               {src.title}
                             </span>
-                            <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-200/60 text-zinc-700">
-                              {src.kindLabel}
-                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-200/60 text-zinc-700">
+                                {isOfficialUrl(src.url) ? "Official source" : "Other source"}
+                              </span>
+                              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-200/60 text-zinc-700">
+                                {src.kindLabel}
+                              </span>
+                            </div>
                           </div>
                           <span className="text-[11px] font-mono text-zinc-700 break-all select-all">
                             {src.url}
@@ -493,12 +535,17 @@ export default async function JourneyPrintPage({ params, searchParams }: PrintPa
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-zinc-300 pt-6 mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <div>
-            CivicWeave · Open Civic Intelligence Platform · {locationText}
+        <footer className="border-t border-zinc-300 pt-6 mt-6 flex flex-col gap-2 text-xs text-zinc-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              CivicWeave · Open Civic Intelligence Platform · {locationText}
+            </div>
+            <div className="font-mono text-[10px]">
+              {siteUrl} · {template.taskId}
+            </div>
           </div>
-          <div className="font-mono text-[10px]">
-            civicweave.gov.in · {template.taskId}
+          <div className="text-[11px] text-zinc-400 text-center sm:text-left">
+            Fees, forms and timelines change. Check each official source before you act.
           </div>
         </footer>
       </main>

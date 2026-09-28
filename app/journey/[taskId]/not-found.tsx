@@ -2,13 +2,18 @@ import Link from "next/link";
 import { getJourneyRepository } from "@/lib/server/journeys";
 
 export const metadata = {
-  title: "Journey Not Found | CivicWeave",
+  title: "Journey Not Found",
   description: "The requested civic journey was not found.",
 };
 
 export default async function JourneyNotFound() {
   const repo = getJourneyRepository();
-  const templates = await repo.listTemplates();
+  let templates = [];
+  try {
+    templates = await repo.listTemplates();
+  } catch {
+    templates = [];
+  }
 
   return (
     <main

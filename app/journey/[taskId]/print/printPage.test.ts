@@ -110,7 +110,7 @@ vi.mock("@/lib/server/journeys", () => ({
 describe("JourneyPrintPage (E3)", () => {
   it("generates correct metadata", async () => {
     const meta = await generateMetadata({ params: Promise.resolve({ taskId: "test-task" }) });
-    expect(meta.title).toBe("Test Business Registration — Checklist | CivicWeave");
+    expect(meta.title).toBe("Test Business Registration — Checklist");
     expect(meta.description).toContain("Official procedure checklist");
   });
 

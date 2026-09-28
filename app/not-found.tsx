@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getJourneyRepository } from "@/lib/server/journeys";
 
 export const metadata = {
-  title: "404 - Page Not Found | CivicWeave",
+  title: "404 - Page Not Found",
   description: "The requested civic route or page was not found.",
 };
 

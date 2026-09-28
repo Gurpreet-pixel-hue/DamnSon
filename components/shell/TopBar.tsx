@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { JourneyTemplate } from "@/lib/contract/schema";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeProgressCount } from "@/lib/graph/progress";
+import { encodeShareState } from "@/lib/graph/shareState";
+import { useTaskStore } from "@/lib/store/useTaskStore";
 import type { JourneySummaryValues } from "@/components/hud/SummaryBar";
 import { SummaryTile } from "@/components/hud/SummaryBar";
 
@@ -27,6 +29,18 @@ export function TopBar({
 }: TopBarProps) {
   const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const facts = useTaskStore((s) => s.facts[template.taskId] ?? {});
+  const completed = useTaskStore((s) => s.completed[template.taskId] ?? []);
+
+  const printUrl = useMemo(() => {
+    const query = encodeShareState({
+      taskId: template.taskId,
+      facts,
+      completed,
+    });
+    return `/journey/${template.taskId}/print?${query}`;
+  }, [template.taskId, facts, completed]);
 
   const locationText = template.jurisdiction.city
     ? `${template.jurisdiction.city}, ${template.jurisdiction.state}`
@@ -180,7 +194,7 @@ export function TopBar({
       {/* Actions: Print & Share */}
       <div className="shrink-0 flex items-center gap-2">
         <Link
-          href={`/journey/${template.taskId}/print`}
+          href={printUrl}
           target="_blank"
           rel="noopener noreferrer"
           data-testid="print-checklist-button"

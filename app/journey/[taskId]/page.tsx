@@ -20,12 +20,12 @@ export async function generateMetadata({
 
   if (result.kind !== "ok") {
     return {
-      title: "Journey Not Found | CivicWeave",
+      title: "Journey Not Found",
     };
   }
 
   return {
-    title: `${result.data.published.template.title} | CivicWeave`,
+    title: result.data.published.template.title,
     description: result.data.published.template.summary,
   };
 }

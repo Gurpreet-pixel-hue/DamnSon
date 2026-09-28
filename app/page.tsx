@@ -9,7 +9,9 @@ import type { Question } from "@/lib/contract/schema";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "CivicWeave · Your city. In order.",
+  title: {
+    absolute: "CivicWeave · Your city. In order.",
+  },
   description: "Municipal bureaucracy and civic procedure path visualizer.",
 };
 
