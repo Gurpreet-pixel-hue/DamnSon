@@ -15,6 +15,7 @@ import {
   DEFAULT_STAGE_INSETS,
   DRAWER_STAGE_INSETS,
 } from "./camera/frameView";
+import { computeViewportInsets } from "@/lib/graph/viewportInsets";
 
 import { shouldPlayEntrance, consumeArrivedFromLanding } from "./entrance/entranceState";
 
@@ -163,15 +164,18 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
         ? wholeRouteBoundingBox
         : stageBoundingBox;
       const isDrawerOpen = Boolean(useTaskStore.getState().selectedStepId);
+      const activePanel = useViewStore.getState().activePanel;
+      const targetLayer = focusStage - 1;
+      const isBigStage = metro.stations.filter((s) => s.layer === targetLayer).length > 4;
 
-      const baseInsets = isDrawerOpen
-        ? DRAWER_STAGE_INSETS
-        : DEFAULT_STAGE_INSETS;
-
-      const insets = {
-        ...baseInsets,
-        bottom: stepperBottomInset,
-      };
+      const { insets } = computeViewportInsets({
+        viewportWidth: size.width,
+        viewportHeight: size.height,
+        isTrayOpen: isBigStage && !activePanel,
+        activePanel,
+        isDrawerOpen,
+        stepperBottomInset,
+      });
 
       const camera = controls.camera as THREE.PerspectiveCamera;
       const fov = camera?.fov ?? 45;
