@@ -1,0 +1,23 @@
+Query: "{query}"
+Locale: {locale}
+
+Candidates:
+{candidates_text}
+
+Extract intent, check if civic, extract facts (use exact substring for evidence), mention locations, and score candidates 0.0 to 1.0. 
+Important: For facts, use ONLY these keys if applicable:
+- business.entity_type (private_limited, llp, opc, partnership, proprietorship)
+- business.sector (it_saas, food_service, retail, manufacturing, services, other)
+- business.serves_food (true/false)
+- business.imports_or_exports (true/false)
+- company.founders_count (integer)
+- employees.count (integer)
+- premises.type (rented, owned, home, coworking)
+- premises.built_up_area_sqm (number)
+- intent.gst_now (true/false)
+- intent.udyam (true/false)
+- intent.dpiit (true/false)
+- intent.trademark (true/false)
+- applicant.type (owner, tenant, legal_heir, buyer, company)
+
+Respond in JSON.

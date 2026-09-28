@@ -104,10 +104,26 @@ def _build_gazetteer() -> tuple[dict[str, dict[str, Any]], list[str]]:
         city = place.get("city")
         if city and city not in cities:
             cities.append(city)
-        for alias in place.get("aliases", []):
+
+        aliases = place.get("aliases", [])
+        norm_aliases = [_normalize_text(a) for a in aliases]
+
+        for alias in aliases:
             norm = _normalize_text(alias)
-            lookup[norm] = {"state": state, "city": city, "raw": alias}
+            lookup[norm] = {"state": state, "city": city, "aliases": norm_aliases}
     return lookup, cities
+
+
+def _alias_in_query(alias: str, query_norm: str) -> bool:
+    if alias in query_norm:
+        return True
+    if len(alias) >= 4:
+        if alias[:-1] in query_norm:
+            return True
+        if len(alias) >= 5:
+            if alias[:-2] in query_norm:
+                return True
+    return False
 
 
 _GAZETTEER_LOOKUP, _GAZETTEER_CITIES = _build_gazetteer()
@@ -131,18 +147,12 @@ async def search(req: SearchRequest) -> SearchResponse:
     for c in req.candidates:
         candidates_text += f"- taskId: {c.taskId}\n  title: {c.title}\n  summary: {c.summary}\n  keywords: {', '.join(c.keywords)}\n\n"
 
-    prompt = f"""
-Query: "{redacted_query}"
-Locale: {req.locale}
-
-Candidates:
-{candidates_text}
-
-Extract intent, check if civic, extract facts (use exact substring for evidence), mention locations, and score candidates 0.0 to 1.0.
-"""
+    with open(Path(__file__).parent.parent / "prompts" / "search_user.txt") as pf:
+        user_prompt_template = pf.read()
+    prompt = user_prompt_template.format(query=redacted_query, locale=req.locale, candidates_text=candidates_text)
 
     messages = [
-        {"role": "system", "content": "You are a civic procedure extraction assistant."},
+        {"role": "system", "content": open(Path(__file__).parent.parent / "prompts" / "search_system.txt").read().strip()},
         {"role": "user", "content": prompt},
     ]
 
@@ -169,12 +179,32 @@ Extract intent, check if civic, extract facts (use exact substring for evidence)
                 facts.append(Fact(fact=ef.key, value=ef.value, evidence=ef.evidence_substring))
 
         # Jurisdiction
+        query_norm = _normalize_text(redacted_query)
         for loc in extracted.locations:
-            norm = _normalize_text(loc)
-            if norm in _GAZETTEER_LOOKUP and norm in _normalize_text(redacted_query):
-                match = _GAZETTEER_LOOKUP[norm]
-                jurisdiction = Jurisdiction(state=match["state"], city=match["city"], matchedText=loc)
-                break
+            norm_loc = _normalize_text(loc)
+
+            # 1. Take LLM proposed location as a hint to find a gazetteer entry
+            candidate_match = None
+            if norm_loc in _GAZETTEER_LOOKUP:
+                candidate_match = _GAZETTEER_LOOKUP[norm_loc]
+            else:
+                # Handle over-specific extractions (e.g. "Andheri East, Mumbai" contains "mumbai")
+                for g_alias, g_match in _GAZETTEER_LOOKUP.items():
+                    if g_alias in norm_loc:
+                        candidate_match = g_match
+                        break
+
+            if candidate_match:
+                # 2. Check if ANY stored alias is a substring of the raw query (with prefix matching for inflection)
+                is_valid = False
+                for g_alias in candidate_match["aliases"]:
+                    if _alias_in_query(g_alias, query_norm):
+                        is_valid = True
+                        break
+
+                if is_valid:
+                    jurisdiction = Jurisdiction(state=candidate_match["state"], city=candidate_match["city"], matchedText=loc)
+                    break
 
         if not extracted.is_civic_procedure:
             notice = "out_of_scope"
