@@ -41,6 +41,7 @@ export function LandingSearch({
   questionsByTaskId,
   onNavigateStart,
 }: LandingSearchProps) {
+  const router = useRouter();
   // true after hydration, false in the server render (keeps Search disabled until handlers exist)
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const [query, setQuery] = useState("");
