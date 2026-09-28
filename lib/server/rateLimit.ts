@@ -30,12 +30,19 @@ export function ipHash(ip: string, now: Date = new Date()): string {
   return createHash("sha256").update(`${effective}:${now.toISOString().slice(0, 10)}:${ip}`).digest("hex");
 }
 
-/** Vercel puts the client IP first in x-forwarded-for. Unknown IPs share one bucket, which is the safe side. */
+/**
+ * Identifies the caller for rate limiting.
+ *
+ * x-real-ip is preferred because the proxy sets it from the actual peer, whereas a client can prepend
+ * its own entry to x-forwarded-for — so trusting the first entry there lets anyone rotate a fake
+ * address and walk past the limit (#10 review). x-forwarded-for is only a fallback for platforms that
+ * do not set x-real-ip. Unknown callers share one bucket, which is the safe side.
+ */
 export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const first = forwarded?.split(",")[0]?.trim();
-  if (first !== undefined && first.length > 0) return first;
-  return request.headers.get("x-real-ip")?.trim() ?? "unknown";
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real !== undefined && real.length > 0) return real;
+  const first = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return first !== undefined && first.length > 0 ? first : "unknown";
 }
 
 export interface RateLimitResult {

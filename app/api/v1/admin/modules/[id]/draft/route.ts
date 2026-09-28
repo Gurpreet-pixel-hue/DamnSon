@@ -4,7 +4,7 @@ import { idSchema } from "@/lib/contract/schema";
 import { saveDraft } from "@/lib/server/admin/modules";
 import { adminErrorResponse } from "@/lib/server/admin/types";
 import { ADMIN_HEADERS, requireAdmin } from "@/lib/server/auth";
-import { jsonError, jsonOk, requestId } from "@/lib/server/http";
+import { jsonError, jsonOk, MAX_ADMIN_BODY_BYTES, readJsonBody, requestId } from "@/lib/server/http";
 
 /** PUT /api/v1/admin/modules/{id}/draft — save the whole module as its draft (F.2, §10.1). */
 export async function PUT(request: NextRequest, ctx: RouteContext<"/api/v1/admin/modules/[id]/draft">): Promise<Response> {
@@ -21,15 +21,14 @@ export async function PUT(request: NextRequest, ctx: RouteContext<"/api/v1/admin
     });
   }
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return jsonError("invalid_json", "The request body is not valid JSON.", 400, {
-      requestId: requestIdValue,
-      headers: ADMIN_HEADERS,
-    });
-  }
+  // A whole module: the MCGM water-connection module is ~26 KB at 11 steps and the schema allows 20.
+  const incoming = await readJsonBody(request, {
+    requestId: requestIdValue,
+    maxBytes: MAX_ADMIN_BODY_BYTES,
+    headers: ADMIN_HEADERS,
+  });
+  if (!incoming.ok) return incoming.response;
+  const raw = incoming.value;
 
   const parsed = saveDraftRequestSchema.safeParse(raw);
   if (!parsed.success) {
