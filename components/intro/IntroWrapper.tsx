@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 
 const STORAGE_KEY = "cw-intro-seen";
@@ -10,31 +10,30 @@ const IntroSequence = dynamic(
   { ssr: false }
 );
 
+const noopSubscribe = () => () => {};
+
+/** Reads once on the client whether the intro should play; the server snapshot is always "don't". */
+function readShouldPlay(): boolean {
+  try {
+    return !(
+      sessionStorage.getItem(STORAGE_KEY) === "1" ||
+      new URLSearchParams(window.location.search).get("skipIntro") === "1"
+    );
+  } catch {
+    return true;
+  }
+}
+
 export function IntroWrapper() {
-  const [mounted, setMounted] = useState(false);
-  const [showIntro, setShowIntro] = useState(false);
+  const shouldPlay = useSyncExternalStore(noopSubscribe, readShouldPlay, () => false);
+  const [dismissed, setDismissed] = useState(false);
+  const showIntro = shouldPlay && !dismissed;
 
-  useEffect(() => {
-    setMounted(true);
-    try {
-      if (
-        sessionStorage.getItem(STORAGE_KEY) === "1" ||
-        new URLSearchParams(window.location.search).get("skipIntro") === "1"
-      ) {
-        setShowIntro(false);
-      } else {
-        setShowIntro(true);
-      }
-    } catch {
-      setShowIntro(true);
-    }
-  }, []);
-
-  if (!mounted || !showIntro) return null;
+  if (!showIntro) return null;
 
   return (
     <React.Suspense fallback={null}>
-      <IntroSequence onComplete={() => setShowIntro(false)} />
+      <IntroSequence onComplete={() => setDismissed(true)} />
     </React.Suspense>
   );
 }

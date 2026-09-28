@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { searchResponseSchema, type TemplateSummary, type SearchResponse } from "@/lib/contract/api";
 import { FACTS, type FactKey, type FactValue } from "@/lib/contract/facts";
@@ -34,13 +34,16 @@ function getEvidenceSnippet(query: string, evidence?: string): string | null {
   return prefix + query.slice(start, end) + suffix;
 }
 
+const noopSubscribe = () => () => {};
+
 export function LandingSearch({
   templates,
   questionsByTaskId,
   onNavigateStart,
 }: LandingSearchProps) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  // true after hydration, false in the server render (keeps Search disabled until handlers exist)
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [isEditingLocation, setIsEditingLocation] = useState(false);
@@ -57,7 +60,6 @@ export function LandingSearch({
   const latestReqIdRef = useRef<number>(0);
 
   useEffect(() => {
-    setMounted(true);
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
