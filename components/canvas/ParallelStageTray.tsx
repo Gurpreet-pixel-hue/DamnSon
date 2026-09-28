@@ -29,6 +29,9 @@ export function ParallelStageTray({
   const trayFilter = useViewStore((s) => s.trayFilter);
   const setTrayFilter = useViewStore((s) => s.setTrayFilter);
 
+  const activePanel = useViewStore((s) => s.activePanel);
+  const setActivePanel = useViewStore((s) => s.setActivePanel);
+
   const selectedStepId = useTaskStore((s) => s.selectedStepId);
   const selectStep = useTaskStore((s) => s.selectStep);
 
@@ -66,9 +69,11 @@ export function ParallelStageTray({
     return null;
   }
 
-  // Collapses to a tab while the drawer is open (§12.3), or if manually closed
+  // Collapses to a tab while the drawer is open or an overlay panel is open, or if manually closed
   const isDrawerOpen = Boolean(selectedStepId);
-  const isCollapsed = (!forceExpanded && isDrawerOpen) || manuallyClosedStage === focusStage;
+  const isCollapsed =
+    (!forceExpanded && (isDrawerOpen || activePanel !== null)) ||
+    manuallyClosedStage === focusStage;
 
   if (isCollapsed) {
     return (
@@ -76,6 +81,9 @@ export function ParallelStageTray({
         type="button"
         data-testid="stage-tray-tab"
         onClick={() => {
+          if (activePanel !== null) {
+            setActivePanel(null);
+          }
           setManuallyClosedStage(null);
           setForceExpanded(true);
         }}
@@ -112,9 +120,7 @@ export function ParallelStageTray({
 
   const handleSelectStation = (item: TrayItem) => {
     setFocusedStepId(item.station.id);
-    if (selectedStepId) {
-      selectStep(item.station.id);
-    }
+    selectStep(item.station.id);
   };
 
   const filterButtons: Array<{ key: TrayFilter; label: string; count: number }> = [

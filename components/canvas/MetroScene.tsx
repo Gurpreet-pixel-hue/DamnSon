@@ -95,6 +95,21 @@ function countSceneMetrics(root: THREE.Object3D): { draws: number; tris: number 
   return { draws, tris };
 }
 
+/** Hooks scene.onAfterRender to read renderer.info right after the scene pass. Returns the undo. */
+function installAfterRenderProbe(
+  target: THREE.Scene,
+  onRead: (calls: number, triangles: number) => void
+): () => void {
+  const previous = target.onAfterRender;
+  target.onAfterRender = function (this: THREE.Scene, renderer, ...rest) {
+    previous.call(this, renderer, ...rest);
+    onRead(renderer.info.render.calls, renderer.info.render.triangles);
+  };
+  return () => {
+    target.onAfterRender = previous;
+  };
+}
+
 function DebugCollector() {
   const { scene } = useThree();
   const lastTraverseRef = useRef(0);
@@ -106,19 +121,21 @@ function DebugCollector() {
   const lastCallsRef = useRef(0);
   const lastTrianglesRef = useRef(0);
 
-  // Priority -1 ensures this runs before rendering passes
+  // Read the counters right after the main scene is drawn. EffectComposer (Bloom) resets
+  // renderer.info itself and then draws a full-screen triangle, so reading gl.info at the start of
+  // the next frame only ever saw that last pass ("1 call, 1 triangle"). scene.onAfterRender fires
+  // for the RenderPass, when the counters hold exactly the scene's own draw calls for this frame.
+  const getThree = useThree((state) => state.get);
+  useEffect(() => {
+    return installAfterRenderProbe(getThree().scene, (calls, triangles) => {
+      if (calls > 0) lastCallsRef.current = calls;
+      if (triangles > 0) lastTrianglesRef.current = triangles;
+    });
+  }, [getThree]);
+
+  // Priority -1 runs before the render, so each frame starts from zero.
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
-
-    // 1. Read previous frame's total calls & triangles from gl.info, then reset
-    const calls = state.gl.info.render.calls;
-    const triangles = state.gl.info.render.triangles;
-    if (calls > 0) {
-      lastCallsRef.current = calls;
-    }
-    if (triangles > 0) {
-      lastTrianglesRef.current = triangles;
-    }
     state.gl.info.reset();
 
     // 2. Calculate FPS

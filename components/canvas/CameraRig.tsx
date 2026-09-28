@@ -200,7 +200,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
       );
     },
     [
-      metro.stations.length,
+      metro.stations,
+      focusStage,
       wholeRouteView,
       wholeRouteBoundingBox,
       stageBoundingBox,
