@@ -303,7 +303,7 @@ export function CityBatches({ plan, stations = [], visibleProps = true }: CityBa
   }, [cityBatchedMesh, propsBatchedMesh, focusStage, wholeRouteView, stations, plan]);
 
   // City rise animation on entrance (§9.4)
-  const { isEntering, getElapsed, getCitySettled } = useEntrance();
+  const { isEntering, getElapsed } = useEntrance();
   const prevSettledRef = useRef(false);
 
   const buildingDistances = useMemo(() => {
@@ -320,10 +320,11 @@ export function CityBatches({ plan, stations = [], visibleProps = true }: CityBa
 
   useFrame(() => {
     if (!cityBatchedMesh) return;
-    const settled = getCitySettled();
+    const entering = isEntering();
     const elapsed = getElapsed();
+    const settled = elapsed >= 1.4;
 
-    if (isEntering && !settled) {
+    if (entering && !settled) {
       prevSettledRef.current = false;
       const { dists, maxDist } = buildingDistances;
       for (let i = 0; i < plan.buildings.length; i++) {

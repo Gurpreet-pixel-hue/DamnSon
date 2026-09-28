@@ -112,7 +112,7 @@ export function StageHeaderProjector({
         }
       }
 
-      scratchVec.set(h.x, 0.57, h.z);
+      scratchVec.set(h.x, h.y ?? 0.57, h.z);
 
       scratchCamToHeader.subVectors(scratchVec, scratchCamPos);
       const isBehind = scratchCamToHeader.dot(scratchCamForward) <= 0;
@@ -131,7 +131,7 @@ export function StageHeaderProjector({
       } else {
         scratchVec.project(camera);
         rawScreenX = scratchVec.x * halfW + halfW;
-        rawScreenY = -scratchVec.y * halfH + halfH;
+        rawScreenY = -scratchVec.y * halfH + halfH - 24;
       }
 
       // Safe area bounds (§12.2)

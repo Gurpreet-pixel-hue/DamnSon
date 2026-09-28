@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import type { MetroVM, StationVM, TrackVM } from "@/lib/graph/viewModel";
 import { PALETTE } from "./palette";
@@ -10,6 +11,7 @@ import { useViewStore } from "@/lib/store/useViewStore";
 import { planCity, type CityPlan } from "./city/planCity";
 import { computeRoutesOnRoads, type RouteOnRoad } from "./city/routeOnRoads";
 import { currentStage } from "@/lib/graph/stages";
+import { useEntrance } from "./entrance/useEntrance";
 
 export interface TrackCurveData {
   track: TrackVM;
@@ -329,6 +331,37 @@ export function Tracks({ metro, plan }: TracksProps) {
       }),
     [criticalPathOn]
   );
+
+  // Route draw animation on entrance (0.4s - 1.2s, §9.4, A13)
+  const { isEntering, getRouteProgress } = useEntrance();
+  const tracksSettledRef = useRef(false);
+
+  useFrame(() => {
+    const entering = isEntering();
+    if (!entering) {
+      if (!tracksSettledRef.current) {
+        tracksSettledRef.current = true;
+        normalGeom.setDrawRange(0, Infinity);
+        doneGeom.setDrawRange(0, Infinity);
+        nextUpGeom.setDrawRange(0, Infinity);
+        criticalGeom.setDrawRange(0, Infinity);
+      }
+      return;
+    }
+
+    tracksSettledRef.current = false;
+    const progress = getRouteProgress();
+
+    const normalCount = normalGeom.index ? normalGeom.index.count : normalGeom.attributes.position?.count ?? 0;
+    const doneCount = doneGeom.index ? doneGeom.index.count : doneGeom.attributes.position?.count ?? 0;
+    const nextUpCount = nextUpGeom.index ? nextUpGeom.index.count : nextUpGeom.attributes.position?.count ?? 0;
+    const criticalCount = criticalGeom.index ? criticalGeom.index.count : criticalGeom.attributes.position?.count ?? 0;
+
+    normalGeom.setDrawRange(0, Math.floor(normalCount * progress));
+    doneGeom.setDrawRange(0, Math.floor(doneCount * progress));
+    nextUpGeom.setDrawRange(0, Math.floor(nextUpCount * progress));
+    criticalGeom.setDrawRange(0, Math.floor(criticalCount * progress));
+  });
 
   return (
     <group>

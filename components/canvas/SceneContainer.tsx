@@ -40,6 +40,7 @@ function checkWebGLSupport(): boolean {
 
 export default function SceneContainer({ metro, journey }: SceneContainerProps) {
   const [dpr, setDpr] = useState<number | [number, number]>([1, 2]);
+  const [sceneReady, setSceneReady] = useState(false);
   const supported = useMemo(() => checkWebGLSupport(), []);
   const setViewMode = useViewStore((s) => s.setViewMode);
   const setWebglFallbackReason = useViewStore((s) => s.setWebglFallbackReason);
@@ -82,7 +83,11 @@ export default function SceneContainer({ metro, journey }: SceneContainerProps) 
         dpr={dpr}
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [20, 22, 25], fov: 28, near: 1, far: 400 }}
-        style={{ background: PALETTE.background }}
+        style={{
+          background: PALETTE.background,
+          opacity: sceneReady ? 1 : 0,
+          transition: "opacity 0.2s ease-out",
+        }}
         gl={{
           antialias: true,
           powerPreference: "high-performance",
@@ -112,6 +117,7 @@ export default function SceneContainer({ metro, journey }: SceneContainerProps) 
           tooltipRef={tooltipRef}
           headerSlotsRef={headerSlotsRef}
           onDprChange={(newDpr) => setDpr(newDpr)}
+          onSceneReady={() => setSceneReady(true)}
         />
       </Canvas>
       <StageHeaders metro={metro} slotsRef={headerSlotsRef} />

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
-import { shouldPlayEntrance, consumeArrivedFromLanding } from "./entranceState";
+import {
+  getEntranceSession,
+  finishEntranceSession,
+} from "./entranceState";
 
 export function easeBackOut(t: number): number {
   const c1 = 1.70158;
@@ -11,42 +14,32 @@ export function easeBackOut(t: number): number {
 }
 
 export interface EntranceController {
-  isEntering: boolean;
+  isEntering: () => boolean;
   getElapsed: () => number;
-  getCitySettled: () => boolean;
-  routeProgress: number;
-  labelsOpacity: number;
+  getCityProgress: (delay: number) => number;
+  getRouteProgress: () => number;
+  getStationProgress: (delay: number) => number;
+  getLabelsOpacity: () => number;
   finishEntrance: () => void;
 }
 
+/**
+ * Pure ref-based entrance controller (§9.4, A13).
+ * Mutates no React state per frame; directly queried by useFrame hooks.
+ */
 export function useEntrance(): EntranceController {
-  const [isEntering, setIsEntering] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const play = shouldPlayEntrance();
-    if (play) {
-      consumeArrivedFromLanding();
-    }
-    return play;
-  });
+  const isEnteringRef = useRef(false);
 
-  const elapsedRef = useRef(0);
-  const citySettledRef = useRef(false);
-  const [routeProgress, setRouteProgress] = useState(() => (isEntering ? 0 : 1));
-  const [labelsOpacity, setLabelsOpacity] = useState(() => (isEntering ? 0 : 1));
-
-  const finishEntrance = useCallback(() => {
-    setIsEntering(false);
-    citySettledRef.current = true;
-    setRouteProgress(1);
-    setLabelsOpacity(1);
-  }, []);
-
-  // Cancel entrance on any user interaction (§9.4)
   useEffect(() => {
-    if (!isEntering) return;
+    const session = getEntranceSession();
+    isEnteringRef.current = session.active;
 
+    if (!session.active) return;
+
+    // User interaction immediately finishes entrance (§9.4)
     const cancel = () => {
-      finishEntrance();
+      finishEntranceSession();
+      isEnteringRef.current = false;
     };
 
     window.addEventListener("pointerdown", cancel, { passive: true });
@@ -58,49 +51,73 @@ export function useEntrance(): EntranceController {
       window.removeEventListener("keydown", cancel);
       window.removeEventListener("wheel", cancel);
     };
-  }, [isEntering, finishEntrance]);
+  }, []);
 
-  useFrame((_, delta) => {
-    if (!isEntering) return;
-
-    // Advance elapsed time
-    elapsedRef.current += delta;
-    const elapsed = elapsedRef.current;
-
-    // 0.4–1.2s: routes draw
-    if (elapsed >= 0.4 && elapsed <= 1.2) {
-      setRouteProgress(Math.min(1, Math.max(0, (elapsed - 0.4) / 0.8)));
-    } else if (elapsed > 1.2 && routeProgress < 1) {
-      setRouteProgress(1);
-    }
-
-    // 1.2–1.6s: labels fade in
-    if (elapsed >= 1.2 && elapsed <= 1.6) {
-      setLabelsOpacity(Math.min(1, Math.max(0, (elapsed - 1.2) / 0.4)));
-    } else if (elapsed > 1.6 && labelsOpacity < 1) {
-      setLabelsOpacity(1);
-    }
-
-    // City settles after 1.4s
-    if (elapsed >= 1.4 && !citySettledRef.current) {
-      citySettledRef.current = true;
-    }
-
-    // Entrance completes at 2.4s
-    if (elapsed >= 2.4) {
-      finishEntrance();
-    }
+  useFrame(() => {
+    const session = getEntranceSession();
+    isEnteringRef.current = session.active;
   });
 
-  const getElapsed = useCallback(() => (isEntering ? elapsedRef.current : 2.4), [isEntering]);
-  const getCitySettled = useCallback(() => citySettledRef.current, []);
+  const isEntering = useCallback(() => {
+    return isEnteringRef.current && getEntranceSession().active;
+  }, []);
+
+  const getElapsed = useCallback(() => {
+    const session = getEntranceSession();
+    if (!session.active) return 2.4;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    return Math.max(0, (now - session.startedAt) / 1000);
+  }, []);
+
+  const getCityProgress = useCallback(
+    (delay: number) => {
+      const session = getEntranceSession();
+      if (!session.active) return 1;
+      const elapsed = getElapsed();
+      return Math.max(0, Math.min(1, (elapsed - delay) / 0.35));
+    },
+    [getElapsed]
+  );
+
+  const getRouteProgress = useCallback(() => {
+    const session = getEntranceSession();
+    if (!session.active) return 1;
+    const elapsed = getElapsed();
+    // 0.4s to 1.2s (0.8s total)
+    return Math.max(0, Math.min(1, (elapsed - 0.4) / 0.8));
+  }, [getElapsed]);
+
+  const getStationProgress = useCallback(
+    (delay: number) => {
+      const session = getEntranceSession();
+      if (!session.active) return 1;
+      const elapsed = getElapsed();
+      // 0.3s to 1.0s with stagger
+      return Math.max(0, Math.min(1, (elapsed - 0.3 - delay) / 0.25));
+    },
+    [getElapsed]
+  );
+
+  const getLabelsOpacity = useCallback(() => {
+    const session = getEntranceSession();
+    if (!session.active) return 1;
+    const elapsed = getElapsed();
+    // 1.2s to 1.6s (0.4s total)
+    return Math.max(0, Math.min(1, (elapsed - 1.2) / 0.4));
+  }, [getElapsed]);
+
+  const finishEntrance = useCallback(() => {
+    finishEntranceSession();
+    isEnteringRef.current = false;
+  }, []);
 
   return {
     isEntering,
     getElapsed,
-    getCitySettled,
-    routeProgress: isEntering ? routeProgress : 1,
-    labelsOpacity: isEntering ? labelsOpacity : 1,
+    getCityProgress,
+    getRouteProgress,
+    getStationProgress,
+    getLabelsOpacity,
     finishEntrance,
   };
 }

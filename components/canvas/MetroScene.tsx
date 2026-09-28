@@ -161,6 +161,7 @@ interface MetroSceneProps {
   tooltipRef?: React.RefObject<HTMLDivElement | null>;
   headerSlotsRef?: React.RefObject<(HTMLDivElement | null)[]>;
   onDprChange?: (dpr: number) => void;
+  onSceneReady?: () => void;
 }
 
 export function MetroScene({
@@ -171,6 +172,7 @@ export function MetroScene({
   tooltipRef,
   headerSlotsRef,
   onDprChange,
+  onSceneReady,
 }: MetroSceneProps) {
   const activeTaskId = useTaskStore((s) => s.activeTaskId);
 
@@ -185,18 +187,32 @@ export function MetroScene({
   // Hook keyboard navigation
   useSceneKeyboard(metro, journey);
 
-  // Shader warm-up before first visible frame (§9.2, D3)
-  const { scene, camera, gl } = useThree();
+  // Shader warm-up before first visible frame with narrow useThree selectors (§9.2, A14)
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
   const warmUpRef = useRef(false);
 
   useEffect(() => {
-    if (!warmUpRef.current && gl && typeof (gl as unknown as { compileAsync?: unknown }).compileAsync === "function") {
+    if (!warmUpRef.current && gl) {
       warmUpRef.current = true;
-      (gl as THREE.WebGLRenderer).compileAsync(scene, camera).catch(() => {
-        // Safe catch for warm-up
-      });
+      if (
+        typeof (gl as unknown as { compileAsync?: unknown }).compileAsync ===
+        "function"
+      ) {
+        (gl as THREE.WebGLRenderer)
+          .compileAsync(scene, camera)
+          .then(() => {
+            onSceneReady?.();
+          })
+          .catch(() => {
+            onSceneReady?.();
+          });
+      } else {
+        onSceneReady?.();
+      }
     }
-  }, [gl, scene, camera]);
+  }, [gl, scene, camera, onSceneReady]);
 
   // Compute deterministic city plan
   const plan = useMemo(() => {

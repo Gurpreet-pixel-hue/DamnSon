@@ -17,6 +17,7 @@ import { useTaskStore } from "@/lib/store/useTaskStore";
 import { useViewStore } from "@/lib/store/useViewStore";
 import { buildStageTrayModel } from "@/lib/graph/stageTray";
 import type { ComposedJourney } from "@/lib/contract/compose";
+import { useEntrance, easeBackOut } from "./entrance/useEntrance";
 
 interface StationsProps {
   stations: StationVM[];
@@ -140,9 +141,10 @@ export function Stations({ stations, journey }: StationsProps) {
   const padMeshRef = useRef<THREE.InstancedMesh>(null);
   const ringMeshRef = useRef<THREE.InstancedMesh>(null);
   const beaconMeshRef = useRef<THREE.InstancedMesh>(null);
-  const hybridMeshRef = useRef<THREE.InstancedMesh>(null);
   const checkDiscMeshRef = useRef<THREE.InstancedMesh>(null);
   const numberedMarkerMeshRef = useRef<THREE.InstancedMesh>(null);
+
+  const { isEntering, getStationProgress } = useEntrance();
 
   const focusStage = useViewStore((s) => s.focusStage);
 
@@ -262,11 +264,6 @@ export function Stations({ stations, journey }: StationsProps) {
     return stations.filter((s) => s.state === "done");
   }, [stations]);
 
-  // Hybrid stations for floating roof screen (§10.5)
-  const hybridStations = useMemo(() => {
-    return stations.filter((s) => s.mode === "hybrid");
-  }, [stations]);
-
   // Geometries for Plaza Pads, Plaza Rings, Beacons, and Check Discs
   const padGeometry = useMemo(() => {
     // E9: Plaza pad (plaza colour, radius 1.6, 0.04 high)
@@ -344,19 +341,6 @@ export function Stations({ stations, journey }: StationsProps) {
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         toneMapped: false,
-      }),
-    []
-  );
-
-  // Floating screen for hybrid stations (§10.5)
-  const hybridScreenGeometry = useMemo(() => new THREE.BoxGeometry(0.8, 0.5, 0.08), []);
-  const hybridScreenMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: PALETTE.available,
-        emissive: PALETTE.available,
-        emissiveIntensity: 0.5,
-        roughness: 0.5,
       }),
     []
   );
@@ -514,9 +498,20 @@ export function Stations({ stations, journey }: StationsProps) {
           key === "online_portal" && !prefersReducedMotion
             ? Math.sin((time * Math.PI * 2) / 3.0) * 0.08
             : 0;
+
+        const maxLayer = Math.max(...stations.map((s) => s.layer), 1);
+        const delay = (station.layer / maxLayer) * 0.45;
+        const entranceScale = isEntering()
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, 0.21 + bob, z);
-        // G3: Stations render at 1.25x scale + unlock pop (§10.7)
-        _tempObj.scale.set(1.25 * popScale, 1.25 * scaleY * popScale, 1.25 * popScale);
+        // G3: Stations render at 1.25x scale + unlock pop (§10.7) + entrance pop (§9.4)
+        _tempObj.scale.set(
+          1.25 * popScale * entranceScale,
+          1.25 * scaleY * popScale * entranceScale,
+          1.25 * popScale * entranceScale
+        );
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -526,6 +521,9 @@ export function Stations({ stations, journey }: StationsProps) {
       mesh.instanceMatrix.needsUpdate = true;
     }
 
+    const maxLayerAll = Math.max(...stations.map((s) => s.layer), 1);
+    const entering = isEntering();
+
     // 1b. Update plaza pads (E9: plaza colour, radius 1.6, 0.04 high)
     const padMesh = padMeshRef.current;
     if (padMesh && stations.length > 0) {
@@ -534,8 +532,13 @@ export function Stations({ stations, journey }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, PLAZA_PAD_CENTER_Y, z); // Pad center at 0.190 -> top is 0.210 (§11.5)
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -552,8 +555,13 @@ export function Stations({ stations, journey }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -571,8 +579,13 @@ export function Stations({ stations, journey }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -582,26 +595,7 @@ export function Stations({ stations, journey }: StationsProps) {
       beaconMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 4. Update hybrid floating roof screens (§10.5)
-    const hybridMesh = hybridMeshRef.current;
-    if (hybridMesh && hybridStations.length > 0) {
-      for (let i = 0; i < hybridStations.length; i++) {
-        const station = hybridStations[i];
-        if (!station) continue;
-
-        const [x, , z] = station.position3D;
-        const bob = !prefersReducedMotion ? Math.sin((time * Math.PI * 2) / 3.0) * 0.05 : 0;
-        _tempObj.position.set(x, 2.75 + bob, z);
-        _tempObj.scale.set(1, 1, 1);
-        _tempObj.rotation.set(0, 0, 0);
-        _tempObj.updateMatrix();
-
-        hybridMesh.setMatrixAt(i, _tempObj.matrix);
-      }
-      hybridMesh.instanceMatrix.needsUpdate = true;
-    }
-
-    // 5. Update done station check discs on the plaza (§11.2)
+    // 4. Update done station check discs on the plaza (§11.2)
     const checkMesh = checkDiscMeshRef.current;
     if (checkMesh && doneStations.length > 0) {
       for (let i = 0; i < doneStations.length; i++) {
@@ -609,8 +603,13 @@ export function Stations({ stations, journey }: StationsProps) {
         if (!station) continue;
 
         const [x, , z] = station.position3D;
+        const delay = (station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z + 0.8);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -619,7 +618,7 @@ export function Stations({ stations, journey }: StationsProps) {
       checkMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // 6. Update numbered plaza markers for big parallel stages (§12.3)
+    // 5. Update numbered plaza markers for big parallel stages (§12.3)
     const markerMesh = numberedMarkerMeshRef.current;
     if (markerMesh && bigStageStations.length > 0) {
       for (let i = 0; i < bigStageStations.length; i++) {
@@ -627,8 +626,13 @@ export function Stations({ stations, journey }: StationsProps) {
         if (!item) continue;
 
         const [x, , z] = item.station.position3D;
+        const delay = (item.station.layer / maxLayerAll) * 0.45;
+        const eScale = entering
+          ? Math.max(0.01, easeBackOut(getStationProgress(delay)))
+          : 1.0;
+
         _tempObj.position.set(x, HEIGHTS.ringsAndDecals, z - 0.7);
-        _tempObj.scale.set(1, 1, 1);
+        _tempObj.scale.set(eScale, eScale, eScale);
         _tempObj.rotation.set(0, 0, 0);
         _tempObj.updateMatrix();
 
@@ -637,7 +641,7 @@ export function Stations({ stations, journey }: StationsProps) {
       markerMesh.instanceMatrix.needsUpdate = true;
     }
 
-    if (allFinished) {
+    if (allFinished && !entering) {
       animDoneRef.current = true;
     }
   });
@@ -801,14 +805,6 @@ export function Stations({ stations, journey }: StationsProps) {
         <instancedMesh
           ref={beaconMeshRef}
           args={[beaconGeometry, beaconMaterial, nextUpStations.length]}
-        />
-      )}
-
-      {/* Instanced Hybrid Roof Screens (§10.5) */}
-      {hybridStations.length > 0 && (
-        <instancedMesh
-          ref={hybridMeshRef}
-          args={[hybridScreenGeometry, hybridScreenMaterial, hybridStations.length]}
         />
       )}
 

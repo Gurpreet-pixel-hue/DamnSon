@@ -19,6 +19,7 @@ import { WindowCard } from "./WindowCard";
 import { RightDrawer } from "./RightDrawer";
 import { UndoToast } from "./UndoToast";
 import { useShareJourney } from "./useShareJourney";
+import { startEntranceSession } from "@/components/canvas/entrance/entranceState";
 
 export interface JourneyShellProps {
   initialBundle: {
@@ -33,10 +34,11 @@ export function JourneyShell({ initialBundle }: JourneyShellProps) {
   const { template, modules } = initialBundle;
   const taskId = template.taskId;
 
-  // Rehydrate store on mount (P3 & C3)
+  // Rehydrate store and initialize entrance session on mount (P3, C3, A13)
   useEffect(() => {
     void useTaskStore.persist.rehydrate();
     useTaskStore.getState().setActiveTask(taskId);
+    startEntranceSession();
   }, [taskId]);
 
   const factsByTask = useTaskStore((s) => s.factsByTask);

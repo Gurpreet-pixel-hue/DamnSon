@@ -17,7 +17,7 @@ import {
 } from "./camera/frameView";
 import { computeViewportInsets } from "@/lib/graph/viewportInsets";
 
-import { shouldPlayEntrance, consumeArrivedFromLanding } from "./entrance/entranceState";
+import { getEntranceSession } from "./entrance/entranceState";
 
 interface CameraRigProps {
   metro: MetroVM;
@@ -216,8 +216,8 @@ export function CameraRig({ metro, boardBounds }: CameraRigProps) {
     if (metro.stations.length > 0 && !initialFittedRef.current) {
       initialFittedRef.current = true;
 
-      if (shouldPlayEntrance()) {
-        consumeArrivedFromLanding();
+      const session = getEntranceSession();
+      if (session.active) {
         const controls = controlsRef.current;
         if (controls) {
           const targetBox = wholeRouteView
