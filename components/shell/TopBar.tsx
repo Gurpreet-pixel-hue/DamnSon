@@ -6,7 +6,7 @@ import type { JourneyTemplate } from "@/lib/contract/schema";
 import type { MetroVM } from "@/lib/graph/viewModel";
 import { computeProgressCount } from "@/lib/graph/progress";
 import { encodeShareState } from "@/lib/graph/shareState";
-import { useTaskStore } from "@/lib/store/useTaskStore";
+import { selectCompleted, selectFacts, useTaskStore } from "@/lib/store/useTaskStore";
 import type { JourneySummaryValues } from "@/components/hud/SummaryBar";
 import { SummaryTile } from "@/components/hud/SummaryBar";
 
@@ -30,8 +30,8 @@ export function TopBar({
   const { total, done } = useMemo(() => computeProgressCount(metro), [metro]);
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const facts = useTaskStore((s) => s.factsByTask[template.taskId] ?? {});
-  const completed = useTaskStore((s) => s.completedByTask[template.taskId] ?? []);
+  const facts = useTaskStore(selectFacts(template.taskId));
+  const completed = useTaskStore(selectCompleted(template.taskId));
 
   const printUrl = useMemo(() => {
     const query = encodeShareState({
