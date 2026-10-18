@@ -40,6 +40,22 @@ export interface TaskState {
   toggleDocumentCheck: (taskId: string, docKey: string) => void;
 }
 
+// Selectors must return the same reference while the store is unchanged, or React's
+// useSyncExternalStore re-renders forever. A journey with no saved state needs a shared fallback,
+// never an inline `?? {}` / `?? []`.
+const EMPTY_FACTS: Facts = {};
+const EMPTY_COMPLETED: string[] = [];
+
+export const selectFacts =
+  (taskId: string) =>
+  (state: TaskState): Facts =>
+    state.factsByTask[taskId] ?? EMPTY_FACTS;
+
+export const selectCompleted =
+  (taskId: string) =>
+  (state: TaskState): string[] =>
+    state.completedByTask[taskId] ?? EMPTY_COMPLETED;
+
 const noopStorage: StateStorage = {
   getItem: () => null,
   setItem: () => {},
