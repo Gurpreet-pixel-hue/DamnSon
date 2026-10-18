@@ -23,6 +23,8 @@ Getting something done in a city, such as registering a business or getting a wa
 
 ![Search results showing the best-matching journey and a personalisation question](docs/screenshots/search.jpg)
 
+![The Start a business in Mumbai journey in the 3D Civic Metro view, with stage navigation and a personalisation question](docs/screenshots/journey.jpg)
+
 ## Published journeys
 
 | Journey | Steps | Verified against an official page |
